@@ -1,0 +1,25 @@
+From d8c03a31e2734e59af43dd50cbd7f5a94d798ab1 Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Tue, 10 Jul 2018 21:18:26 -0700
+Subject: [PATCH] systemd: neard: add multi-user.target to neard.service
+
+Allowing a service to be system level requires a WantedBy= target
+
+Signed-off-by: Matt Ranostay <matt.ranostay@konsulko.com>
+---
+ src/neard.service.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/neard.service.in b/src/neard.service.in
+index dfa238c..540da7e 100644
+--- a/src/neard.service.in
++++ b/src/neard.service.in
+@@ -9,4 +9,5 @@ ExecStart=@pkglibexecdir@/neard -n
+ LimitNPROC=1
+ 
+ [Install]
++WantedBy=multi-user.target
+ Alias=dbus-org.neard.service
+-- 
+2.17.1
+

@@ -1,0 +1,9 @@
+# short-description: Create a 'pcbios' direct disk image
+# long-description: Creates a partitioned legacy BIOS disk image that the user
+# can directly dd to boot media.
+
+part /boot --source bootimg-pcbios --use-uuid --label boot --active --align 1024
+part / --source rootfs --use-uuid --fstype=ext4 --label platform --align 1024
+
+bootloader  --timeout=0  --append="rootwait rootfstype=ext4 ${QB_KERNEL_CMDLINE_APPEND}"
+

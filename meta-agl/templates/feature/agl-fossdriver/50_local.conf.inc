@@ -1,0 +1,1 @@
+INHERIT += "fossdriver-host"

@@ -1,0 +1,127 @@
+From 45a14984163349d8ea4db1463322944e54e7ce54 Mon Sep 17 00:00:00 2001
+From: Dmitry Shifrin <dmitry.shifrin@cogentembedded.com>
+Date: Mon, 19 Nov 2018 20:30:06 +0300
+Subject: [PATCH 070/211] pinctrl: sh-pfc: r8a77980: Add QSPI pins, groups, and
+ functions
+
+Add the QSPI{0|1} pins/groups/functions to the R8A77980 PFC driver.
+
+[Sergei: ported to the upstream driver, fixed up the swapped QSPI0 SPCLK/
+SSL pins, fixed up the comments, moved the QSPI pins/groups/functions to
+be in the alphanumeric order, removed unneeded empty lines, renamed the
+patch.]
+
+Signed-off-by: Dmitry Shifrin <dmitry.shifrin@cogentembedded.com>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+(cherry picked from commit c21b73235e1fa644dcc725078af38e13cdb778fb)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/pinctrl/sh-pfc/pfc-r8a77980.c | 70 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)
+
+diff --git a/drivers/pinctrl/sh-pfc/pfc-r8a77980.c b/drivers/pinctrl/sh-pfc/pfc-r8a77980.c
+index 3f69673..aa1d50b 100644
+--- a/drivers/pinctrl/sh-pfc/pfc-r8a77980.c
++++ b/drivers/pinctrl/sh-pfc/pfc-r8a77980.c
+@@ -1660,6 +1660,56 @@ static const unsigned int pwm4_b_mux[] = {
+ 	PWM4_B_MARK,
+ };
+ 
++/* - QSPI0 ------------------------------------------------------------------ */
++static const unsigned int qspi0_ctrl_pins[] = {
++	/* SPCLK, SSL */
++	RCAR_GP_PIN(5, 0), RCAR_GP_PIN(5, 5),
++};
++static const unsigned int qspi0_ctrl_mux[] = {
++	QSPI0_SPCLK_MARK, QSPI0_SSL_MARK,
++};
++static const unsigned int qspi0_data2_pins[] = {
++	/* MOSI_IO0, MISO_IO1 */
++	RCAR_GP_PIN(5, 1), RCAR_GP_PIN(5, 2),
++};
++static const unsigned int qspi0_data2_mux[] = {
++	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
++};
++static const unsigned int qspi0_data4_pins[] = {
++	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
++	RCAR_GP_PIN(5, 1), RCAR_GP_PIN(5, 2),
++	RCAR_GP_PIN(5, 3), RCAR_GP_PIN(5, 4),
++};
++static const unsigned int qspi0_data4_mux[] = {
++	QSPI0_MOSI_IO0_MARK, QSPI0_MISO_IO1_MARK,
++	QSPI0_IO2_MARK, QSPI0_IO3_MARK
++};
++
++/* - QSPI1 ------------------------------------------------------------------ */
++static const unsigned int qspi1_ctrl_pins[] = {
++	/* SPCLK, SSL */
++	RCAR_GP_PIN(5, 6), RCAR_GP_PIN(5, 11),
++};
++static const unsigned int qspi1_ctrl_mux[] = {
++	QSPI1_SPCLK_MARK, QSPI1_SSL_MARK,
++};
++static const unsigned int qspi1_data2_pins[] = {
++	/* MOSI_IO0, MISO_IO1 */
++	RCAR_GP_PIN(5, 7), RCAR_GP_PIN(5, 8),
++};
++static const unsigned int qspi1_data2_mux[] = {
++	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
++};
++static const unsigned int qspi1_data4_pins[] = {
++	/* MOSI_IO0, MISO_IO1, IO2, IO3 */
++	RCAR_GP_PIN(5, 7), RCAR_GP_PIN(5, 8),
++	RCAR_GP_PIN(5, 9), RCAR_GP_PIN(5, 10),
++};
++static const unsigned int qspi1_data4_mux[] = {
++	QSPI1_MOSI_IO0_MARK, QSPI1_MISO_IO1_MARK,
++	QSPI1_IO2_MARK, QSPI1_IO3_MARK
++};
++
+ /* - SCIF0 ------------------------------------------------------------------ */
+ static const unsigned int scif0_data_pins[] = {
+ 	/* RX0, TX0 */
+@@ -2092,6 +2142,12 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
+ 	SH_PFC_PIN_GROUP(pwm3_b),
+ 	SH_PFC_PIN_GROUP(pwm4_a),
+ 	SH_PFC_PIN_GROUP(pwm4_b),
++	SH_PFC_PIN_GROUP(qspi0_ctrl),
++	SH_PFC_PIN_GROUP(qspi0_data2),
++	SH_PFC_PIN_GROUP(qspi0_data4),
++	SH_PFC_PIN_GROUP(qspi1_ctrl),
++	SH_PFC_PIN_GROUP(qspi1_data2),
++	SH_PFC_PIN_GROUP(qspi1_data4),
+ 	SH_PFC_PIN_GROUP(scif0_data),
+ 	SH_PFC_PIN_GROUP(scif0_clk),
+ 	SH_PFC_PIN_GROUP(scif0_ctrl),
+@@ -2316,6 +2372,18 @@ static const char * const pwm4_groups[] = {
+ 	"pwm4_b",
+ };
+ 
++static const char * const qspi0_groups[] = {
++	"qspi0_ctrl",
++	"qspi0_data2",
++	"qspi0_data4",
++};
++
++static const char * const qspi1_groups[] = {
++	"qspi1_ctrl",
++	"qspi1_data2",
++	"qspi1_data4",
++};
++
+ static const char * const scif0_groups[] = {
+ 	"scif0_data",
+ 	"scif0_clk",
+@@ -2412,6 +2480,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
+ 	SH_PFC_FUNCTION(pwm2),
+ 	SH_PFC_FUNCTION(pwm3),
+ 	SH_PFC_FUNCTION(pwm4),
++	SH_PFC_FUNCTION(qspi0),
++	SH_PFC_FUNCTION(qspi1),
+ 	SH_PFC_FUNCTION(scif0),
+ 	SH_PFC_FUNCTION(scif1),
+ 	SH_PFC_FUNCTION(scif3),
+-- 
+2.7.4
+

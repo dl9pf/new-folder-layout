@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# Copyright 2017 IoT.bzh.
+
+# Author: Ronan Le Martret <ronan.lemartret@iot.bzh>
+#
+
+# The following script will run all the scriptlets found in #SYSCONFDIR#/agl-postinsts.
+
+agl_pi_dir="#SYSCONFDIR#/agl-postinsts"
+
+POSTINST_LOGGING=1
+LOGFILE=/var/log/agl-postinstall.log
+
+[ -e $LOGFILE ] && mv ${LOGFILE} ${LOGFILE}.old.$(date +%F--%H%M.%S)
+
+append_log=">>$LOGFILE 2>&1"
+
+exec_postinst_scriptlets() {
+    for i in `ls $agl_pi_dir`; do
+        i=$agl_pi_dir/$i
+        echo "Running postinst $i..."
+        [ "$POSTINST_LOGGING" = "1" ] && eval echo "Running postinst $i..." $append_log
+        if [ -x $i ]; then
+            eval sh -c $i $append_log
+            if [ $? -eq 0 ]; then
+                rm $i
+            else
+                echo "ERROR: postinst $i failed."
+                [ "$POSTINST_LOGGING" = "1" ] && eval echo "ERROR: postinst $i failed." $append_log
+                remove_agl_pi_dir=0
+            fi
+        else
+            echo "ERROR: postinst $i do not exists or do not have execute permission."
+            [ "$POSTINST_LOGGING" = "1" ] && eval echo "ERROR: postinst $i do not exists or do not have execute permission." $append_log
+            remove_agl_pi_dir=0
+        fi
+    done
+}
+
+remove_agl_pi_dir=1
+exec_postinst_scriptlets
+systemctl daemon-reload
+
+# since all postinstalls executed successfully, remove the postinstalls directory
+if [ $remove_agl_pi_dir = 1 ]; then
+    rm -rf $agl_pi_dir
+fi

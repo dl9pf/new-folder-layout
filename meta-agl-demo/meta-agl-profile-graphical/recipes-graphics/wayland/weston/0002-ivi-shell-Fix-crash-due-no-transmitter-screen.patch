@@ -1,0 +1,264 @@
+From e1fd1c9fc08b9e1b8a2f2d958ce591bb8d256b84 Mon Sep 17 00:00:00 2001
+From: Veeresh Kadasani <external.vkadasani@jp.adit-jv.com>
+Date: Mon, 16 Dec 2019 19:24:15 +0900
+Subject: [PATCH 1/1] ivi-shell: Fix crash due no transmitter screen
+
+Registered the events for the output_created, destroyed,
+resized events.So that the ivi_scrn can be destroyed,
+created dynamically during destroyed and created events.
+And the view properties are dynamically changed during
+resized/moved events.
+
+Signed-off-by: Veeresh Kadasani <external.vkadasani@jp.adit-jv.com>
+---
+ ivi-shell/ivi-layout-private.h |   5 ++
+ ivi-shell/ivi-layout.c         | 154 ++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 140 insertions(+), 19 deletions(-)
+
+diff --git a/ivi-shell/ivi-layout-private.h b/ivi-shell/ivi-layout-private.h
+index c054130..8997edd 100644
+--- a/ivi-shell/ivi-layout-private.h
++++ b/ivi-shell/ivi-layout-private.h
+@@ -113,6 +113,11 @@ struct ivi_layout {
+ 
+ 	struct ivi_layout_transition_set *transitions;
+ 	struct wl_list pending_transition_list;	/* transition_node::link */
++
++	struct wl_listener output_created;
++	struct wl_listener output_destroyed;
++	struct wl_listener output_resized;
++	struct wl_listener output_moved;
+ };
+ 
+ struct ivi_layout *get_instance(void);
+diff --git a/ivi-shell/ivi-layout.c b/ivi-shell/ivi-layout.c
+index 2c450f3..1fbfeeb 100644
+--- a/ivi-shell/ivi-layout.c
++++ b/ivi-shell/ivi-layout.c
+@@ -67,7 +67,7 @@
+ #include "ivi-layout-export.h"
+ #include "ivi-layout-private.h"
+ #include "ivi-layout-shell.h"
+-
++#include <libweston/plugin-registry.h>
+ #include "shared/helpers.h"
+ #include "shared/os-compatibility.h"
+ 
+@@ -259,6 +259,87 @@ ivi_layout_surface_destroy(struct ivi_layout_surface *ivisurf)
+ 	free(ivisurf);
+ }
+ 
++
++static void
++destroy_screen(struct ivi_layout_screen *iviscrn)
++{
++	struct ivi_layout_layer *ivilayer;
++	struct ivi_layout_layer *next;
++
++	/*we need to remove the layers from pending and order lists
++	 *otherwise the memory will be corrupted during the
++	 *wl_list_remove of pending.link or order.link from
++	 *ivi_layout_screen_add_layer() or commit_screen_list()
++	 *and on_screen has to be set as NULL otherwise the commit_changes()
++	 *API will try to refer the freed iviscrn*/
++	wl_list_for_each_safe(ivilayer, next, &iviscrn->pending.layer_list, pending.link) {
++		wl_list_remove(&ivilayer->pending.link);
++		wl_list_init(&ivilayer->pending.link);
++		ivilayer->on_screen = NULL;
++	}
++
++	wl_list_for_each_safe(ivilayer, next, &iviscrn->order.layer_list, order.link) {
++		wl_list_remove(&ivilayer->order.link);
++		wl_list_init(&ivilayer->order.link);
++		ivilayer->on_screen = NULL;
++	}
++
++	wl_list_init(&iviscrn->pending.layer_list);
++	wl_list_init(&iviscrn->order.layer_list);
++
++	wl_list_remove(&iviscrn->link);
++	free(iviscrn);
++}
++
++static void
++output_destroyed_event(struct wl_listener *listener, void *data)
++{
++	struct ivi_layout *layout =
++			wl_container_of(listener, layout, output_destroyed);
++	struct ivi_layout_screen *iviscrn = NULL;
++	struct ivi_layout_screen *next = NULL;
++	struct weston_output *destroyed_output = (struct weston_output*)data;
++
++	wl_list_for_each_safe(iviscrn, next, &layout->screen_list, link) {
++		if (iviscrn->output == destroyed_output) {
++			destroy_screen(iviscrn);
++		}
++	}
++	ivi_layout_commit_changes();
++}
++
++static void
++add_screen(struct weston_output *output)
++{
++	struct ivi_layout *layout = get_instance();
++	struct ivi_layout_screen *iviscrn = NULL;
++
++	if(!output)
++		return;
++
++	iviscrn = calloc(1, sizeof *iviscrn);
++	if (iviscrn == NULL) {
++		weston_log("fails to allocate memory\n");
++		return;
++	}
++
++	iviscrn->layout = layout;
++	iviscrn->output = output;
++
++	wl_list_init(&iviscrn->pending.layer_list);
++	wl_list_init(&iviscrn->order.layer_list);
++	wl_list_insert(&layout->screen_list, &iviscrn->link);
++}
++
++static void
++output_created_event(struct wl_listener *listener, void *data)
++{
++	struct weston_output *created_output = (struct weston_output*)data;
++
++	add_screen(created_output);
++	ivi_layout_commit_changes();
++}
++
+ /**
+  * Internal API to initialize ivi_screens found from output_list of weston_compositor.
+  * Called by ivi_layout_init_with_compositor.
+@@ -266,27 +347,14 @@ ivi_layout_surface_destroy(struct ivi_layout_surface *ivisurf)
+ static void
+ create_screen(struct weston_compositor *ec)
+ {
++
+ 	struct ivi_layout *layout = get_instance();
+ 	struct ivi_layout_screen *iviscrn = NULL;
+-	struct weston_output *output = NULL;
+-
+-	wl_list_for_each(output, &ec->output_list, link) {
+-		iviscrn = calloc(1, sizeof *iviscrn);
+-		if (iviscrn == NULL) {
+-			weston_log("fails to allocate memory\n");
+-			continue;
+-		}
+ 
+-		iviscrn->layout = layout;
+-
+-		iviscrn->output = output;
+-
+-		wl_list_init(&iviscrn->pending.layer_list);
+-
+-		wl_list_init(&iviscrn->order.layer_list);
++	struct weston_output *output = NULL;
+ 
+-		wl_list_insert(&layout->screen_list, &iviscrn->link);
+-	}
++	wl_list_for_each(output, &ec->output_list, link)
++		add_screen(output);
+ }
+ 
+ /**
+@@ -822,7 +890,18 @@ build_view_list(struct ivi_layout *layout)
+ 		if (!ivi_view_is_mapped(ivi_view))
+ 			weston_view_unmap(ivi_view->view);
+ 	}
++	struct weston_view *view = NULL;
++	struct weston_view *view_next = NULL;
+ 
++	/* Earlier only the head node was reset, but the remaining links
++	 * won't be changed. Due to this, faced crash issue (or sometimes
++	 * list was looping) in weston_view_destroy API. So clearing the
++	 * entire list*/
++	wl_list_for_each_safe(view, view_next,
++		&layout->layout_layer.view_list.link, layer_link.link) {
++		wl_list_remove(&view->layer_link.link);
++		wl_list_init(&view->layer_link.link);
++	}
+ 	/* Clear view list of layout ivi_layer */
+ 	wl_list_init(&layout->layout_layer.view_list.link);
+ 
+@@ -1791,7 +1870,22 @@ ivi_layout_commit_changes(void)
+ 
+ 	return IVI_SUCCEEDED;
+ }
++static void
++output_resized_moved_events(struct wl_listener *listener, void *data)
++{
++	struct ivi_layout_screen *iviscrn = NULL;
++	struct ivi_layout_layer *ivilayer;
++	struct ivi_layout_view *ivi_view;
++	struct weston_output *output = (struct weston_output*)data;
+ 
++	iviscrn = get_screen_from_output(output);
++
++	wl_list_for_each(ivilayer, &iviscrn->order.layer_list, order.link) {
++		wl_list_for_each(ivi_view, &ivilayer->order.view_list,
++				 order_link)
++			update_prop(ivi_view);
++	}
++}
+ static int32_t
+ ivi_layout_layer_set_transition(struct ivi_layout_layer *ivilayer,
+ 				enum ivi_layout_transition_type type,
+@@ -1931,6 +2025,14 @@ surface_create(struct weston_surface *wl_surface, uint32_t id_surface)
+ 		return NULL;
+ 	}
+ 
++	ivisurf = get_surface(&layout->surface_list, id_surface);
++	if (ivisurf != NULL) {
++		if (ivisurf->surface != NULL) {
++			weston_log("id_surface(%d) is already created\n", id_surface);
++			return NULL;
++		}
++	}
++
+ 	ivisurf = calloc(1, sizeof *ivisurf);
+ 	if (ivisurf == NULL) {
+ 		weston_log("fails to allocate memory\n");
+@@ -1954,6 +2056,8 @@ surface_create(struct weston_surface *wl_surface, uint32_t id_surface)
+ 
+ 	wl_list_insert(&layout->surface_list, &ivisurf->link);
+ 
++	wl_signal_emit(&layout->surface_notification.created, ivisurf);
++
+ 	return ivisurf;
+ }
+ 
+@@ -2006,8 +2110,8 @@ ivi_layout_surface_create(struct weston_surface *wl_surface,
+ 	return ivisurf;
+ }
+ 
+-static struct ivi_layout_interface ivi_layout_interface;
+ 
++static struct ivi_layout_interface ivi_layout_interface;
+ void
+ ivi_layout_init_with_compositor(struct weston_compositor *ec)
+ {
+@@ -2035,6 +2139,18 @@ ivi_layout_init_with_compositor(struct weston_compositor *ec)
+ 
+ 	create_screen(ec);
+ 
++	layout->output_created.notify = output_created_event;
++	wl_signal_add(&ec->output_created_signal, &layout->output_created);
++
++	layout->output_destroyed.notify = output_destroyed_event;
++	wl_signal_add(&ec->output_destroyed_signal, &layout->output_destroyed);
++
++	layout->output_resized.notify = output_resized_moved_events;
++	wl_signal_add(&ec->output_resized_signal, &layout->output_resized);
++
++	layout->output_moved.notify = output_resized_moved_events;
++	wl_signal_add(&ec->output_moved_signal, &layout->output_moved);
++
+ 	layout->transitions = ivi_layout_transition_set_create(ec);
+ 	wl_list_init(&layout->pending_transition_list);
+ 
+-- 
+2.7.4
+

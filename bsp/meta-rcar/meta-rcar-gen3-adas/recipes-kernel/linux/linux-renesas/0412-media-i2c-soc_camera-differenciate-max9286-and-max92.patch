@@ -1,0 +1,351 @@
+From 3fea12b6dfa46dc30dc2cdbd1f27dc3f5a07d003 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 14 Aug 2019 15:06:18 +0300
+Subject: [PATCH 2/3] media: i2c: soc_camera: differenciate max9286 and max9288
+
+The max9288 needs to be differenciated from max9286, because
+it does not have the link control block
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ap0101_ar014x.c | 8 ++++++--
+ drivers/media/i2c/soc_camera/ar0132.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/ar0140.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/ar0143.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/ar0147.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/ar0231.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/gw4200_ar014x.c | 8 ++++++--
+ drivers/media/i2c/soc_camera/gw5200_imx390.c | 8 ++++++--
+ drivers/media/i2c/soc_camera/isx016.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/isx019.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/ov10635.c       | 8 ++++++--
+ drivers/media/i2c/soc_camera/ov10640.c       | 8 ++++++--
+ drivers/media/i2c/soc_camera/ov2311.c        | 8 ++++++--
+ drivers/media/i2c/soc_camera/ov490_ov10640.c | 8 ++++++--
+ 14 files changed, 84 insertions(+), 28 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ap0101_ar014x.c b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+index 74e6e51..c35e5a0 100644
+--- a/drivers/media/i2c/soc_camera/ap0101_ar014x.c
++++ b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+@@ -65,12 +65,16 @@ static void ap0101_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ap0101_priv *priv = to_ap0101(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ar0132.c b/drivers/media/i2c/soc_camera/ar0132.c
+index 18bc5dc..e4926e8 100644
+--- a/drivers/media/i2c/soc_camera/ar0132.c
++++ b/drivers/media/i2c/soc_camera/ar0132.c
+@@ -61,12 +61,16 @@ static void ar0132_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ar0132_priv *priv = to_ar0132(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ar0140.c b/drivers/media/i2c/soc_camera/ar0140.c
+index c52ca4e..b156fc5 100644
+--- a/drivers/media/i2c/soc_camera/ar0140.c
++++ b/drivers/media/i2c/soc_camera/ar0140.c
+@@ -58,12 +58,16 @@ static void ar0140_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ar0140_priv *priv = to_ar0140(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);/* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ar0143.c b/drivers/media/i2c/soc_camera/ar0143.c
+index b61c7eb..0c4b970 100644
+--- a/drivers/media/i2c/soc_camera/ar0143.c
++++ b/drivers/media/i2c/soc_camera/ar0143.c
+@@ -64,12 +64,16 @@ static void ar0143_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ar0143_priv *priv = to_ar0143(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ar0147.c b/drivers/media/i2c/soc_camera/ar0147.c
+index 08fd136..fc2a09e 100644
+--- a/drivers/media/i2c/soc_camera/ar0147.c
++++ b/drivers/media/i2c/soc_camera/ar0147.c
+@@ -81,12 +81,16 @@ static void ar0147_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ar0147_priv *priv = to_ar0147(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ar0231.c b/drivers/media/i2c/soc_camera/ar0231.c
+index 36b5657..c51ae9ad 100644
+--- a/drivers/media/i2c/soc_camera/ar0231.c
++++ b/drivers/media/i2c/soc_camera/ar0231.c
+@@ -61,12 +61,16 @@ static void ar0231_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ar0231_priv *priv = to_ar0231(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/gw4200_ar014x.c b/drivers/media/i2c/soc_camera/gw4200_ar014x.c
+index 45123ae..71c34f9 100644
+--- a/drivers/media/i2c/soc_camera/gw4200_ar014x.c
++++ b/drivers/media/i2c/soc_camera/gw4200_ar014x.c
+@@ -58,12 +58,16 @@ static void gw4200_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct gw4200_priv *priv = to_gw4200(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/gw5200_imx390.c b/drivers/media/i2c/soc_camera/gw5200_imx390.c
+index 98352a9..e750a85 100644
+--- a/drivers/media/i2c/soc_camera/gw5200_imx390.c
++++ b/drivers/media/i2c/soc_camera/gw5200_imx390.c
+@@ -65,12 +65,16 @@ static void gw5200_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct gw5200_priv *priv = to_gw5200(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/isx016.c b/drivers/media/i2c/soc_camera/isx016.c
+index ab85b7d..9465c8f 100644
+--- a/drivers/media/i2c/soc_camera/isx016.c
++++ b/drivers/media/i2c/soc_camera/isx016.c
+@@ -62,12 +62,16 @@ static void isx016_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct isx016_priv *priv = to_isx016(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/isx019.c b/drivers/media/i2c/soc_camera/isx019.c
+index 188fd28..d75d8f3 100644
+--- a/drivers/media/i2c/soc_camera/isx019.c
++++ b/drivers/media/i2c/soc_camera/isx019.c
+@@ -64,12 +64,16 @@ static void isx019_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct isx019_priv *priv = to_isx019(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ov10635.c b/drivers/media/i2c/soc_camera/ov10635.c
+index 1bbde91..14bb339 100644
+--- a/drivers/media/i2c/soc_camera/ov10635.c
++++ b/drivers/media/i2c/soc_camera/ov10635.c
+@@ -69,12 +69,16 @@ static void ov10635_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ov10635_priv *priv = to_ov10635(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);		/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);					/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ov10640.c b/drivers/media/i2c/soc_camera/ov10640.c
+index 4ce6e15..89dac1b 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov10640.c
+@@ -65,12 +65,16 @@ static void ov10640_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ov10640_priv *priv = to_ov10640(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ov2311.c b/drivers/media/i2c/soc_camera/ov2311.c
+index c8d260c..f04f271 100644
+--- a/drivers/media/i2c/soc_camera/ov2311.c
++++ b/drivers/media/i2c/soc_camera/ov2311.c
+@@ -66,12 +66,16 @@ static void ov2311_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ov2311_priv *priv = to_ov2311(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;				/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0);	/* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);					/* wait 5ms */
++		reg8_read(client, 0x1e, &val);					/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);				/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+diff --git a/drivers/media/i2c/soc_camera/ov490_ov10640.c b/drivers/media/i2c/soc_camera/ov490_ov10640.c
+index c492792..b85f871 100644
+--- a/drivers/media/i2c/soc_camera/ov490_ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov490_ov10640.c
+@@ -91,12 +91,16 @@ static void ov490_s_port(struct i2c_client *client, int fwd_en)
+ {
+ 	struct ov490_priv *priv = to_ov490(client);
+ 	int tmp_addr;
++	u8 val = 0;
+ 
+ 	if (priv->max9286_addr) {
+ 		tmp_addr = client->addr;
+ 		client->addr = priv->max9286_addr;	/* Deserializer I2C address */
+-		reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
+-		usleep_range(5000, 5500);		/* wait 5ms */
++		reg8_read(client, 0x1e, &val);		/* read max928X ID */
++		if (val == MAX9286_ID) {
++			reg8_write(client, 0x0a, fwd_en ? 0x11 << priv->port : 0); /* Enable/disable reverse/forward control for this port */
++			usleep_range(5000, 5500);	/* wait 5ms */
++		}
+ 		client->addr = tmp_addr;
+ 	};
+ }
+-- 
+2.7.4
+

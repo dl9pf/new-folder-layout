@@ -1,0 +1,50 @@
+From c6eac988444567bfb55644206d8a55f7e78b1df9 Mon Sep 17 00:00:00 2001
+From: Alexandre Belloni <alexandre.belloni@bootlin.com>
+Date: Tue, 24 Apr 2018 18:09:04 +0200
+Subject: [PATCH 023/211] net: phy: allow scanning busses with missing phys
+
+Some MDIO busses will error out when trying to read a phy address with no
+phy present at that address. In that case, probing the bus will fail
+because __mdiobus_register() is scanning the bus for all possible phys
+addresses.
+
+In case MII_PHYSID1 returns -EIO or -ENODEV, consider there is no phy at
+this address and set the phy ID to 0xffffffff which is then properly
+handled in get_phy_device().
+
+Suggested-by: Andrew Lunn <andrew@lunn.ch>
+Signed-off-by: Alexandre Belloni <alexandre.belloni@bootlin.com>
+Reviewed-by: Florian Fainelli <f.fainelli@gmail.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit 02a6efcab675fe32815d824837784c3f42a7d892)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/phy/phy_device.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/phy/phy_device.c b/drivers/net/phy/phy_device.c
+index eff5327..64e5ed9 100644
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -536,8 +536,17 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
+ 
+ 	/* Grab the bits from PHYIR1, and put them in the upper half */
+ 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
+-	if (phy_reg < 0)
++	if (phy_reg < 0) {
++		/* if there is no device, return without an error so scanning
++		 * the bus works properly
++		 */
++		if (phy_reg == -EIO || phy_reg == -ENODEV) {
++			*phy_id = 0xffffffff;
++			return 0;
++		}
++
+ 		return -EIO;
++	}
+ 
+ 	*phy_id = (phy_reg & 0xffff) << 16;
+ 
+-- 
+2.7.4
+

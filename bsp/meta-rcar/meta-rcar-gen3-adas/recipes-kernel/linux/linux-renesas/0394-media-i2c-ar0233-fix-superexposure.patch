@@ -1,0 +1,31 @@
+From 97424dd7f393ad1d44827062b59c3957369d60a0 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 1 Jul 2019 15:29:47 +0300
+Subject: [PATCH] media: i2c: ar0233: fix superexposure
+
+This fixes superexposure mode for imager 27Mhz REFCLK
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0233.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0233.c b/drivers/media/i2c/soc_camera/ar0233.c
+index f3b899e..1b7ba22 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.c
++++ b/drivers/media/i2c/soc_camera/ar0233.c
+@@ -436,8 +436,10 @@ static int ar0233_initialize(struct i2c_client *client)
+ 		ar0233_set_regs(client, ar0233_regs_hdr_mipi_12bit_30fps_rev1);
+ 		break;
+ 	case 0x2:
+-		if (extclk == 27)
++		if (extclk == 27) {
+ 			ar0233_regs_hdr_mipi_12bit_30fps_rev2[4] = ar0233_rev2_pll_27_102_4lane_12b;
++			ar0233_regs_seplus_mipi_12bit_30fps_rev2[2] = ar0233_rev2_pll_27_102_4lane_12b;
++		}
+ 
+ 		if (strcmp(mode, "hdr") == 0)
+ 			ar0233_set_regs(client, ar0233_regs_hdr_mipi_12bit_30fps_rev2);
+-- 
+2.7.4
+

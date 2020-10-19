@@ -1,0 +1,32 @@
+From 243b7ffee16558d7cb9b411f49380138efeffca9 Mon Sep 17 00:00:00 2001
+From: Stephane Desneux <stephane.desneux@iot.bzh>
+Date: Fri, 1 Feb 2019 12:26:17 +0000
+Subject: [PATCH 11/14] Fix gcc8 warning/error [-Werror=catch-value=]
+
+Fixes the following warning/error during compile:
+
+src/dpl/core/src/assert.cpp:61:14: error: catching polymorphic type 'class SecurityManager::Exception' by value [-Werror=catch-value=]
+|      } catch (Exception) {
+|               ^~~~~~~~~
+
+Signed-off-by: Stephane Desneux <stephane.desneux@iot.bzh>
+---
+ src/dpl/core/src/assert.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/dpl/core/src/assert.cpp b/src/dpl/core/src/assert.cpp
+index 63538a2..fc60ce9 100644
+--- a/src/dpl/core/src/assert.cpp
++++ b/src/dpl/core/src/assert.cpp
+@@ -58,7 +58,7 @@ void AssertProc(const char *condition,
+         INTERNAL_LOG("### Function: " << function);
+         INTERNAL_LOG(
+             "################################################################################");
+-    } catch (Exception) {
++    } catch (Exception const&) {
+         // Just ignore possible double errors
+     }
+ 
+-- 
+2.21.0
+

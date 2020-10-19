@@ -1,0 +1,289 @@
+From 0f0c2244b6ed65807d40b8cf730d297e1218600e Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 13 Jan 2020 19:01:29 +0300
+Subject: [PATCH] media: i2c: ov10640: add embedded data, fix crop
+
+This addes embedded line and stats for furhter parsing inside ISP
+This also fixes the crop.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov10640.c     | 79 ++++++++++++++++++++++++------
+ drivers/media/i2c/soc_camera/ov10640.h     | 17 ++++---
+ drivers/media/i2c/soc_camera/ov10640_r1d.h | 10 ++--
+ drivers/media/i2c/soc_camera/ov10640_r1e.h | 10 ++--
+ drivers/media/i2c/soc_camera/ov10640_r1f.h | 10 ++--
+ 5 files changed, 89 insertions(+), 37 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov10640.c b/drivers/media/i2c/soc_camera/ov10640.c
+index 40058b7..fab2c0d 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov10640.c
+@@ -42,6 +42,7 @@ struct ov10640_priv {
+ 	int				init_complete;
+ 	u8				id[6];
+ 	int				dvp_order;
++	bool				emb_enable;
+ 	/* serializers */
+ 	int				max9286_addr;
+ 	int				max9271_addr;
+@@ -113,23 +114,23 @@ static int ov10640_set_window(struct v4l2_subdev *sd)
+ 	dev_dbg(&client->dev, "L=%d T=%d %dx%d\n", priv->rect.left, priv->rect.top, priv->rect.width, priv->rect.height);
+ 
+ 	/* horiz crop start (reverse) */
+-	reg16_write(client, 0x3074, (OV10640_MAX_WIDTH - priv->rect.width - priv->rect.left) >> 8);
+-	reg16_write(client, 0x3075, (OV10640_MAX_WIDTH - priv->rect.width - priv->rect.left) & 0xff);
++	reg16_write(client, 0x3074, (OV10640_X_END - priv->rect.left - priv->rect.width + 1) >> 8);
++	reg16_write(client, 0x3075, (OV10640_X_END - priv->rect.left - priv->rect.width + 1) & 0xff);
+ 	/* horiz crop end (reverse) */
+-	reg16_write(client, 0x3078, (OV10640_MAX_WIDTH - priv->rect.left - 1) >> 8);
+-	reg16_write(client, 0x3079, (OV10640_MAX_WIDTH - priv->rect.left - 1) & 0xff);
++	reg16_write(client, 0x3078, (OV10640_X_END - priv->rect.left) >> 8);
++	reg16_write(client, 0x3079, (OV10640_X_END - priv->rect.left) & 0xff);
+ 	/* vert crop start */
+-	reg16_write(client, 0x3076, priv->rect.top >> 8);
+-	reg16_write(client, 0x3077, priv->rect.top & 0xff);
++	reg16_write(client, 0x3076, (priv->rect.top + OV10640_Y_START - OV10640_EMB_PADDED / 2) >> 8);
++	reg16_write(client, 0x3077, (priv->rect.top + OV10640_Y_START - OV10640_EMB_PADDED / 2) & 0xff);
+ 	/* vert crop end */
+-	reg16_write(client, 0x307a, (priv->rect.top + priv->rect.height + 1) >> 8);
+-	reg16_write(client, 0x307b, (priv->rect.top + priv->rect.height + 1) & 0xff);
++	reg16_write(client, 0x307a, (priv->rect.top + priv->rect.height + OV10640_Y_START - 1 + OV10640_EMB_PADDED / 2) >> 8);
++	reg16_write(client, 0x307b, (priv->rect.top + priv->rect.height + OV10640_Y_START - 1 + OV10640_EMB_PADDED / 2) & 0xff);
+ 	/* horiz output */
+ 	reg16_write(client, 0x307c, priv->rect.width >> 8);
+ 	reg16_write(client, 0x307d, priv->rect.width & 0xff);
+ 	/* vert output */
+-	reg16_write(client, 0x307e, priv->rect.height >> 8);
+-	reg16_write(client, 0x307f, priv->rect.height & 0xff);
++	reg16_write(client, 0x307e, (priv->rect.height + OV10640_EMB_PADDED) >> 8);
++	reg16_write(client, 0x307f, (priv->rect.height + OV10640_EMB_PADDED) & 0xff);
+ 
+ 	return 0;
+ };
+@@ -248,12 +249,18 @@ static int ov10640_get_selection(struct v4l2_subdev *sd,
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+-		sel->r.width = OV10640_MAX_WIDTH;
+-		sel->r.height = OV10640_MAX_HEIGHT;
++		sel->r.width = OV10640_DEFAULT_WIDTH;
++		sel->r.height = OV10640_DEFAULT_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP:
+ 		sel->r = priv->rect;
+ 		return 0;
++	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = OV10640_EMB_PADDED / 2;
++		sel->r.width = priv->rect.width;
++		sel->r.height = priv->rect.height;
++		return 0;
+ 	default:
+ 		return -EINVAL;
+ 	}
+@@ -464,7 +471,45 @@ static ssize_t ov10640_otp_id_show(struct device *dev,
+ 			priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ }
+ 
++static ssize_t ov10640_emb_enable_store(struct device *dev,
++				       struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ov10640_priv *priv = to_ov10640(client);
++	u32 val;
++
++	if (sscanf(buf, "%u\n", &val) != 1)
++		return -EINVAL;
++	priv->emb_enable = !!val;
++
++	/* vert crop start */
++	reg16_write(client, 0x3076, (priv->rect.top + OV10640_Y_START - OV10640_EMB_PADDED / 2) >> 8);
++	reg16_write(client, 0x3077, (priv->rect.top + OV10640_Y_START - OV10640_EMB_PADDED / 2) & 0xff);
++	/* vert crop end */
++	reg16_write(client, 0x307a, (priv->rect.top + priv->rect.height - 1 + OV10640_Y_START + OV10640_EMB_PADDED / 2) >> 8);
++	reg16_write(client, 0x307b, (priv->rect.top + priv->rect.height - 1 + OV10640_Y_START + OV10640_EMB_PADDED / 2) & 0xff);
++	/* vert output */
++	reg16_write(client, 0x307e, (priv->rect.height + OV10640_EMB_PADDED) >> 8);
++	reg16_write(client, 0x307f, (priv->rect.height + OV10640_EMB_PADDED) & 0xff);
++
++	reg16_write(client, 0x3091, priv->emb_enable ? 0x0C : 0x00);
++
++	return count;
++}
++
++static ssize_t ov10640_emb_enable_show(struct device *dev,
++				      struct device_attribute *attr, char *buf)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ov10640_priv *priv = to_ov10640(client);
++
++	return snprintf(buf, 4, "%d\n", priv->emb_enable);
++}
++
+ static DEVICE_ATTR(otp_id_ov10640, S_IRUGO, ov10640_otp_id_show, NULL);
++static DEVICE_ATTR(emb_enable_ov10640, S_IRUGO|S_IWUSR, ov10640_emb_enable_show, ov10640_emb_enable_store);
+ 
+ static int ov10640_initialize(struct i2c_client *client)
+ {
+@@ -510,7 +555,7 @@ static int ov10640_initialize(struct i2c_client *client)
+ 	reg16_write(client, 0x3124, priv->dvp_order << 4);
+ 
+ 	dev_info(&client->dev, "ov10640 PID %x (r%x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+-		 pid, rev, OV10640_MAX_WIDTH, OV10640_MAX_HEIGHT, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
++		 pid, rev, OV10640_DEFAULT_WIDTH, OV10640_DEFAULT_HEIGHT, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ out:
+ 	ov10640_s_port(client, 0);
+ 
+@@ -596,8 +641,8 @@ static int ov10640_probe(struct i2c_client *client,
+ 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	priv->rect.left = 0;
+ 	priv->rect.top = 0;
+-	priv->rect.width = OV10640_MAX_WIDTH;
+-	priv->rect.height = OV10640_MAX_HEIGHT;
++	priv->rect.width = OV10640_DEFAULT_WIDTH;
++	priv->rect.height = OV10640_DEFAULT_HEIGHT;
+ 	priv->fps_denominator = 30;
+ 
+ 	v4l2_ctrl_handler_init(&priv->hdl, 4);
+@@ -653,7 +698,8 @@ static int ov10640_probe(struct i2c_client *client,
+ 	if (ret)
+ 		goto cleanup;
+ 
+-	if (device_create_file(&client->dev, &dev_attr_otp_id_ov10640) != 0) {
++	if (device_create_file(&client->dev, &dev_attr_otp_id_ov10640) != 0||
++	    device_create_file(&client->dev, &dev_attr_emb_enable_ov10640) != 0) {
+ 		dev_err(&client->dev, "sysfs otp_id entry creation failed\n");
+ 		goto cleanup;
+ 	}
+@@ -678,6 +724,7 @@ static int ov10640_remove(struct i2c_client *client)
+ 	struct ov10640_priv *priv = i2c_get_clientdata(client);
+ 
+ 	device_remove_file(&client->dev, &dev_attr_otp_id_ov10640);
++	device_remove_file(&client->dev, &dev_attr_emb_enable_ov10640);
+ 	v4l2_async_unregister_subdev(&priv->sd);
+ 	media_entity_cleanup(&priv->sd.entity);
+ 	v4l2_ctrl_handler_free(&priv->hdl);
+diff --git a/drivers/media/i2c/soc_camera/ov10640.h b/drivers/media/i2c/soc_camera/ov10640.h
+index 3d2de3d..04ff326 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.h
++++ b/drivers/media/i2c/soc_camera/ov10640.h
+@@ -12,18 +12,23 @@
+ //#define OV10640_DISPLAY_PATTERN
+ #define OV10640_FSIN_ENABLE
+ 
+-#define OV10640_MAX_WIDTH	1280
+-#define OV10640_MAX_HEIGHT	1080
++#define OV10640_DEFAULT_WIDTH	1280
++#define OV10640_DEFAULT_HEIGHT	1080
++
++#define OV10640_EMB_LINES	4 /* 2 emb lines at top and 2 stat lines at bottom */
++#define OV10640_EMB_PADDED	(priv->emb_enable ? OV10640_EMB_LINES : 0) /* embedded data (SOF) and stats (EOF) */
+ 
+ #define OV10640_DELAY		0xffff
+ 
++#define OV10640_MAX_WIDTH	1280
++#define OV10640_MAX_HEIGHT	1080
+ #define OV10640_SENSOR_WIDTH	1292
+ #define OV10640_SENSOR_HEIGHT	1092
+ 
+-#define OV10640_X_START		((OV10640_SENSOR_WIDTH - OV10640_MAX_WIDTH) / 2)
+-#define OV10640_Y_START		((OV10640_SENSOR_HEIGHT - OV10640_MAX_HEIGHT) / 2)
+-#define OV10640_X_END		(OV10640_X_START + OV10640_MAX_WIDTH - 1)
+-#define OV10640_Y_END		(OV10640_Y_START + OV10640_MAX_HEIGHT - 1)
++#define OV10640_X_START		((OV10640_SENSOR_WIDTH - OV10640_DEFAULT_WIDTH) / 2)
++#define OV10640_Y_START		((OV10640_SENSOR_HEIGHT - OV10640_DEFAULT_HEIGHT) / 2)
++#define OV10640_X_END		(OV10640_X_START + OV10640_DEFAULT_WIDTH - 1)
++#define OV10640_Y_END		(OV10640_Y_START + OV10640_DEFAULT_HEIGHT - 1)
+ 
+ struct ov10640_reg {
+ 	u16	reg;
+diff --git a/drivers/media/i2c/soc_camera/ov10640_r1d.h b/drivers/media/i2c/soc_camera/ov10640_r1d.h
+index 374b6d1..6f29b01 100644
+--- a/drivers/media/i2c/soc_camera/ov10640_r1d.h
++++ b/drivers/media/i2c/soc_camera/ov10640_r1d.h
+@@ -1219,10 +1219,10 @@ static const struct ov10640_reg ov10640_regs_wizard_r1d[] = {
+ {0x3079, OV10640_X_END & 0xff},
+ {0x307a, OV10640_Y_END >> 8},
+ {0x307b, OV10640_Y_END & 0xff},
+-{0x307c, OV10640_MAX_WIDTH >> 8},
+-{0x307d, OV10640_MAX_WIDTH & 0xff},
+-{0x307e, OV10640_MAX_HEIGHT >> 8},
+-{0x307f, OV10640_MAX_HEIGHT & 0xff},
++{0x307c, OV10640_DEFAULT_WIDTH >> 8},
++{0x307d, OV10640_DEFAULT_WIDTH & 0xff},
++{0x307e, OV10640_DEFAULT_HEIGHT >> 8},
++{0x307f, OV10640_DEFAULT_HEIGHT & 0xff},
+ {0x3080, (OV10640_SENSOR_WIDTH + 200) >> 8}, // HTS
+ {0x3081, (OV10640_SENSOR_WIDTH + 200) & 0xff},
+ {0x3082, (OV10640_SENSOR_HEIGHT + 208) >> 8}, //VTS
+@@ -1233,7 +1233,7 @@ static const struct ov10640_reg ov10640_regs_wizard_r1d[] = {
+ {0x3087, 0x0},
+ {0x346d, 0x14},
+ {0x3444, 0x28},
+-{0x3091, 0x0},
++{0x3091, 0x00}, // embedded data, embedded stats
+ {0x3119, 0x44}, // COMB12
+ {0x3012, 0x1},
+ #endif
+diff --git a/drivers/media/i2c/soc_camera/ov10640_r1e.h b/drivers/media/i2c/soc_camera/ov10640_r1e.h
+index eeff330..ba3c636 100644
+--- a/drivers/media/i2c/soc_camera/ov10640_r1e.h
++++ b/drivers/media/i2c/soc_camera/ov10640_r1e.h
+@@ -1214,10 +1214,10 @@ static const struct ov10640_reg ov10640_regs_wizard_r1e[] = {
+ {0x3079, OV10640_X_END & 0xff},
+ {0x307a, OV10640_Y_END >> 8},
+ {0x307b, OV10640_Y_END & 0xff},
+-{0x307c, OV10640_MAX_WIDTH >> 8},
+-{0x307d, OV10640_MAX_WIDTH & 0xff},
+-{0x307e, OV10640_MAX_HEIGHT >> 8},
+-{0x307f, OV10640_MAX_HEIGHT & 0xff},
++{0x307c, OV10640_DEFAULT_WIDTH >> 8},
++{0x307d, OV10640_DEFAULT_WIDTH & 0xff},
++{0x307e, OV10640_DEFAULT_HEIGHT >> 8},
++{0x307f, OV10640_DEFAULT_HEIGHT & 0xff},
+ {0x3080, (OV10640_SENSOR_WIDTH + 200) >> 8}, // HTS
+ {0x3081, (OV10640_SENSOR_WIDTH + 200) & 0xff},
+ {0x3082, (OV10640_SENSOR_HEIGHT + 208) >> 8}, //VTS
+@@ -1228,7 +1228,7 @@ static const struct ov10640_reg ov10640_regs_wizard_r1e[] = {
+ {0x3087, 0x0},
+ {0x346d, 0x14},
+ {0x3444, 0x28},
+-{0x3091, 0x0},
++{0x3091, 0x00}, // embedded data, embedded stats
+ {0x3119, 0x44}, // COMB12
+ {0x3012, 0x1},
+ #endif
+diff --git a/drivers/media/i2c/soc_camera/ov10640_r1f.h b/drivers/media/i2c/soc_camera/ov10640_r1f.h
+index ef866fa..3f9b3f5 100644
+--- a/drivers/media/i2c/soc_camera/ov10640_r1f.h
++++ b/drivers/media/i2c/soc_camera/ov10640_r1f.h
+@@ -1177,10 +1177,10 @@ static const struct ov10640_reg ov10640_regs_wizard_r1f[] = {
+ {0x3079, OV10640_X_END & 0xff},
+ {0x307a, OV10640_Y_END >> 8},
+ {0x307b, OV10640_Y_END & 0xff},
+-{0x307c, OV10640_MAX_WIDTH >> 8},
+-{0x307d, OV10640_MAX_WIDTH & 0xff},
+-{0x307e, OV10640_MAX_HEIGHT >> 8},
+-{0x307f, OV10640_MAX_HEIGHT & 0xff},
++{0x307c, OV10640_DEFAULT_WIDTH >> 8},
++{0x307d, OV10640_DEFAULT_WIDTH & 0xff},
++{0x307e, OV10640_DEFAULT_HEIGHT >> 8},
++{0x307f, OV10640_DEFAULT_HEIGHT & 0xff},
+ {0x3080, (OV10640_SENSOR_WIDTH + 200) >> 8}, // HTS
+ {0x3081, (OV10640_SENSOR_WIDTH + 200) & 0xff},
+ {0x3082, (OV10640_SENSOR_HEIGHT + 208) >> 8}, //VTS
+@@ -1191,7 +1191,7 @@ static const struct ov10640_reg ov10640_regs_wizard_r1f[] = {
+ {0x3087, 0x0},
+ {0x346d, 0x14},
+ {0x3444, 0x28},
+-{0x3091, 0x0},
++{0x3091, 0x00}, // embedded data, embedded stats
+ {0x3119, 0x44}, // COMB12
+ {0x3012, 0x1},
+ #endif
+-- 
+2.7.4
+

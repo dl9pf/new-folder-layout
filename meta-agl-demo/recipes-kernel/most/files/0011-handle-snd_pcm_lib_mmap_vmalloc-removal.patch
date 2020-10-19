@@ -1,0 +1,30 @@
+Handle snd_pcm_lib_mmap_vmalloc removal in 4.19
+
+Add .mmap field back to pcm_ops for kernels older than 4.19.
+
+Upstream-Status: Inappropriate
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/aim-sound/sound.c b/aim-sound/sound.c
+index 4b3329b..c0a26be 100644
+--- a/aim-sound/sound.c
++++ b/aim-sound/sound.c
+@@ -17,6 +17,7 @@
+ #include <linux/printk.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
++#include <linux/version.h>
+ #include <sound/core.h>
+ #include <sound/pcm.h>
+ #include <sound/pcm_params.h>
+@@ -463,6 +464,9 @@ static const struct snd_pcm_ops pcm_ops = {
+ 	.trigger    = pcm_trigger,
+ 	.pointer    = pcm_pointer,
+ 	.page       = snd_pcm_lib_get_vmalloc_page,
++#if LINUX_VERSION_CODE <  KERNEL_VERSION(4,19,0)
++	.mmap       = snd_pcm_lib_mmap_vmalloc,
++#endif
+ };
+ 
+ static int split_arg_list(char *buf, char **card_name, u16 *ch_num,

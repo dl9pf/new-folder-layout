@@ -1,0 +1,47 @@
+From 602dbaa9bc1794fe50d522dbef5a2ffde9eea202 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 25 Dec 2019 17:02:13 +0300
+Subject: [PATCH] media: i2c: imx390: fix refclk
+
+The rflck for IMX390 must be ether 24MHz or 27Mhz
+The deserializer  on Cogent ECU provides 23Mhz, hence use
+serizlizer PLL to adjust refclk to 24MHz
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imx390.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imx390.c b/drivers/media/i2c/soc_camera/imx390.c
+index b1df1ba..c1e5680 100644
+--- a/drivers/media/i2c/soc_camera/imx390.c
++++ b/drivers/media/i2c/soc_camera/imx390.c
+@@ -428,17 +428,18 @@ static int imx390_initialize(struct i2c_client *client)
+ 		goto err;
+ 	}
+ 
+-#if 0
+-	/* setup XCLK */
+ 	tmp_addr = client->addr;
+ 	if (priv->ti9x4_addr) {
+-		/* CLK_OUT=22.5792*160*M/N/CLKDIV -> CLK_OUT=25MHz: CLKDIV=4, M=7, N=253: 22.5792*160/4*7/253=24.989MHz=CLK_OUT */
+-		client->addr = priv->ti9x3_addr;			/* Serializer I2C address */
+-		reg8_write(client, 0x06, 0x47);				/* Set CLKDIV and M */
+-		reg8_write(client, 0x07, 0xfd);				/* Set N */
++		/* Setup XCLK:
++		    CLK_OUT=23MHz*160*M/N/CLKDIV
++		    CLK_OUT=24MHz (desired), CLKDIV=4, M=6, N=230
++		    23*160/4*6/230 = 24MHz = CLK_OUT
++		*/
++		client->addr = priv->ti9x3_addr;
++		reg8_write(client, 0x06, 0x46);	/* Set CLKDIV and M */
++		reg8_write(client, 0x07, 0xe6);	/* Set N */
+ 	}
+ 	client->addr = tmp_addr;
+-#endif
+ 
+ 	/* Read OTP IDs */
+ 	imx390_otp_id_read(client);
+-- 
+2.7.4
+

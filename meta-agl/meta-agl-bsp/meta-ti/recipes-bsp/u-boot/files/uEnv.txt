@@ -1,0 +1,1 @@
+fdtfile=dra7-evm-lcd-osd101t2045.dtb

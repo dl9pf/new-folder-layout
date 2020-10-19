@@ -1,0 +1,30 @@
+From 947be79b6dfaa755efa98533f790b6edcf38321e Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 27 Oct 2018 00:24:04 +0300
+Subject: [PATCH 139/211] arm64: dts: renesas: v3msk: Add vspm_if node
+
+This adds vspm_if node.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+index 3deda9f..6847381 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+@@ -63,6 +63,10 @@
+ 		compatible = "renesas,mmngrbuf";
+ 	};
+ 
++	vspm_if {
++		compatible = "renesas,vspm_if";
++	};
++
+ 	osc5_clk: osc5-clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+-- 
+2.7.4
+

@@ -1,0 +1,50 @@
+From 37d10d9dca2423dc6482631d5b6477fc678326f9 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Wed, 13 Jun 2018 19:42:15 +0300
+Subject: [PATCH 013/211] arm64: dts: renesas: condor/v3hsk: specify Ethernet
+ PHY IRQs
+
+Specify Ethernet PHY IRQs in the Condor/V3HSK board device trees, now that
+we have the GPIO support (previously phylib had  to resort to polling).
+
+Based on the original (and large) patch by Vladimir Barinov.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit ffbd52352208534a30d5bbe2e15ee9e5cbb98c6d)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 2 ++
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts  | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index cc3ee25..9f25c40 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -59,6 +59,8 @@
+ 	phy0: ethernet-phy@0 {
+ 		rxc-skew-ps = <1500>;
+ 		reg = <0>;
++		interrupt-parent = <&gpio1>;
++		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+ 	};
+ };
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index bb7e0e5..9dac42f 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -48,6 +48,8 @@
+ 
+ 	phy0: ethernet-phy@0 {
+ 		reg = <0>;
++		interrupt-parent = <&gpio4>;
++		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+ 	};
+ };
+ 
+-- 
+2.7.4
+

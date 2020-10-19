@@ -1,0 +1,64 @@
+From 39642fb1a551bf4678f3d11250921b62b4eb0531 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 30 Aug 2019 23:41:30 +0300
+Subject: [PATCH] add v3m v3h support
+
+This adds R-Car V3H and V3M SoC support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ qos-module/files/qos/drv/qos_core.c | 15 +++++++++++++++
+ qos-module/files/qos/drv/qos_reg.h  |  4 ++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/qos-module/files/qos/drv/qos_core.c b/qos-module/files/qos/drv/qos_core.c
+index bb10a01..ca71d16 100644
+--- a/qos-module/files/qos/drv/qos_core.c
++++ b/qos-module/files/qos/drv/qos_core.c
+@@ -227,6 +227,21 @@ int rcar_qos_init(void)
+ 				master_id_max = MASTER_ID_MAX_M3_N;
+ 				break;
+ 			}
++		} else if (device == R_CAR_V3M) {
++			switch (device_version) {
++			case ES10:
++			case ES20:
++			default:
++				master_id_max = MASTER_ID_MAX_V3M;
++				break;
++			}
++		} else if (device == R_CAR_V3H) {
++			switch (device_version) {
++			case ES10:
++			default:
++				master_id_max = MASTER_ID_MAX_V3H;
++				break;
++			}
+ 		} else if (device == R_CAR_D3) {
+ 			switch (device_version) {
+ 			case ES10:
+diff --git a/qos-module/files/qos/drv/qos_reg.h b/qos-module/files/qos/drv/qos_reg.h
+index e0038bc..355ca04 100644
+--- a/qos-module/files/qos/drv/qos_reg.h
++++ b/qos-module/files/qos/drv/qos_reg.h
+@@ -80,6 +80,8 @@
+ #define MASTER_ID_MAX_H3_ES2		109
+ #define MASTER_ID_MAX_M3_W		 99
+ #define MASTER_ID_MAX_M3_N		114
++#define MASTER_ID_MAX_V3M		 41
++#define MASTER_ID_MAX_V3H		 99
+ #define MASTER_ID_MAX_D3		114
+ #define MASTER_ID_MAX_E3		114
+ #define MASTER_ID_MAX			511
+@@ -94,6 +96,8 @@
+ #define R_CAR_H3			(0x00004F00U)
+ #define R_CAR_M3_W			(0x00005200U)
+ #define R_CAR_M3_N			(0x00005500U)
++#define R_CAR_V3M			(0x00005400U)
++#define R_CAR_V3H			(0x00005600U)
+ #define R_CAR_D3			(0x00005800U)
+ #define R_CAR_E3			(0x00005700U)
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,163 @@
+From 4badb868e01d346cd749536f8059d0972d3e258f Mon Sep 17 00:00:00 2001
+From: Robin Murphy <robin.murphy@arm.com>
+Date: Tue, 9 Jan 2018 16:17:27 +0000
+Subject: [PATCH 003/211] iommu: Clean up of_iommu_init_fn
+
+Now that no more drivers rely on arbitrary early initialisation via an
+of_iommu_init_fn hook, let's clean up the redundant remnants. The
+IOMMU_OF_DECLARE() macro needs to remain for now, as the probe-deferral
+mechanism has no other nice way to detect built-in drivers before they
+have registered themselves, such that it can make the right decision.
+
+Reviewed-by: Sricharan R <sricharan@codeaurora.org>
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+(cherry picked from commit b0c560f7d8a4b333bcc18f692d0af0d5cca90fe2)
+[valentine.barshak: resolved minor conflicts]
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/iommu/arm-smmu-v3.c  |  2 +-
+ drivers/iommu/arm-smmu.c     | 12 ++++++------
+ drivers/iommu/exynos-iommu.c |  2 +-
+ drivers/iommu/ipmmu-vmsa.c   | 10 +++++-----
+ drivers/iommu/msm_iommu.c    |  2 +-
+ drivers/iommu/of_iommu.c     | 16 ----------------
+ drivers/iommu/qcom_iommu.c   |  2 +-
+ include/linux/of_iommu.h     |  5 +----
+ 8 files changed, 16 insertions(+), 35 deletions(-)
+
+diff --git a/drivers/iommu/arm-smmu-v3.c b/drivers/iommu/arm-smmu-v3.c
+index 3d5851e..fb4e621 100644
+--- a/drivers/iommu/arm-smmu-v3.c
++++ b/drivers/iommu/arm-smmu-v3.c
+@@ -2898,7 +2898,7 @@ static struct platform_driver arm_smmu_driver = {
+ };
+ module_platform_driver(arm_smmu_driver);
+ 
+-IOMMU_OF_DECLARE(arm_smmuv3, "arm,smmu-v3", NULL);
++IOMMU_OF_DECLARE(arm_smmuv3, "arm,smmu-v3");
+ 
+ MODULE_DESCRIPTION("IOMMU API for ARM architected SMMUv3 implementations");
+ MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
+diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c
+index 335bcc1..21a0eb3 100644
+--- a/drivers/iommu/arm-smmu.c
++++ b/drivers/iommu/arm-smmu.c
+@@ -2222,12 +2222,12 @@ static struct platform_driver arm_smmu_driver = {
+ };
+ module_platform_driver(arm_smmu_driver);
+ 
+-IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1", NULL);
+-IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2", NULL);
+-IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400", NULL);
+-IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401", NULL);
+-IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500", NULL);
+-IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2", NULL);
++IOMMU_OF_DECLARE(arm_smmuv1, "arm,smmu-v1");
++IOMMU_OF_DECLARE(arm_smmuv2, "arm,smmu-v2");
++IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400");
++IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401");
++IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500");
++IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2");
+ 
+ MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
+ MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");
+diff --git a/drivers/iommu/exynos-iommu.c b/drivers/iommu/exynos-iommu.c
+index 13485a4..1fcb618 100644
+--- a/drivers/iommu/exynos-iommu.c
++++ b/drivers/iommu/exynos-iommu.c
+@@ -1392,4 +1392,4 @@ static int __init exynos_iommu_init(void)
+ }
+ core_initcall(exynos_iommu_init);
+ 
+-IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu", NULL);
++IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu");
+diff --git a/drivers/iommu/ipmmu-vmsa.c b/drivers/iommu/ipmmu-vmsa.c
+index e1aabb7..8b4e5d9 100644
+--- a/drivers/iommu/ipmmu-vmsa.c
++++ b/drivers/iommu/ipmmu-vmsa.c
+@@ -1853,11 +1853,11 @@ static void __exit ipmmu_exit(void)
+ subsys_initcall(ipmmu_init);
+ module_exit(ipmmu_exit);
+ 
+-IOMMU_OF_DECLARE(ipmmu_vmsa_iommu_of, "renesas,ipmmu-vmsa", NULL);
+-IOMMU_OF_DECLARE(ipmmu_r8a7795_iommu_of, "renesas,ipmmu-r8a7795", NULL);
+-IOMMU_OF_DECLARE(ipmmu_r8a7796_iommu_of, "renesas,ipmmu-r8a7796", NULL);
+-IOMMU_OF_DECLARE(ipmmu_r8a77965_iommu_of, "renesas,ipmmu-r8a77965", NULL);
+-IOMMU_OF_DECLARE(ipmmu_r8a77990_iommu_of, "renesas,ipmmu-r8a77990", NULL);
++IOMMU_OF_DECLARE(ipmmu_vmsa_iommu_of, "renesas,ipmmu-vmsa");
++IOMMU_OF_DECLARE(ipmmu_r8a7795_iommu_of, "renesas,ipmmu-r8a7795");
++IOMMU_OF_DECLARE(ipmmu_r8a7796_iommu_of, "renesas,ipmmu-r8a7796");
++IOMMU_OF_DECLARE(ipmmu_r8a77965_iommu_of, "renesas,ipmmu-r8a77965");
++IOMMU_OF_DECLARE(ipmmu_r8a77990_iommu_of, "renesas,ipmmu-r8a77990");
+ 
+ MODULE_DESCRIPTION("IOMMU API for Renesas VMSA-compatible IPMMU");
+ MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");
+diff --git a/drivers/iommu/msm_iommu.c b/drivers/iommu/msm_iommu.c
+index 350ed3d..9a95c9b 100644
+--- a/drivers/iommu/msm_iommu.c
++++ b/drivers/iommu/msm_iommu.c
+@@ -871,7 +871,7 @@ static void __exit msm_iommu_driver_exit(void)
+ subsys_initcall(msm_iommu_driver_init);
+ module_exit(msm_iommu_driver_exit);
+ 
+-IOMMU_OF_DECLARE(msm_iommu_of, "qcom,apq8064-iommu", NULL);
++IOMMU_OF_DECLARE(msm_iommu_of, "qcom,apq8064-iommu");
+ 
+ MODULE_LICENSE("GPL v2");
+ MODULE_AUTHOR("Stepan Moskovchenko <stepanm@codeaurora.org>");
+diff --git a/drivers/iommu/of_iommu.c b/drivers/iommu/of_iommu.c
+index 50947eb..5c36a8b 100644
+--- a/drivers/iommu/of_iommu.c
++++ b/drivers/iommu/of_iommu.c
+@@ -231,19 +231,3 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
+ 
+ 	return ops;
+ }
+-
+-static int __init of_iommu_init(void)
+-{
+-	struct device_node *np;
+-	const struct of_device_id *match, *matches = &__iommu_of_table;
+-
+-	for_each_matching_node_and_match(np, matches, &match) {
+-		const of_iommu_init_fn init_fn = match->data;
+-
+-		if (init_fn && init_fn(np))
+-			pr_err("Failed to initialise IOMMU %pOF\n", np);
+-	}
+-
+-	return 0;
+-}
+-postcore_initcall_sync(of_iommu_init);
+diff --git a/drivers/iommu/qcom_iommu.c b/drivers/iommu/qcom_iommu.c
+index c8a587d..37ecc49 100644
+--- a/drivers/iommu/qcom_iommu.c
++++ b/drivers/iommu/qcom_iommu.c
+@@ -924,7 +924,7 @@ static void __exit qcom_iommu_exit(void)
+ module_init(qcom_iommu_init);
+ module_exit(qcom_iommu_exit);
+ 
+-IOMMU_OF_DECLARE(qcom_iommu_dev, "qcom,msm-iommu-v1", NULL);
++IOMMU_OF_DECLARE(qcom_iommu_dev, "qcom,msm-iommu-v1");
+ 
+ MODULE_DESCRIPTION("IOMMU API for QCOM IOMMU v1 implementations");
+ MODULE_LICENSE("GPL v2");
+diff --git a/include/linux/of_iommu.h b/include/linux/of_iommu.h
+index cddfaff..4fa654e 100644
+--- a/include/linux/of_iommu.h
++++ b/include/linux/of_iommu.h
+@@ -34,9 +34,6 @@ static inline const struct iommu_ops *of_iommu_configure(struct device *dev,
+ 
+ extern struct of_device_id __iommu_of_table;
+ 
+-typedef int (*of_iommu_init_fn)(struct device_node *);
+-
+-#define IOMMU_OF_DECLARE(name, compat, fn) \
+-	_OF_DECLARE(iommu, name, compat, fn, of_iommu_init_fn)
++#define IOMMU_OF_DECLARE(name, compat)	OF_DECLARE_1(iommu, name, compat, NULL)
+ 
+ #endif /* __OF_IOMMU_H */
+-- 
+2.7.4
+

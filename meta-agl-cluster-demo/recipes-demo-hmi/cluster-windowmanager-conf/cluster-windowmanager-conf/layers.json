@@ -1,0 +1,47 @@
+{
+    "description": "Layer mapping",
+    "mappings": [
+        {
+            "name": "BackGroundLayer",
+            "role" : "receiver",
+            "id_range_begin": 0,
+            "id_range_end": 0,
+            "comment": "Work Around: This is a special fallback layer that not stopping wayland event loop."
+        },
+        {
+            "name": "FarHomeScreen",
+            "role": "homescreen",
+            "id_range_begin": 100,
+            "id_range_end": 199,
+            "comment": "FarHomeScreen is the part of HomeScreen. The z order of this layer is lower than NearHomeScreen"
+        },
+        {
+            "name": "Apps",
+            "role": "receiver|fallback",
+            "id_range_begin": 1000,
+            "id_range_end": 2999,
+            "comment": "Application layer"
+        },
+        {
+            "name": "Popup",
+            "role": "popup*",
+            "id_range_begin": 4000,
+            "id_range_end": 4999,
+            "comment": "This layer is for popup application layer"
+        },
+        {
+            "name": "Restriction",
+            "role": "restriction",
+            "id_range_begin": 5000,
+            "id_range_end": 5999,
+            "comment": "This layer is for restriction notification on driving. This is used by restriction role"
+        },
+        {
+            "name": "OnScreen",
+            "role": "^on_screen.*",
+            "id_range_begin": 6000,
+            "id_range_end": 6999,
+            "comment": "System notification layer. For example, on_screen_low_battery_alert to notify user"
+        }
+    ]
+}

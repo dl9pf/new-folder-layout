@@ -1,0 +1,11 @@
+[match-endpoint]
+priority = 75
+direction = "sink"
+name = "bluealsa*"
+media_class = "Stream/Input/Audio"
+properties = [
+    { name = "bluealsa.profile", value = "sco" },
+]
+
+[endpoint-link]
+keep = true

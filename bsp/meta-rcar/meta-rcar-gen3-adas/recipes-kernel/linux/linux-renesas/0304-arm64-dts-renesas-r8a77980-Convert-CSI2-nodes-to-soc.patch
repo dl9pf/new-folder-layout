@@ -1,0 +1,92 @@
+From 447ecfa0c2add1ff477ccf22bc27c8248738adaf Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 26 Oct 2018 21:52:31 +0300
+Subject: [PATCH 124/211] arm64: dts: renesas: r8a77980: Convert CSI2 nodes to
+ soc_camera model
+
+This converts CSI2 nodes to soc_camera model.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 58 -------------------------------
+ 1 file changed, 58 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index 63c49a8..5ddff7e 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -1280,35 +1280,6 @@
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 716>;
+ 			status = "disabled";
+-
+-			ports {
+-				#address-cells = <1>;
+-				#size-cells = <0>;
+-
+-				port@1 {
+-					#address-cells = <1>;
+-					#size-cells = <0>;
+-
+-					reg = <1>;
+-
+-					csi40vin0: endpoint@0 {
+-						reg = <0>;
+-						remote-endpoint = <&vin0csi40>;
+-					};
+-					csi40vin1: endpoint@1 {
+-						reg = <1>;
+-						remote-endpoint = <&vin1csi40>;
+-					};
+-					csi40vin2: endpoint@2 {
+-						reg = <2>;
+-						remote-endpoint = <&vin2csi40>;
+-					};
+-					csi40vin3: endpoint@3 {
+-						reg = <3>;
+-						remote-endpoint = <&vin3csi40>;
+-					};
+-				};
+-			};
+ 		};
+ 
+ 		csi41: csi2@feab0000 {
+@@ -1319,35 +1290,6 @@
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 715>;
+ 			status = "disabled";
+-
+-			ports {
+-				#address-cells = <1>;
+-				#size-cells = <0>;
+-
+-				port@1 {
+-					#address-cells = <1>;
+-					#size-cells = <0>;
+-
+-					reg = <1>;
+-
+-					csi41vin4: endpoint@0 {
+-						reg = <0>;
+-						remote-endpoint = <&vin4csi41>;
+-					};
+-					csi41vin5: endpoint@1 {
+-						reg = <1>;
+-						remote-endpoint = <&vin5csi41>;
+-					};
+-					csi41vin6: endpoint@2 {
+-						reg = <2>;
+-						remote-endpoint = <&vin6csi41>;
+-					};
+-					csi41vin7: endpoint@3 {
+-						reg = <3>;
+-						remote-endpoint = <&vin7csi41>;
+-					};
+-				};
+-			};
+ 		};
+ 
+ 		du: display@feb00000 {
+-- 
+2.7.4
+

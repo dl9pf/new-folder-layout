@@ -1,0 +1,32 @@
+From 4c72275148ef3cc02ca8c6dc8a22cb8e67724322 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 17 Jun 2020 23:13:26 +0300
+Subject: [PATCH] media: i2c: isx019: do not disable embedded line
+
+Skip disale the embedded line by default.
+Disableing of embedded line reduces the frame size by one line,
+that is truncated in the end of frame, hence this is useless to disable
+emb line
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/isx019.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/isx019.h b/drivers/media/i2c/soc_camera/isx019.h
+index c7072a3..c3c36ba 100644
+--- a/drivers/media/i2c/soc_camera/isx019.h
++++ b/drivers/media/i2c/soc_camera/isx019.h
+@@ -23,8 +23,8 @@ static const struct isx019_reg isx019_regs_wizard[] = {
+ #if 0
+ /* enable FSIN */
+ {ISX019_DELAY, 100},
+-#endif
+ /* disable embedded data */
+ {0x504c, 0x0},
+ {0x504e, 0x0},
++#endif
+ };
+-- 
+2.7.4
+

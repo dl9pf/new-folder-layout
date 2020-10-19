@@ -1,0 +1,52 @@
+From da07480ffaecd44e65f4361dc375f428f8889e22 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 22 Jan 2019 22:58:38 +0300
+Subject: [PATCH 094/211] clk: renesas: rcar-gen3: Add spinlock
+
+Protect the CPG register read-modify-write sequence with a spinlock.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+(cherry picked from commit 875e8f6b0156c0ad56fd0c29c78e3f2f67ec0b16)
+[valentine.barshak: resolved a minor conflict with cpg_quirks]
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/rcar-gen3-cpg.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/clk/renesas/rcar-gen3-cpg.c b/drivers/clk/renesas/rcar-gen3-cpg.c
+index d99b666..8e41380 100644
+--- a/drivers/clk/renesas/rcar-gen3-cpg.c
++++ b/drivers/clk/renesas/rcar-gen3-cpg.c
+@@ -46,14 +46,19 @@ static u32 cpg_quirks;
+ #define Z2FC_BIT_MASK_SFT_8	BIT(2)	/* Use Z2FC bit mask range to [12:8] */
+ #define ZG_PARENT_PLL0		BIT(3)	/* Use PLL0 as ZG clock parent */
+ 
++static spinlock_t cpg_lock;
++
+ static void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set)
+ {
++	unsigned long flags;
+ 	u32 val;
+ 
++	spin_lock_irqsave(&cpg_lock, flags);
+ 	val = readl(reg);
+ 	val &= ~clear;
+ 	val |= set;
+ 	writel(val, reg);
++	spin_unlock_irqrestore(&cpg_lock, flags);
+ };
+ 
+ struct cpg_simple_notifier {
+@@ -911,5 +916,8 @@ int __init rcar_gen3_cpg_init(const struct rcar_gen3_cpg_pll_config *config,
+ 	if (attr)
+ 		cpg_quirks = (uintptr_t)attr->data;
+ 	pr_debug("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
++
++	spin_lock_init(&cpg_lock);
++
+ 	return 0;
+ }
+-- 
+2.7.4
+

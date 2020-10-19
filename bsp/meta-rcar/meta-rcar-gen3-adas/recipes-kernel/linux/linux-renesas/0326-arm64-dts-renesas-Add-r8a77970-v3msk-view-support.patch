@@ -1,0 +1,39 @@
+From 9112a9be8c58ccb96c2d261e63d1351120514588 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:25:30 +0300
+Subject: [PATCH 146/211] arm64: dts: renesas: Add r8a77970-v3msk-view support
+
+This adds r8a77970-v3msk-view device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile                | 1 +
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk-view.dts | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index dad071d..3e52401 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -36,5 +36,6 @@ dtb-$(CONFIG_ARCH_R8A77965) += r8a77965-m3nulcb-kf.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-eagle-function.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-eagle.dtb r8a77970-es1-eagle-function.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-v3msk.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-view.dtb r8a77970-es1-v3msk-view.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-view.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-view.dts
+index 75631fb..2197bbe 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-view.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-view.dts
+@@ -9,6 +9,7 @@
+  */
+ 
+ #include "r8a77970-v3msk.dts"
++#include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+ 	model = "Renesas V3MSK View board based on r8a7797";
+-- 
+2.7.4
+

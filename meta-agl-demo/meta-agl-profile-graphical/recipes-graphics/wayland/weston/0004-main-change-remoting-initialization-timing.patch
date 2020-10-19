@@ -1,0 +1,40 @@
+From 0a0103f20437d9ed63b6cec500027a6d7bf6185f Mon Sep 17 00:00:00 2001
+From: Harunobu Kurokawa <harunobu.kurokawa.dn@renesas.com>
+Date: Mon, 20 May 2019 18:31:32 +0900
+Subject: [PATCH] main: change remoting initialization timing
+
+Upstream-Status: Pending[1]
+
+[1]: https://gitlab.freedesktop.org/wayland/weston/issues/246
+
+Signed-off-by: Tomohito Esaki <etom@igel.co.jp>
+Signed-off-by: Harunobu Kurokawa <harunobu.kurokawa.dn@renesas.com>
+[Updated for Weston 8.0.0]
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+---
+diff --git a/compositor/main.c b/compositor/main.c
+index 8eb8a47..22686b0 100644
+--- a/compositor/main.c
++++ b/compositor/main.c
+@@ -2518,9 +2518,6 @@ load_drm_backend(struct weston_compositor *c,
+ 	ret = weston_compositor_load_backend(c, WESTON_BACKEND_DRM,
+ 					     &config.base);
+ 
+-	/* remoting */
+-	load_remoting(c, wc);
+-
+ 	/* pipewire */
+ 	load_pipewire(c, wc);
+ 
+@@ -3278,6 +3275,10 @@ wet_main(int argc, char *argv[])
+ 	if (wet.init_failed)
+ 		goto out;
+ 
++	/* remoting: only support on drm-backend */
++	if (strstr(backend, "drm-backend.so"))
++		load_remoting(wet.compositor, config);
++
+ 	if (idle_time < 0)
+ 		weston_config_section_get_int(section, "idle-time", &idle_time, -1);
+ 	if (idle_time < 0)

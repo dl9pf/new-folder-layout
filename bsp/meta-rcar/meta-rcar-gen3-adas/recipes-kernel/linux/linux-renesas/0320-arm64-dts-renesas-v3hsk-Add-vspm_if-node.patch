@@ -1,0 +1,30 @@
+From b643f0f2b529e074683d884fd871ee7e64b2b337 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 27 Oct 2018 00:25:29 +0300
+Subject: [PATCH 140/211] arm64: dts: renesas: v3hsk: Add vspm_if node
+
+This adds vspm_if node.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index 4aa6b27..51607d4 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -64,6 +64,10 @@
+ 		compatible = "renesas,mmngrbuf";
+ 	};
+ 
++	vspm_if {
++		compatible = "renesas,vspm_if";
++	};
++
+ 	hdmi-out {
+ 		compatible = "hdmi-connector";
+ 		type = "a";
+-- 
+2.7.4
+

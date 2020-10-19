@@ -1,0 +1,49 @@
+From f33694d540db9a8c5e0e736c22d764b85ec4eea8 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 9 Oct 2018 22:10:14 +0300
+Subject: [PATCH 064/211] dt-bindings: thermal: rcar-gen3-thermal: document
+ R8A77980 bindings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Document the R-Car V3H (R8A77980) SoC in the Renesas R-Car gen3 thermal
+bindings.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+Reviewed-by: Niklas Söderlund <niklas.soderlund+renesas@ragnatech.se>
+Reviewed-by: Rob Herring <robh@kernel.org>
+Signed-off-by: Eduardo Valentin <edubezval@gmail.com>
+(cherry picked from commit 8583d8d621eb7f38e388dfe53a45fff908ccf07d)
+[valentine.barshak: resolved a minor conflict]
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.txt b/Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.txt
+index 261c3fe..7bb6d0b 100644
+--- a/Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.txt
++++ b/Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.txt
+@@ -11,6 +11,7 @@ Required properties:
+ 			    - "renesas,r8a7796-thermal" (R-Car M3-W)
+ 			    - "renesas,r8a77965-thermal" (R-Car M3-N)
+ 			    - "renesas,r8a77990-thermal" (R-Car E3)
++			    - "renesas,r8a77980-thermal" (R-Car V3H)
+ - reg			: Address ranges of the thermal registers. Each sensor
+ 			  needs one address range. Sorting must be done in
+ 			  increasing order according to datasheet, i.e.
+@@ -20,7 +21,8 @@ Required properties:
+ 
+ Optional properties:
+ 
+-- interrupts           : interrupts routed to the TSC (3 for H3, M3-W and M3-N)
++- interrupts		: interrupts routed to the TSC (3 for H3, M3-W, M3-N,
++			  and V3H)
+ - power-domain		: Must contain a reference to the power domain. This
+ 			  property is mandatory if the thermal sensor instance
+ 			  is part of a controllable power domain.
+-- 
+2.7.4
+

@@ -1,0 +1,51 @@
+From 8e93699c0f225716f3cd5eff790270ae9e3880f9 Mon Sep 17 00:00:00 2001
+From: Changhyeok Bae <changhyeok.bae@gmail.com>
+Date: Sun, 17 Dec 2017 15:40:58 +0000
+Subject: [PATCH 10/14] gcc-7 requires include <functional> for std::function
+
+Signed-off-by: Changhyeok Bae <changhyeok.bae@gmail.com>
+---
+ src/client/client-common.cpp      | 1 +
+ src/common/smack-labels.cpp       | 1 +
+ src/dpl/core/src/binary_queue.cpp | 1 +
+ 3 files changed, 3 insertions(+)
+
+diff --git a/src/client/client-common.cpp b/src/client/client-common.cpp
+index 883ab8d..1babdf7 100644
+--- a/src/client/client-common.cpp
++++ b/src/client/client-common.cpp
+@@ -31,6 +31,7 @@
+ #include <sys/xattr.h>
+ #include <linux/xattr.h>
+ #include <unistd.h>
++#include <functional>
+ 
+ #include <dpl/log/log.h>
+ #include <dpl/serialization.h>
+diff --git a/src/common/smack-labels.cpp b/src/common/smack-labels.cpp
+index 0294a42..1598099 100644
+--- a/src/common/smack-labels.cpp
++++ b/src/common/smack-labels.cpp
+@@ -29,6 +29,7 @@
+ #include <sys/xattr.h>
+ #include <linux/xattr.h>
+ #include <memory>
++#include <functional>
+ #include <fts.h>
+ #include <cstring>
+ #include <string>
+diff --git a/src/dpl/core/src/binary_queue.cpp b/src/dpl/core/src/binary_queue.cpp
+index 72817a6..838409f 100644
+--- a/src/dpl/core/src/binary_queue.cpp
++++ b/src/dpl/core/src/binary_queue.cpp
+@@ -26,6 +26,7 @@
+ #include <malloc.h>
+ #include <cstring>
+ #include <new>
++#include <functional>
+ 
+ namespace SecurityManager {
+ BinaryQueue::BinaryQueue() :
+-- 
+2.21.0
+

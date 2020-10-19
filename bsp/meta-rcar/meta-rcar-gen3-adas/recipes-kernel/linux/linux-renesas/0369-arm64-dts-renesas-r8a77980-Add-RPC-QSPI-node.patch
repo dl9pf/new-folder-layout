@@ -1,0 +1,41 @@
+From aaf5960d267e42b7bc1699e8e614c806723e263b Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 16 Nov 2018 00:02:16 +0300
+Subject: [PATCH 189/211] arm64: dts: renesas: r8a77980: Add RPC QSPI node
+
+Add RPC QSPI device node. This is based
+on the original patch by Dmitry Shifrin.
+
+Signed-off-by: Dmitry Shifrin <dmitry.shifrin@cogentembedded.com>
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index c599814..688bc09 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -823,6 +823,19 @@
+ 			status = "disabled";
+ 		};
+ 
++		qspi0: qspi@ee200000 {
++			compatible = "renesas,qspi-rpc-r8a77980";
++			reg = <0 0xee200000 0 0x1f0>,
++			      <0 0x08000000 0 0x04000000>,
++			      <0 0xee208000 0 0x100>;
++			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 917>;
++			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			status = "disabled";
++		};
++
+ 		msiof0: spi@e6e90000 {
+ 			compatible = "renesas,msiof-r8a77980",
+ 				     "renesas,rcar-gen3-msiof";
+-- 
+2.7.4
+

@@ -1,0 +1,154 @@
+From 164a97c4370a29ee27145c5d1c44fe03ec2ce7b1 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 20 Nov 2019 16:41:12 +0300
+Subject: [PATCH] media: i2c: max9286: parse crossbard from cmdline
+
+This allows to change crossbar by command line parameter
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/max9286.c | 93 +++++++++++++++++++---------------
+ 1 file changed, 51 insertions(+), 42 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/max9286.c b/drivers/media/i2c/soc_camera/max9286.c
+index 3184ff1..b185566 100644
+--- a/drivers/media/i2c/soc_camera/max9286.c
++++ b/drivers/media/i2c/soc_camera/max9286.c
+@@ -56,6 +56,7 @@ struct max9286_priv {
+ 	int			dbl;
+ 	int			dt;
+ 	int			hsgen;
++	char			cb[16];
+ 	int			hts;
+ 	int			vts;
+ 	int			hts_delay;
+@@ -140,6 +141,10 @@ static int switchin = 0;
+ module_param(switchin, int, 0644);
+ MODULE_PARM_DESC(switchin, " COAX SWITCH IN+ and IN- (default: 0 - not switched)");
+ 
++static long crossbar = 0xba9876543210;
++module_param(crossbar, long, 0644);
++MODULE_PARM_DESC(crossbar, " Crossbar setup (default: ba9876543210 - reversed)");
++
+ enum {
+ 	RGB888_DT = 0,
+ 	RGB565_DT,
+@@ -421,54 +426,53 @@ static void max9286_gmsl_link_setup(struct i2c_client *client, int idx)
+ 		switch (priv->dt) {
+ 		case YUV8_DT:
+ 			/* setup crossbar for YUV8/RAW8: reverse DVP bus */
+-			reg8_write(client, 0x20, 7);
+-			reg8_write(client, 0x21, 6);
+-			reg8_write(client, 0x22, 5);
+-			reg8_write(client, 0x23, 4);
+-			reg8_write(client, 0x24, 3);
+-			reg8_write(client, 0x25, 2);
+-			reg8_write(client, 0x26, 1);
+-			reg8_write(client, 0x27, 0);
++			reg8_write(client, 0x20, priv->cb[7]);
++			reg8_write(client, 0x21, priv->cb[6]);
++			reg8_write(client, 0x22, priv->cb[5]);
++			reg8_write(client, 0x23, priv->cb[4]);
++			reg8_write(client, 0x24, priv->cb[3]);
++			reg8_write(client, 0x25, priv->cb[2]);
++			reg8_write(client, 0x26, priv->cb[1]);
++			reg8_write(client, 0x27, priv->cb[0]);
+ 
+ 			/* this is second byte if DBL=1 */
+-			reg8_write(client, 0x30, 23);
+-			reg8_write(client, 0x31, 22);
+-			reg8_write(client, 0x32, 21);
+-			reg8_write(client, 0x33, 20);
+-			reg8_write(client, 0x34, 19);
+-			reg8_write(client, 0x35, 18);
+-			reg8_write(client, 0x36, 17);
+-			reg8_write(client, 0x37, 16);
+-
++			reg8_write(client, 0x30, priv->cb[7] + 16);
++			reg8_write(client, 0x31, priv->cb[6] + 16);
++			reg8_write(client, 0x32, priv->cb[5] + 16);
++			reg8_write(client, 0x33, priv->cb[4] + 16);
++			reg8_write(client, 0x34, priv->cb[3] + 16);
++			reg8_write(client, 0x35, priv->cb[2] + 16);
++			reg8_write(client, 0x36, priv->cb[1] + 16);
++			reg8_write(client, 0x37, priv->cb[0] + 16);
+ 			break;
+ 		case RAW12_DT:
+ 			/* setup crossbar for RAW12: reverse DVP bus */
+-			reg8_write(client, 0x20, 11);
+-			reg8_write(client, 0x21, 10);
+-			reg8_write(client, 0x22, 9);
+-			reg8_write(client, 0x23, 8);
+-			reg8_write(client, 0x24, 7);
+-			reg8_write(client, 0x25, 6);
+-			reg8_write(client, 0x26, 5);
+-			reg8_write(client, 0x27, 4);
+-			reg8_write(client, 0x28, 3);
+-			reg8_write(client, 0x29, 2);
+-			reg8_write(client, 0x2a, 1);
+-			reg8_write(client, 0x2b, 0);
++			reg8_write(client, 0x20, priv->cb[11]);
++			reg8_write(client, 0x21, priv->cb[10]);
++			reg8_write(client, 0x22, priv->cb[9]);
++			reg8_write(client, 0x23, priv->cb[8]);
++			reg8_write(client, 0x24, priv->cb[7]);
++			reg8_write(client, 0x25, priv->cb[6]);
++			reg8_write(client, 0x26, priv->cb[5]);
++			reg8_write(client, 0x27, priv->cb[4]);
++			reg8_write(client, 0x28, priv->cb[3]);
++			reg8_write(client, 0x29, priv->cb[2]);
++			reg8_write(client, 0x2a, priv->cb[1]);
++			reg8_write(client, 0x2b, priv->cb[0]);
+ 
+ 			/* this is second byte if DBL=1 */
+-			reg8_write(client, 0x30, 27);
+-			reg8_write(client, 0x31, 26);
+-			reg8_write(client, 0x32, 25);
+-			reg8_write(client, 0x33, 24);
+-			reg8_write(client, 0x34, 23);
+-			reg8_write(client, 0x35, 22);
+-			reg8_write(client, 0x36, 21);
+-			reg8_write(client, 0x37, 20);
+-			reg8_write(client, 0x38, 19);
+-			reg8_write(client, 0x39, 18);
+-			reg8_write(client, 0x3a, 17);
+-			reg8_write(client, 0x3b, 16);
++			reg8_write(client, 0x30, priv->cb[11] + 16);
++			reg8_write(client, 0x31, priv->cb[10] + 16);
++			reg8_write(client, 0x32, priv->cb[9] + 16);
++			reg8_write(client, 0x33, priv->cb[8] + 16);
++			reg8_write(client, 0x34, priv->cb[7] + 16);
++			reg8_write(client, 0x35, priv->cb[6] + 16);
++			reg8_write(client, 0x36, priv->cb[5] + 16);
++			reg8_write(client, 0x37, priv->cb[4] + 16);
++			reg8_write(client, 0x38, priv->cb[3] + 16);
++			reg8_write(client, 0x39, priv->cb[2] + 16);
++			reg8_write(client, 0x3a, priv->cb[1] + 16);
++			reg8_write(client, 0x3b, priv->cb[0] + 16);
+ 
+ 			if (!priv->bws && priv->dbl)
+ 				dev_err(&client->dev, " BWS must be 27/32-bit for RAW12 in DBL mode\n");
+@@ -733,7 +737,6 @@ static int max9286_parse_dt(struct i2c_client *client)
+ 	if (of_property_read_u32(np, "maxim,switchin", &priv->switchin))
+ 		priv->switchin = 0;
+ 
+-
+ 	/* module params override dts */
+ 	if (him)
+ 		priv->him = him;
+@@ -766,6 +769,12 @@ static int max9286_parse_dt(struct i2c_client *client)
+ 	if (switchin)
+ 		priv->switchin = switchin;
+ 
++	/* parse crossbar setup */
++	for (i = 0; i < 16; i++) {
++		priv->cb[i] = crossbar % 16;
++		crossbar /= 16;
++	}
++
+ 	for (i = 0; i < priv->links; i++) {
+ 		endpoint = of_graph_get_next_endpoint(np, endpoint);
+ 		if (!endpoint)
+-- 
+2.7.4
+

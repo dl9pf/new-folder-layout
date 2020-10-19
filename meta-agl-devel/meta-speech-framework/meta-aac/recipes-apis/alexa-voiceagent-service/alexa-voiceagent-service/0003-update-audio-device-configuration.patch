@@ -1,0 +1,197 @@
+Update audio device configuration
+
+Rework the audio output device configuration to match the expectations
+of the PipeWire output sink configuration in the gstreamer output code.
+Currently, this means that the role is being stored as the device name
+so the gstreamer code can use it when setting up the output sink
+properties.
+
+Upstream-Status: Pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/platforms/agl/alexa-voiceagent-service/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp b/platforms/agl/alexa-voiceagent-service/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp
+index 83d0341..b51185c 100644
+--- a/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp
++++ b/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp
+@@ -97,25 +97,25 @@ AASBConfigProviderImpl::AudioIOConfiguration AASBConfigProviderImpl::getAudioIOC
+ 
+     // Output devices
+     if(!m_ttsOutputDevice.empty())
+-      audioConfig.ttsOutputDevice = m_audio->openAHLChannel(m_ttsOutputDevice);
++      audioConfig.ttsOutputDevice = m_audio->openChannel(m_ttsOutputDevice);
+ 
+     if(!m_musicOutputDevice.empty())
+-      audioConfig.musicOutputDevice = m_audio->openAHLChannel(m_musicOutputDevice);
++      audioConfig.musicOutputDevice = m_audio->openChannel(m_musicOutputDevice);
+ 
+     if(!m_notificationOutputDevice.empty())
+-      audioConfig.notificationOutputDevice = m_audio->openAHLChannel(m_notificationOutputDevice);
++      audioConfig.notificationOutputDevice = m_audio->openChannel(m_notificationOutputDevice);
+ 
+     if(!m_alarmOutputDevice.empty())
+-      audioConfig.alarmOutputDevice = m_audio->openAHLChannel(m_alarmOutputDevice);
++      audioConfig.alarmOutputDevice = m_audio->openChannel(m_alarmOutputDevice);
+ 
+     if(!m_earconOutputDevice.empty())
+-      audioConfig.earconOutputDevice = m_audio->openAHLChannel(m_earconOutputDevice);
++      audioConfig.earconOutputDevice = m_audio->openChannel(m_earconOutputDevice);
+ 
+     if(!m_communicationOutputDevice.empty())
+-      audioConfig.communicationOutputDevice = m_audio->openAHLChannel(m_communicationOutputDevice);
++      audioConfig.communicationOutputDevice = m_audio->openChannel(m_communicationOutputDevice);
+ 
+     if(!m_ringtoneOutputDevice.empty())
+-      audioConfig.ringtoneOutputDevice = m_audio->openAHLChannel(m_ringtoneOutputDevice);
++      audioConfig.ringtoneOutputDevice = m_audio->openChannel(m_ringtoneOutputDevice);
+ 
+     return audioConfig;
+ }
+@@ -585,4 +585,4 @@ void AASBConfigProviderImpl::logCurrentConfiguration() {
+ }
+ 
+ }  // namespace alexa
+-}  // namespace agl
+\ No newline at end of file
++}  // namespace agl
+diff --git a/src/plugins/audio/Audio.cpp b/src/plugins/audio/Audio.cpp
+index d662a06..1b2fa9d 100644
+--- a/src/plugins/audio/Audio.cpp
++++ b/src/plugins/audio/Audio.cpp
+@@ -13,8 +13,6 @@
+  * permissions and limitations under the License.
+  */
+ 
+-#include <json.h>
+-
+ #include <AACE/Engine/Core/EngineMacros.h>
+ 
+ #include "Audio.h"
+@@ -22,7 +20,7 @@
+ namespace agl {
+ namespace audio {
+ 
+-/// Shortcut to reach logging level.
++// Shortcut to reach logging level.
+ using Level = agl::common::interfaces::ILogger::Level;
+ 
+ using namespace agl::common::interfaces;
+@@ -31,68 +29,30 @@ static std::string TAG = "agl::audio::Audio";
+ 
+ std::shared_ptr<Audio> Audio::create(
+     std::shared_ptr<agl::common::interfaces::ILogger> logger,
+-    shared_ptr<agl::common::interfaces::IAFBApi> api) {
++    shared_ptr<agl::common::interfaces::IAFBApi> api)
++{
+     return std::shared_ptr<Audio>(new Audio(logger, api));
+ }
+ 
+ Audio::Audio(std::shared_ptr<ILogger> logger,
+     std::shared_ptr<IAFBApi> api) :
+         m_logger(logger),
+-        m_api(api) {
+-
+-}
+-
+-std::string Audio::openAHLChannel(const std::string &role)
++        m_api(api)
+ {
+-	json_object *request = json_object_new_object();
+-	json_object *response = NULL;
+-	json_object_object_add(request, "action", json_object_new_string("open"));
+-	if (callAHL(role, request, &response)) {
+-		json_object *val = NULL;
+-		std::string result;
+-		if (json_object_object_get_ex(response, "device_uri", &val)) {
+-			const char* device = json_object_get_string(val);
+-			m_logger->log(Level::DEBUG, TAG, "openAHLChannel: device=" + std::string(device));
+-			result = device;
+-		}
+-		json_object_put(response);
+-		return result;
+-	}
+-	return "";
+ }
+ 
+-bool Audio::setAHLChannelVolume(const std::string &role, int volume)
++std::string Audio::openChannel(const std::string &role)
+ {
+-	json_object *request = json_object_new_object();
+-	json_object_object_add(request, "action", json_object_new_string("volume"));
+-	json_object_object_add(request, "value", json_object_new_int(volume));
+-	return callAHL(role, request, NULL);
++	// For now, return the given role as the device string, to match
++	// the expectation of the PipeWire sink configuration in the
++	// gstreamer output code.
++	return role;
+ }
+ 
+-bool Audio::callAHL(const std::string &role, json_object *request, json_object **response)
++bool Audio::setChannelVolume(const std::string &role, int volume)
+ {
+-	json_object *object = NULL;
+-    std::string error, info;
+-	bool result = false;
+-
+-	if (m_api->callSync("ahl-4a", role, request, &object, error, info) < 0) {
+-		m_logger->log(Level::ERROR, TAG, "VA service call=" + role + " failed, error=" + error + ", info=" + info);
+-		goto exit;
+-	}
+-
+-    m_logger->log(Level::DEBUG, TAG, "callAHL, response=" + std::string(json_object_get_string(object)));
+-	result = true;
+-	if (response) {
+-		*response = object;
+-	}
+-
+-exit:
+-	if (!result && object) {
+-		json_object_put(object);
+-	}
+-
+-	return result;
++	return true;
+ }
+ 
+-}
+-}
+\ No newline at end of file
++} // namespace audio
++} // namespace agl
+diff --git a/src/plugins/audio/Audio.h b/src/plugins/audio/Audio.h
+index 14bef4d..8998242 100644
+--- a/src/plugins/audio/Audio.h
++++ b/src/plugins/audio/Audio.h
+@@ -35,23 +35,21 @@ public:
+ 		std::shared_ptr<agl::common::interfaces::ILogger> logger,
+ 		shared_ptr<agl::common::interfaces::IAFBApi> api);
+ 
+-	std::string openAHLChannel(const std::string &role);
+-	bool setAHLChannelVolume(const std::string &role, int volume);
++	std::string openChannel(const std::string &role);
++	bool setChannelVolume(const std::string &role, int volume);
+ 
+ private:
+ 	Audio(std::shared_ptr<agl::common::interfaces::ILogger> logger,
+ 		  shared_ptr<agl::common::interfaces::IAFBApi> api);
+ 
+-	bool callAHL(const std::string &role, json_object *request, json_object **response);
+-
+-    // Logger.
+-    std::shared_ptr<agl::common::interfaces::ILogger> m_logger;
++	// Logger.
++	std::shared_ptr<agl::common::interfaces::ILogger> m_logger;
+ 
+ 	// AFB API object for events pub/sub, and for calling other AGL services.
+-    std::shared_ptr<agl::common::interfaces::IAFBApi> m_api;
++	std::shared_ptr<agl::common::interfaces::IAFBApi> m_api;
+ };
+ 
+-}
+-}
++} // namespace audio
++} // namespace agl
+ 
+-#endif // AGL_AUDIO_AUDIO_H_
+\ No newline at end of file
++#endif // AGL_AUDIO_AUDIO_H_

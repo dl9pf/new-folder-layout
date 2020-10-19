@@ -1,0 +1,34 @@
+##Generate a weston.ini file:
+
+To modify any of the default sections (core, shell, ivi-shell), add a
+do_configure() function to your bbappend:
+
+'''
+do_configure() {
+    echo repaint-window=34 >> ${WORKDIR}/core.cfg
+
+    echo transition-duration=300 >> ${WORKDIR}/ivishell.cfg
+    echo cursor-theme=default >> ${WORKDIR}/ivishell.cfg
+}
+'''
+or:
+'''
+do_configure() {
+    sed -i -e 's/drm-backend/fbdev-backend/' ${WORKDIR}/core.cfg
+}
+'''
+
+To change the display from the default assumption of an HDMI-1-A connected
+screen that needs to be rotated 270 degrees:
+
+'''
+SRC_URI_remove = "file://hdmi-a-1-270.cfg"
+SRC_URI += "file://hdmi-a-1-90.cfg"
+'''
+
+To add new sections just list them in SRC_URI:
+'''
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+
+SRC_URI += "file://dsi.cfg"
+'''

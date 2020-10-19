@@ -1,0 +1,55 @@
+From 63e509e237f058679dd4a04012f53c8c56aaafb0 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 19 Dec 2019 15:08:14 +0300
+Subject: [PATCH] media: i2c: soc_camera: ov495_ov2775: Remove early_param
+ parser
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Use conf_link variable instead of force_conf_link,
+and remove eaarly_param() parser altogether.
+This fixes the following module compilation error:
+
+  expected declaration specifiers or ‘...’ before ‘ov495_force_conf_link’
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov495_ov2775.c | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov495_ov2775.c b/drivers/media/i2c/soc_camera/ov495_ov2775.c
+index aee8145..c40970c 100644
+--- a/drivers/media/i2c/soc_camera/ov495_ov2775.c
++++ b/drivers/media/i2c/soc_camera/ov495_ov2775.c
+@@ -57,17 +57,6 @@ struct ov495_priv {
+ 
+ };
+ 
+-static int force_conf_link;
+-
+-static __init int ov495_force_conf_link(char *str)
+-{
+-	/* force configuration link */
+-	/* used only if robust firmware flashing required (f.e. recovery) */
+-	force_conf_link = 1;
+-	return 0;
+-}
+-early_param("force_conf_link", ov495_force_conf_link);
+-
+ static inline struct ov495_priv *to_ov495(const struct i2c_client *client)
+ {
+ 	return container_of(i2c_get_clientdata(client), struct ov495_priv, sd);
+@@ -429,7 +418,7 @@ static int ov495_initialize(struct i2c_client *client)
+ 	client->addr = tmp_addr;
+ #endif
+ 
+-	if (unlikely(force_conf_link))
++	if (unlikely(conf_link))
+ 		goto out;
+ 
+ #if 0
+-- 
+2.7.4
+

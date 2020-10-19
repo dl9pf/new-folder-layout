@@ -1,0 +1,34 @@
+From 7cffcd61378a9d7c0e7db5691b2da3a37448c969 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jos=C3=A9=20Bollo?= <jose.bollo@iot.bzh>
+Date: Thu, 30 Jan 2020 09:19:25 +0100
+Subject: [PATCH 15/15] Restrict socket accesses
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Ensure that only members of the group and the owner can access
+the security manager.
+
+Bug-AGL: SPEC-3146
+
+Change-Id: I68ce6523db4bfd4707c3680555c3cb0cf8858ef2
+Signed-off-by: José Bollo <jose.bollo@iot.bzh>
+---
+ systemd/security-manager.socket | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/systemd/security-manager.socket b/systemd/security-manager.socket
+index af1c1da..b401f77 100644
+--- a/systemd/security-manager.socket
++++ b/systemd/security-manager.socket
+@@ -1,6 +1,6 @@
+ [Socket]
+ ListenStream=/run/security-manager.socket
+-SocketMode=0777
++SocketMode=0660
+ SmackLabelIPIn=*
+ SmackLabelIPOut=@
+ 
+-- 
+2.21.1
+

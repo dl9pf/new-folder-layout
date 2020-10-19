@@ -1,0 +1,25 @@
+From 17d0075d95b5087d5df553444cca390fa479bad9 Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Tue, 10 Mar 2020 22:27:28 -0700
+Subject: [PATCH] net: sch_generic: add if_afp.h header to get ARPHRD_CAN macro
+
+Signed-off-by: Matt Ranostay <matt.ranostay@konsulko.com>
+---
+ net/sched/sch_generic.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/net/sched/sch_generic.c b/net/sched/sch_generic.c
+index bf8c81e07c70..1845ef8c7dbd 100644
+--- a/net/sched/sch_generic.c
++++ b/net/sched/sch_generic.c
+@@ -25,6 +25,7 @@
+ #include <linux/rcupdate.h>
+ #include <linux/list.h>
+ #include <linux/slab.h>
++#include <linux/if_arp.h>
+ #include <linux/if_vlan.h>
+ #include <net/sch_generic.h>
+ #include <net/pkt_sched.h>
+-- 
+2.25.0
+

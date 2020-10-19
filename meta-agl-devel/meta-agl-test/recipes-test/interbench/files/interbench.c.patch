@@ -1,0 +1,68 @@
+--- interbench.c.orig	2009-10-30 23:14:59.000000000 -0500
++++ interbench.c	2012-07-10 19:06:00.000000000 -0500
+@@ -71,6 +71,7 @@ struct user_data {
+ 	char datestamp[13];
+ 	FILE *logfile;
+ } ud = {
++	.ram = 0,
+ 	.duration = 30,
+ 	.cpu_load = 4,
+ 	.log = 1,
+@@ -652,6 +653,8 @@ void emulate_write(struct thread *th)
+ 			terminal_error("fopen");
+ 		if (stat(name, &statbuf) == -1)
+ 			terminal_fileopen_error(fp, "stat");
++		if (statbuf.st_blksize < MIN_BLK_SIZE)
++			statbuf.st_blksize = MIN_BLK_SIZE;
+ 		for (i = 0 ; i < mem; i++) {
+ 			if (fwrite(buf, statbuf.st_blksize, 1, fp) != 1)
+ 				terminal_fileopen_error(fp, "fwrite");
+@@ -1136,14 +1139,17 @@ void get_ram(void)
+ 	if(!(meminfo = fopen("/proc/meminfo", "r")))
+ 		terminal_error("fopen");
+ 
+-	ud.ram = ud.swap = 0;
+-	while( !feof(meminfo) && !fscanf(meminfo, "MemTotal: %lu kB", &ud.ram) )
+-            fgets(aux,sizeof(aux),meminfo);
++	if (!ud.ram)
++	{
++	    while( !feof(meminfo) && !fscanf(meminfo, "MemTotal: %lu kB", &ud.ram) )
++        	fgets(aux,sizeof(aux),meminfo);
++	}
++	ud.swap = 0;
+ 	while( !feof(meminfo) && !fscanf(meminfo, "SwapTotal: %lu kB", &ud.swap) )
+             fgets(aux,sizeof(aux),meminfo);
+ 	if (fclose(meminfo) == -1)
+ 		terminal_error("fclose");
+-
++ 
+ 	if( !ud.ram || !ud.swap ) {
+ 		unsigned long i;
+ 		fprintf(stderr, "\nCould not get memory or swap size. ");
+@@ -1399,6 +1405,7 @@ void usage(void)
+ 	fprintf(stderr, "\t[-h]\n\n");
+ 	fprintf(stderr, " -l\tUse <int> loops per sec (default: use saved benchmark)\n");
+ 	fprintf(stderr, " -L\tUse cpu load of <int> with burn load (default: 4)\n");
++	fprintf(stderr, " -M\tForce RAM size to <int>. Useful when disk is smaller than RAM.\n");
+ 	fprintf(stderr, " -t\tSeconds to run each benchmark (default: 30)\n");
+ 	fprintf(stderr, " -B\tNice the benchmarked thread to <int> (default: 0)\n");
+ 	fprintf(stderr, " -N\tNice the load thread to <int> (default: 0)\n");
+@@ -1482,7 +1489,7 @@ int main(int argc, char **argv)
+ 		terminal_error("signal");
+ #endif
+ 
+-	while ((q = getopt(argc, argv, "hl:L:B:N:ut:bcnrC:I:m:w:x:W:X:")) != -1) {
++	while ((q = getopt(argc, argv, "hl:L:M:B:N:ut:bcnrC:I:m:w:x:W:X:")) != -1) {
+ 		switch (q) {
+ 			case 'h':
+ 				usage();
+@@ -1496,6 +1503,9 @@ int main(int argc, char **argv)
+ 			case 'L':
+ 				ud.cpu_load = atoi(optarg);
+ 				break;
++			case 'M':
++				ud.ram = atoi(optarg);
++				break;
+ 			case 'B':
+ 				ud.bench_nice = atoi(optarg);
+ 				break;

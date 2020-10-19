@@ -1,0 +1,27 @@
+From 7782f8f9d9634ebeddafefedab10ba254f9cc34a Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Fri, 1 Mar 2019 17:53:17 +0900
+Subject: [PATCH] provision: allow duplicate entries from mbpi_lookup_apn()
+ results
+
+Signed-off-by: Matt Ranostay <matt.ranostay@konsulko.com>
+---
+ plugins/provision.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/plugins/provision.c b/plugins/provision.c
+index 99c299eb..aa0b05e4 100644
+--- a/plugins/provision.c
++++ b/plugins/provision.c
+@@ -50,7 +50,7 @@ static int provision_get_settings(const char *mcc, const char *mnc,
+ 
+ 	DBG("Provisioning for MCC %s, MNC %s, SPN '%s'", mcc, mnc, spn);
+ 
+-	apns = mbpi_lookup_apn(mcc, mnc, FALSE, &error);
++	apns = mbpi_lookup_apn(mcc, mnc, TRUE, &error);
+ 	if (apns == NULL) {
+ 		if (error != NULL) {
+ 			ofono_error("%s", error->message);
+-- 
+2.20.1
+

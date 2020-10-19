@@ -1,0 +1,30 @@
+From b31a82407090315c8bfa2c0079e2da263e66140f Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 12 Nov 2018 18:17:43 +0300
+Subject: [PATCH 172/211] gpu: drm: rcar_du: Fix physical address of the CMA
+ backing memory
+
+This fixes physical address of the frame buffer backing memory
+when the frame buffer is created using DMA buffer handle.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/gpu/drm/rcar-du/rcar_du_kms.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/rcar-du/rcar_du_kms.c b/drivers/gpu/drm/rcar-du/rcar_du_kms.c
+index a6940e6..d66ae53 100644
+--- a/drivers/gpu/drm/rcar-du/rcar_du_kms.c
++++ b/drivers/gpu/drm/rcar-du/rcar_du_kms.c
+@@ -208,7 +208,7 @@ struct drm_gem_object *rcar_du_gem_prime_import_sg_table(struct drm_device *dev,
+ 		goto error;
+ 	}
+ 
+-	cma_obj->paddr = 0;
++	cma_obj->paddr = sg_dma_address(sgt->sgl);
+ 	cma_obj->sgt = sgt;
+ 
+ 	return gem_obj;
+-- 
+2.7.4
+

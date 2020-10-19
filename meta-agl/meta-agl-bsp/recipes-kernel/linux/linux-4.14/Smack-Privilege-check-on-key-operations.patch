@@ -1,0 +1,109 @@
+Smack: Privilege check on key operations
+
+Operations on key objects are subjected to Smack policy
+even if the process is privileged. This is inconsistent
+with the general behavior of Smack and may cause issues
+with authentication by privileged daemons. This patch
+allows processes with CAP_MAC_OVERRIDE to access keys
+even if the Smack rules indicate otherwise.
+
+Reported-by: Jose Bollo <jobol@nonadev.net>
+Signed-off-by: Casey Schaufler <casey@schaufler-ca.com>
+---
+ security/smack/smack.h        |  1 +
+ security/smack/smack_access.c | 40 +++++++++++++++++++++++++++++-----------
+ security/smack/smack_lsm.c    |  4 ++++
+ 3 files changed, 34 insertions(+), 11 deletions(-)
+
+diff --git a/security/smack/smack.h b/security/smack/smack.h
+index 6a71fc7..f7db791 100644
+--- a/security/smack/smack.h
++++ b/security/smack/smack.h
+@@ -321,6 +321,7 @@ struct smack_known *smk_import_entry(const char *, int);
+ void smk_insert_entry(struct smack_known *skp);
+ struct smack_known *smk_find_entry(const char *);
+ bool smack_privileged(int cap);
++bool smack_privileged_cred(int cap, const struct cred *cred);
+ void smk_destroy_label_list(struct list_head *list);
+ 
+ /*
+diff --git a/security/smack/smack_access.c b/security/smack/smack_access.c
+index 1a30041..141ffac 100644
+--- a/security/smack/smack_access.c
++++ b/security/smack/smack_access.c
+@@ -623,26 +623,24 @@ struct smack_known *smack_from_secid(const u32 secid)
+ LIST_HEAD(smack_onlycap_list);
+ DEFINE_MUTEX(smack_onlycap_lock);
+ 
+-/*
++/**
++ * smack_privileged_cred - are all privilege requirements met by cred
++ * @cap: The requested capability
++ * @cred: the credential to use
++ *
+  * Is the task privileged and allowed to be privileged
+  * by the onlycap rule.
+  *
+  * Returns true if the task is allowed to be privileged, false if it's not.
+  */
+-bool smack_privileged(int cap)
++bool smack_privileged_cred(int cap, const struct cred *cred)
+ {
+-	struct smack_known *skp = smk_of_current();
++	struct task_smack *tsp = cred->security;
++	struct smack_known *skp = tsp->smk_task;
+ 	struct smack_known_list_elem *sklep;
+ 	int rc;
+ 
+-	/*
+-	 * All kernel tasks are privileged
+-	 */
+-	if (unlikely(current->flags & PF_KTHREAD))
+-		return true;
+-
+-	rc = cap_capable(current_cred(), &init_user_ns, cap,
+-				SECURITY_CAP_AUDIT);
++	rc = cap_capable(cred, &init_user_ns, cap, SECURITY_CAP_AUDIT);
+ 	if (rc)
+ 		return false;
+ 
+@@ -662,3 +660,23 @@ bool smack_privileged(int cap)
+ 
+ 	return false;
+ }
++
++/**
++ * smack_privileged - are all privilege requirements met
++ * @cap: The requested capability
++ *
++ * Is the task privileged and allowed to be privileged
++ * by the onlycap rule.
++ *
++ * Returns true if the task is allowed to be privileged, false if it's not.
++ */
++bool smack_privileged(int cap)
++{
++	/*
++	 * All kernel tasks are privileged
++	 */
++	if (unlikely(current->flags & PF_KTHREAD))
++		return true;
++
++	return smack_privileged_cred(cap, current_cred());
++}
+diff --git a/security/smack/smack_lsm.c b/security/smack/smack_lsm.c
+index 30f2c3d..03fdecb 100644
+--- a/security/smack/smack_lsm.c
++++ b/security/smack/smack_lsm.c
+@@ -4369,6 +4369,10 @@ static int smack_key_permission(key_ref_t key_ref,
+ 	 */
+ 	if (tkp == NULL)
+ 		return -EACCES;
++
++	if (smack_privileged_cred(CAP_MAC_OVERRIDE, cred))
++		return 0;
++
+ #ifdef CONFIG_AUDIT
+ 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_KEY);
+ 	ad.a.u.key_struct.key = keyp->serial;
+

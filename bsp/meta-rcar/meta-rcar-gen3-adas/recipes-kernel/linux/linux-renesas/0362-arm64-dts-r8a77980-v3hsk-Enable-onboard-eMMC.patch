@@ -1,0 +1,69 @@
+From b1c0fc5cec81edb5be704011f9fd07c343e47286 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Thu, 15 Nov 2018 23:18:48 +0300
+Subject: [PATCH 182/211] arm64: dts: r8a77980-v3hsk: Enable onboard eMMC.
+
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts | 35 ++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index cfd9c89..0e0aed7 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -118,6 +118,15 @@
+ 		regulator-boot-on;
+ 		regulator-always-on;
+ 	};
++
++	vddq_vin01: regulator-2 {
++		compatible = "regulator-fixed";
++		regulator-name = "VDDQ_VIN01";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		regulator-boot-on;
++		regulator-always-on;
++	};
+ };
+ 
+ &du {
+@@ -230,6 +239,18 @@
+ 		groups = "scif_clk_b";
+ 		function = "scif_clk";
+ 	};
++
++	mmc_pins_uhs: mmc_uhs {
++		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
++		function = "mmc";
++		power-source = <1800>;
++	};
++
++	mmc_pins: mmc {
++		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
++		function = "mmc";
++		power-source = <3300>;
++	};
+ };
+ 
+ &rwdt {
+@@ -247,3 +268,17 @@
+ &scif_clk {
+ 	clock-frequency = <14745600>;
+ };
++
++&mmc0 {
++	/* used for on-board eMMC */
++	pinctrl-0 = <&mmc_pins>;
++	pinctrl-1 = <&mmc_pins_uhs>;
++	pinctrl-names = "default", "state_uhs";
++
++	vmmc-supply = <&vcc3v3_d5>;
++	vqmmc-supply = <&vddq_vin01>;
++	mmc-hs200-1_8v;
++	bus-width = <8>;
++	non-removable;
++	status = "okay";
++};
+-- 
+2.7.4
+

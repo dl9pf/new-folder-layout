@@ -1,0 +1,52 @@
+From 6cc74075797edb6f698cb7f312bb1c3d8cc6cb28 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jos=C3=A9=20Bollo?= <jose.bollo@iot.bzh>
+Date: Thu, 12 Oct 2017 17:17:56 +0200
+Subject: [PATCH] Switch Smack label earlier
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Switching label after removing capability isn't
+possible.
+
+Change-Id: Ib7dac8f071f36119520ed3205d743c1e3df3cd5e
+Signed-off-by: José Bollo <jose.bollo@iot.bzh>
+---
+ src/core/execute.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/core/execute.c b/src/core/execute.c
+index d72e5bf08..0abffd569 100644
+--- a/src/core/execute.c
++++ b/src/core/execute.c
+@@ -2707,6 +2707,13 @@ static int exec_child(
+                         }
+                 }
+ 
++                r = setup_smack(context, command);
++                if (r < 0) {
++                        *exit_status = EXIT_SMACK_PROCESS_LABEL;
++                        *error_message = strdup("Failed to set SMACK process label");
++                        return r;
++                }
++
+                 if (!cap_test_all(context->capability_bounding_set)) {
+                         r = capability_bounding_set_drop(context->capability_bounding_set, false);
+                         if (r < 0) {
+@@ -2775,13 +2782,6 @@ static int exec_child(
+                 }
+ #endif
+ 
+-                r = setup_smack(context, command);
+-                if (r < 0) {
+-                        *exit_status = EXIT_SMACK_PROCESS_LABEL;
+-                        *error_message = strdup("Failed to set SMACK process label");
+-                        return r;
+-                }
+-
+ #ifdef HAVE_APPARMOR
+                 if (context->apparmor_profile && mac_apparmor_use()) {
+                         r = aa_change_onexec(context->apparmor_profile);
+-- 
+2.14.3
+

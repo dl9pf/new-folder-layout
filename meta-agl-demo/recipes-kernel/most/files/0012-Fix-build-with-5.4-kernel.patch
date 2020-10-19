@@ -1,0 +1,68 @@
+From 877d7475413bb787deb07aa83bafac03efa399fa Mon Sep 17 00:00:00 2001
+From: Paul Barker <paul.barker@sancloud.co.uk>
+Date: Mon, 24 Feb 2020 14:58:52 +0000
+Subject: [PATCH] Fix build with 5.4 kernel
+
+Signed-off-by: Paul Barker <paul.barker@sancloud.co.uk>
+---
+ driver/Makefile | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 281241d..609e692 100644
+--- a/Makefile
++++ b/Makefile
+@@ -5,6 +5,7 @@ SRC := $(shell pwd)
+ obj-m := mostcore.o
+ mostcore-y := mostcore/core.o
+ CFLAGS_core.o := -I$(src)/include/
++CFLAGS_mostcore/core.o := -I$(src)/include/
+ 
+ obj-m += default_conf.o
+ CFLAGL_default_conf.o := -I$(src)/include
+@@ -12,33 +13,41 @@ CFLAGL_default_conf.o := -I$(src)/include
+ obj-m += aim_cdev.o
+ aim_cdev-y := aim-cdev/cdev.o
+ CFLAGS_cdev.o := -I$(src)/include/
++CFLAGS_aim-cdev/cdev.o := -I$(src)/include/
+ 
+ obj-m += aim_network.o
+ aim_network-y := aim-network/networking.o
+ CFLAGS_networking.o := -I$(src)/include/
++CFLAGS_aim-network/networking.o := -I$(src)/include/
+ 
+ obj-m += aim_sound.o
+ aim_sound-y := aim-sound/sound.o
+ CFLAGS_sound.o := -I$(src)/include/
++CFLAGS_aim-sound/sound.o := -I$(src)/include/
+ 
+ obj-m += aim_v4l2.o
+ aim_v4l2-y := aim-v4l2/video.o
+ CFLAGS_video.o := -Idrivers/media/video -I$(src)/include/
++CFLAGS_aim-v4l2/video.o := -Idrivers/media/video -I$(src)/include/
+ 
+ obj-m += hdm_i2c.o
+ hdm_i2c-y := hdm-i2c/hdm_i2c.o
+ CFLAGS_hdm_i2c.o := -I$(src)/include/
++CFLAGS_hdm-i2c/hdm_i2c.o := -I$(src)/include/
+ 
+ ifdef CONFIG_OF
+ obj-m += hdm_dim2.o
+ hdm_dim2-y := hdm-dim2/dim2_hdm.o hdm-dim2/dim2_hal.o hdm-dim2/dim2_sysfs.o
+ CFLAGS_dim2_hdm.o := -I$(src)/include/
++CFLAGS_hdm-dim2/dim2_hdm.o := -I$(src)/include/
++CFLAGS_hdm-dim2/dim2_hal.o := -I$(src)/include/
++CFLAGS_hdm-dim2/dim2_sysfs.o := -I$(src)/include/
+ endif
+ 
+ obj-m += hdm_usb.o
+ hdm_usb-y := hdm-usb/hdm_usb.o
+ CFLAGS_hdm_usb.o := -I$(src)/include/
+-
++CFLAGS_hdm-usb/hdm_usb.o := -I$(src)/include/
+ 
+ all:
+ 	$(MAKE) -C $(KERNEL_SRC) M=$(SRC) modules
+-- 
+2.20.1
+

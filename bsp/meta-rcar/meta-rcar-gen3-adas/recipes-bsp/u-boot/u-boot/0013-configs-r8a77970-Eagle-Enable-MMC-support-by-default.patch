@@ -1,0 +1,48 @@
+From 755354cba33e5acbc00afe6e5ca6392ad1da31b5 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 13 Aug 2019 01:59:07 +0300
+Subject: [PATCH 13/23] configs: r8a77970: Eagle: Enable MMC support by default
+
+This enables MMC support, which is available on Eagle
+function board expansion, by default.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ configs/r8a77970_eagle_defconfig | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/configs/r8a77970_eagle_defconfig b/configs/r8a77970_eagle_defconfig
+index 3430ccb..7becd49 100644
+--- a/configs/r8a77970_eagle_defconfig
++++ b/configs/r8a77970_eagle_defconfig
+@@ -19,6 +19,7 @@ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
+ CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
++CONFIG_CMD_MMC=y
+ CONFIG_CMD_SF=y
+ CONFIG_CMD_SPI=y
+ CONFIG_CMD_USB=y
+@@ -36,14 +37,17 @@ CONFIG_DEFAULT_DEVICE_TREE="r8a77970-eagle-u-boot"
+ CONFIG_ENV_IS_IN_SPI_FLASH=y
+ CONFIG_REGMAP=y
+ CONFIG_SYSCON=y
+-CONFIG_BLK=y
+ CONFIG_CLK=y
+ CONFIG_CLK_RENESAS=y
+ CONFIG_DM_GPIO=y
+ CONFIG_RCAR_GPIO=y
+ CONFIG_DM_I2C=y
+ CONFIG_SYS_I2C_RCAR_IIC=y
+-# CONFIG_MMC is not set
++CONFIG_DM_MMC=y
++CONFIG_MMC_IO_VOLTAGE=y
++CONFIG_MMC_UHS_SUPPORT=y
++CONFIG_MMC_HS200_SUPPORT=y
++CONFIG_RENESAS_SDHI=y
+ CONFIG_DM_SPI_FLASH=y
+ CONFIG_SPI_FLASH=y
+ CONFIG_SPI_FLASH_BAR=y
+-- 
+2.7.4
+

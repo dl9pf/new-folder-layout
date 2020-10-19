@@ -1,0 +1,63 @@
+From acc636a3603d2c541bfc758eea3dfa245a13cc46 Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Fri, 7 Jul 2017 20:43:33 +0300
+Subject: [PATCH 050/122] MOST: dim2: add R-Car3 related initialization
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ drivers/staging/most/hdm-dim2/dim2_hdm.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/drivers/staging/most/hdm-dim2/dim2_hdm.c b/drivers/staging/most/hdm-dim2/dim2_hdm.c
+index e3ce23c..0e5855d 100644
+--- a/drivers/staging/most/hdm-dim2/dim2_hdm.c
++++ b/drivers/staging/most/hdm-dim2/dim2_hdm.c
+@@ -26,6 +26,7 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/sched.h>
+ #include <linux/kthread.h>
++#include <linux/delay.h>
+ 
+ #include <mostcore.h>
+ #include "dim2_hal.h"
+@@ -184,6 +185,26 @@ static int dim_parce_speed(const char *clock_speed)
+ 	return -1;
+ }
+ 
++static int dim_rcar_init(struct dim2_hdm *dev)
++{
++        /* PLL */
++	__raw_writel(0x04, dev->io_base + 0x600);
++
++	/* 512FS Enable Register */
++	if (dev->clk_speed == CLK_512FS)
++		__raw_writel(0x01, dev->io_base + 0x604);
++	else
++		__raw_writel(0x00, dev->io_base + 0x604);
++
++	udelay(200);
++
++	/* BBCR  = 0b11 */
++	__raw_writel(0x03, dev->io_base + 0x500);
++	__raw_writel(0x0002FF02, dev->io_base + 0x508);
++
++	return 0;
++}
++
+ /**
+  * startup_dim - initialize the dim2 interface
+  * @pdev: platform device
+@@ -211,6 +232,10 @@ static int startup_dim(struct platform_device *pdev)
+ 			return ret;
+ 	}
+ 
++	if (1 /* renesas */) {
++		dim_rcar_init(dev);
++	}
++
+ 	pr_info("sync: num of frames per sub-buffer: %u\n", fcnt);
+ 	hal_ret = dim_startup(dev->io_base, dev->clk_speed, fcnt);
+ 	if (hal_ret != DIM_NO_ERROR) {
+-- 
+2.7.4
+

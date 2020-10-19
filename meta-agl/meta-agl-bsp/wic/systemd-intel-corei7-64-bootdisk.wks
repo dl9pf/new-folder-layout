@@ -1,0 +1,23 @@
+# short-description: Custom EFI disk image with systemd-boot
+# long-description: Creates a partitioned EFI disk image that the user
+# can directly dd to boot media. The selected bootloader is systemd-boot
+# and we do not have swap
+
+part /boot --source bootimg-efi --sourceparams="loader=systemd-boot" --use-uuid --label msdos --active --align 1024
+
+part / --source rootfs --fstype=ext4 --label platform --align 1024 --use-uuid
+
+# Modify the append line here as needed to suit the environment.
+#
+# To change the default video resolution add one of the following
+# resolutions:
+# uvesafb.mode_option=1024x768-32
+# uvesafb.mode_option=1280x1024-32
+# uvesafb.mode_option=1600x1200-32
+#
+# To avoid corrupt boot screen by systemd message you can remove the
+# console=tty0 portion below or disable all boot messages by kernel command
+# line.  To disable all boot messages add:
+#
+# quiet
+bootloader --ptable gpt --timeout=5 --append="rootwait rootfstype=ext4 console=ttyS0,115200n8 console=tty0 reboot=efi"

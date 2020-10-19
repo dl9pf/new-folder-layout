@@ -1,0 +1,118 @@
+From 78f7140c81532ad42eb3a167d7b4f83eee13701e Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 2 Aug 2019 21:20:00 +0300
+Subject: [PATCH] media: i2c: gw5200: detection workaround
+
+This adds detection of GW5200 workaround:
+ISP starts for more then 1 second. Force detect gw5200
+if enabled in dts/cmdline and the serizlier presents
+---
+ drivers/media/i2c/soc_camera/gw5200_imx390.c | 39 +++++++++++++++++++++++++---
+ 1 file changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/gw5200_imx390.c b/drivers/media/i2c/soc_camera/gw5200_imx390.c
+index 90de41f..98352a9 100644
+--- a/drivers/media/i2c/soc_camera/gw5200_imx390.c
++++ b/drivers/media/i2c/soc_camera/gw5200_imx390.c
+@@ -22,10 +22,10 @@
+ 
+ #include "gw5200_imx390.h"
+ 
+-static const int gw5200_i2c_addr[] = {0x18};
++static const int gw5200_i2c_addr[] = {0x6d};
+ 
+ #define GW5200_PID		0x00
+-#define GW5200_VERSION_REG	0x30
++#define GW5200_VERSION_REG	0x00
+ 
+ #define GW5200_MEDIA_BUS_FMT	MEDIA_BUS_FMT_YUYV8_2X8
+ 
+@@ -41,6 +41,7 @@ struct gw5200_priv {
+ 	int				exposure;
+ 	int				gain;
+ 	int				autogain;
++	int				gw5200;
+ 	/* serializers */
+ 	int				max9286_addr;
+ 	int				max9271_addr;
+@@ -51,6 +52,10 @@ struct gw5200_priv {
+ 	int				gpio_fsin;
+ };
+ 
++static int gw5200 = 0;
++module_param(gw5200, int, 0644);
++MODULE_PARM_DESC(gw5200, " gw5200 force (0 - imager disabled)");
++
+ static inline struct gw5200_priv *to_gw5200(const struct i2c_client *client)
+ {
+ 	return container_of(i2c_get_clientdata(client), struct gw5200_priv, sd);
+@@ -337,9 +342,10 @@ static DEVICE_ATTR(otp_id_gw5200, S_IRUGO, gw5200_otp_id_show, NULL);
+ static int gw5200_initialize(struct i2c_client *client)
+ {
+ 	struct gw5200_priv *priv = to_gw5200(client);
+-	u8 pid = 0;
++	u8 pid = 0xff;
+ 	int ret = 0;
+ 	int tmp_addr;
++#if 0
+ 	int i;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(gw5200_i2c_addr); i++) {
+@@ -357,7 +363,7 @@ static int gw5200_initialize(struct i2c_client *client)
+ 		client->addr = tmp_addr;
+ 
+ 		/* check model ID */
+-		reg8_read(client, GW5200_PID, &pid);
++		ret = reg8_read(client, GW5200_PID, &pid);
+ 
+ 		if (pid == GW5200_VERSION_REG)
+ 			break;
+@@ -368,6 +374,23 @@ static int gw5200_initialize(struct i2c_client *client)
+ 		ret = -ENODEV;
+ 		goto err;
+ 	}
++#else
++	// Workaround: GW5200 has some hidden protocol to access it's registers, hence check serializer and dts
++	tmp_addr = client->addr;
++	if (priv->ti9x4_addr) {
++		client->addr = priv->ti9x3_addr;			/* Serializer I2C address */
++		/* check UB953 ID */
++		reg8_read(client, 0xf1, &pid);
++	}
++	client->addr = tmp_addr;
++
++	if (pid != 'U') {
++		dev_dbg(&client->dev, "Product ID error %x\n", pid);
++		ret = -ENODEV;
++		goto err;
++	}
++#endif
++
+ #if 0
+ 	/* Program wizard registers */
+ 	gw5200_set_regs(client, gw5200_regs_wizard, ARRAY_SIZE(gw5200_regs_wizard));
+@@ -393,6 +416,8 @@ static int gw5200_parse_dt(struct device_node *np, struct gw5200_priv *priv)
+ 		if (!endpoint)
+ 			break;
+ 
++		of_property_read_u32(endpoint, "gw5200", &priv->gw5200);
++
+ 		rendpoint = of_parse_phandle(endpoint, "remote-endpoint", 0);
+ 		if (!rendpoint)
+ 			continue;
+@@ -437,6 +462,12 @@ static int gw5200_parse_dt(struct device_node *np, struct gw5200_priv *priv)
+ 
+ 	mdelay(10);
+ 
++	if (gw5200)
++		priv->gw5200 = gw5200;
++
++	if (!priv->gw5200)
++		return -ENODEV;
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

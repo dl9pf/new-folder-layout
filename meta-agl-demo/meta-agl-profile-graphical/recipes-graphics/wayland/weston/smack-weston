@@ -1,0 +1,8 @@
+System System::Weston rwxa--
+System::Weston System rwx---
+System::Weston System::Shared rwx---
+System::Weston System::Run rwxat-
+System::Weston System::Log rwxa--
+System::Weston _ r-x--l
+System::Weston User::Home r-x--l
+System::Weston User::App-Shared rwxat-

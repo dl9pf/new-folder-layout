@@ -1,0 +1,4 @@
+Common targets are:
+    agl-cluster-demo-platform
+    agl-cluster-demo-platform-crosssdk
+    agl-cluster-demo-platform-qa

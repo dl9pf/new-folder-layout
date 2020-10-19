@@ -1,0 +1,22 @@
+Disable EGLWLMockNavigation example build
+
+The EGLWLMockNavigation example code has build issues on TI platforms.
+To avoid needing to patch it just for those platforms, just disable
+building it since there are no known users inside AGL.
+
+Upstream-Status: Inappropriate [disable feature]
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/ivi-layermanagement-examples/CMakeLists.txt b/ivi-layermanagement-examples/CMakeLists.txt
+index 1eab8e9..48bdffd 100644
+--- a/ivi-layermanagement-examples/CMakeLists.txt
++++ b/ivi-layermanagement-examples/CMakeLists.txt
+@@ -24,7 +24,6 @@ project (ivi-layermanagement-examples)
+ # cmake configuration
+ #===========================================================================================================
+ add_subdirectory(LayerManagerControl)
+-add_subdirectory(EGLWLMockNavigation)
+ add_subdirectory(EGLWLInputEventExample)
+ add_subdirectory(layer-add-surfaces)
+ add_subdirectory(multi-touch-viewer)

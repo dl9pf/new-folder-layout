@@ -1,0 +1,35 @@
+From 09bc907bbaf56b2fdc8e917da0c98353ccb66ea4 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Wed, 19 Sep 2018 21:10:40 +0300
+Subject: [PATCH 061/211] clk: renesas: r8a77970: Add TPU clock
+
+The TPU0 clock wasn't present in the original R8A77970 patch by Daisuke
+Matsushita, it was added in a later BSP version...
+
+Based on the original (and large) patch by Vladimir Barinov.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+(cherry picked from commit 9ef5e0370d3834a1ff11e22ae0a3220330890d36)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/r8a77970-cpg-mssr.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/clk/renesas/r8a77970-cpg-mssr.c b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+index 7a85e1a..71341ff 100644
+--- a/drivers/clk/renesas/r8a77970-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+@@ -127,6 +127,7 @@ static const struct mssr_mod_clk r8a77970_mod_clks[] __initconst = {
+ 	DEF_MOD("cmt2",			 301,	R8A77970_CLK_R),
+ 	DEF_MOD("cmt1",			 302,	R8A77970_CLK_R),
+ 	DEF_MOD("cmt0",			 303,	R8A77970_CLK_R),
++	DEF_MOD("tpu0",			 304,	R8A77970_CLK_S2D4),
+ 	DEF_MOD("sd-if",		 314,	R8A77970_CLK_SD0),
+ 	DEF_MOD("rwdt",			 402,	R8A77970_CLK_R),
+ 	DEF_MOD("intc-ex",		 407,	R8A77970_CLK_CP),
+-- 
+2.7.4
+

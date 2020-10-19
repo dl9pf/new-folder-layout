@@ -1,0 +1,218 @@
+From 083a58c074efe94a68fbb2deac66d404f7644e32 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 27 Apr 2020 10:56:45 +0300
+Subject: [PATCH] media: i2c: max9286,max9288: use common.h file
+
+Use common.h file for all gmsl drivers
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/gmsl/max9286.c | 61 +++++++++--------------------
+ drivers/media/i2c/soc_camera/gmsl/max9288.c | 54 +++++++------------------
+ 2 files changed, 34 insertions(+), 81 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max9286.c b/drivers/media/i2c/soc_camera/gmsl/max9286.c
+index 2d56b41..c37e972 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max9286.c
++++ b/drivers/media/i2c/soc_camera/gmsl/max9286.c
+@@ -22,16 +22,7 @@
+ #include <media/v4l2-device.h>
+ #include <media/v4l2-subdev.h>
+ 
+-#include "../max9286.h"
+-
+-#define MAXIM_I2C_I2C_SPEED_837KHZ	(0x7 << 2) /* 837kbps */
+-#define MAXIM_I2C_I2C_SPEED_533KHZ	(0x6 << 2) /* 533kbps */
+-#define MAXIM_I2C_I2C_SPEED_339KHZ	(0x5 << 2) /* 339 kbps */
+-#define MAXIM_I2C_I2C_SPEED_173KHZ	(0x4 << 2) /* 174kbps */
+-#define MAXIM_I2C_I2C_SPEED_105KHZ	(0x3 << 2) /* 105 kbps */
+-#define MAXIM_I2C_I2C_SPEED_085KHZ	(0x2 << 2) /* 84.7 kbps */
+-#define MAXIM_I2C_I2C_SPEED_028KHZ	(0x1 << 2) /* 28.3 kbps */
+-#define MAXIM_I2C_I2C_SPEED		MAXIM_I2C_I2C_SPEED_339KHZ
++#include "common.h"
+ 
+ struct max9286_priv {
+ 	struct v4l2_subdev	sd[4];
+@@ -174,20 +165,6 @@ static int dt2bpp [9] = {
+ 	14,	/* RAW14 */
+ };
+ 
+-static char* ser_name(int id)
+-{
+-	switch (id) {
+-	case MAX9271_ID:
+-		return "MAX9271";
+-	case MAX96705_ID:
+-		return "MAX96705";
+-	case MAX96707_ID:
+-		return "MAX96707";
+-	default:
+-		return "unknown";
+-	}
+-}
+-
+ static void max9286_write_remote_verify(struct i2c_client *client, int idx, u8 reg, u8 val)
+ {
+ 	struct max9286_priv *priv = i2c_get_clientdata(client);
+@@ -384,7 +361,7 @@ static int max9286_reverse_channel_setup(struct i2c_client *client, int idx)
+ 
+ out:
+ 	sprintf(timeout_str, "retries=%d lock_sts=%d link_sts=0x%x", priv->timeout - timeout, !!(lock_sts & 0x80), link_sts & (0x11 << idx));
+-	dev_info(&client->dev, "link%d %s %sat 0x%x %s %s\n", idx, ser_name(priv->ser_id),
++	dev_info(&client->dev, "link%d %s %sat 0x%x %s %s\n", idx, chip_name(priv->ser_id),
+ 			       ret == -EADDRINUSE ? "already " : "", priv->max9271_addr_map[idx],
+ 			       ret == -ETIMEDOUT ? "not found: timeout GMSL link establish" : "",
+ 			       priv->timeout - timeout ? timeout_str : "");
+@@ -576,6 +553,22 @@ static int max9286_initialize(struct i2c_client *client)
+ 	return 0;
+ }
+ 
++static int max9286_s_power(struct v4l2_subdev *sd, int on)
++{
++	struct max9286_priv *priv = v4l2_get_subdevdata(sd);
++	struct i2c_client *client = priv->client;
++
++	if (on) {
++		if (atomic_inc_return(&priv->use_count) == 1)
++			reg8_write(client, 0x69, priv->links_mask ^ 0x0f); /* unmask CSI forwarding from detected links */
++	} else {
++		if (atomic_dec_return(&priv->use_count) == 0)
++			reg8_write(client, 0x69, 0x0f);		/* mask CSI forwarding from all links */
++	}
++
++	return 0;
++}
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int max9286_g_register(struct v4l2_subdev *sd,
+ 				      struct v4l2_dbg_register *reg)
+@@ -605,22 +598,6 @@ static int max9286_s_register(struct v4l2_subdev *sd,
+ }
+ #endif
+ 
+-static int max9286_s_power(struct v4l2_subdev *sd, int on)
+-{
+-	struct max9286_priv *priv = v4l2_get_subdevdata(sd);
+-	struct i2c_client *client = priv->client;
+-
+-	if (on) {
+-		if (atomic_inc_return(&priv->use_count) == 1)
+-			reg8_write(client, 0x69, priv->links_mask ^ 0x0f); /* unmask CSI forwarding from detected links */
+-	} else {
+-		if (atomic_dec_return(&priv->use_count) == 0)
+-			reg8_write(client, 0x69, 0x0f);		/* mask CSI forwarding from all links */
+-	}
+-
+-	return 0;
+-}
+-
+ static int max9286_registered_async(struct v4l2_subdev *sd)
+ {
+ 	struct max9286_priv *priv = v4l2_get_subdevdata(sd);
+@@ -656,7 +633,7 @@ static int max9286_reboot_notifier(struct notifier_block *nb, unsigned long even
+ 			gpiod_direction_output(priv->poc_gpio[idx], 0); /* POC power off */
+ 	}
+ 
+-	return NOTIFY_OK;
++	return NOTIFY_DONE;
+ }
+ 
+ static struct v4l2_subdev_core_ops max9286_subdev_core_ops = {
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max9288.c b/drivers/media/i2c/soc_camera/gmsl/max9288.c
+index 7de1f9e..ce44e2b 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max9288.c
++++ b/drivers/media/i2c/soc_camera/gmsl/max9288.c
+@@ -21,16 +21,7 @@
+ #include <media/v4l2-device.h>
+ #include <media/v4l2-subdev.h>
+ 
+-#include "../max9286.h"
+-
+-#define MAXIM_I2C_I2C_SPEED_837KHZ	(0x7 << 2) /* 837kbps */
+-#define MAXIM_I2C_I2C_SPEED_533KHZ	(0x6 << 2) /* 533kbps */
+-#define MAXIM_I2C_I2C_SPEED_339KHZ	(0x5 << 2) /* 339 kbps */
+-#define MAXIM_I2C_I2C_SPEED_173KHZ	(0x4 << 2) /* 174kbps */
+-#define MAXIM_I2C_I2C_SPEED_105KHZ	(0x3 << 2) /* 105 kbps */
+-#define MAXIM_I2C_I2C_SPEED_085KHZ	(0x2 << 2) /* 84.7 kbps */
+-#define MAXIM_I2C_I2C_SPEED_028KHZ	(0x1 << 2) /* 28.3 kbps */
+-#define MAXIM_I2C_I2C_SPEED		MAXIM_I2C_I2C_SPEED_339KHZ
++#include "common.h"
+ 
+ struct max9288_priv {
+ 	struct v4l2_subdev	sd;
+@@ -140,23 +131,8 @@ static int dt2bpp [9] = {
+ 	14,	/* RAW14 */
+ };
+ 
+-static char* ser_name(int id)
+-{
+-	switch (id) {
+-	case MAX9271_ID:
+-		return "MAX9271";
+-	case MAX96705_ID:
+-		return "MAX96705";
+-	case MAX96707_ID:
+-		return "MAX96707";
+-	default:
+-		return "unknown";
+-	}
+-}
+-
+ static void max9288_write_remote_verify(struct i2c_client *client, u8 reg, u8 val)
+ {
+-	struct max9288_priv *priv = i2c_get_clientdata(client);
+ 	int timeout;
+ 
+ 	for (timeout = 0; timeout < 10; timeout++) {
+@@ -297,7 +273,7 @@ static int max9288_reverse_channel_setup(struct i2c_client *client)
+ 
+ out:
+ 	sprintf(timeout_str, "retries=%d lock_sts=%d", priv->timeout - timeout, !!(lock_sts & 0x80));
+-	dev_info(&client->dev, "link %s %sat 0x%x %s %s\n", ser_name(priv->ser_id),
++	dev_info(&client->dev, "link %s %sat 0x%x %s %s\n", chip_name(priv->ser_id),
+ 			       ret == -EADDRINUSE ? "already " : "", priv->max9271_addr,
+ 			       ret == -ETIMEDOUT ? "not found: timeout GMSL link establish" : "",
+ 			       priv->timeout - timeout ? timeout_str : "");
+@@ -487,6 +463,19 @@ static int max9288_initialize(struct i2c_client *client)
+ 	return 0;
+ }
+ 
++static int max9288_s_power(struct v4l2_subdev *sd, int on)
++{
++	struct max9288_priv *priv = v4l2_get_subdevdata(sd);
++	struct i2c_client *client = priv->client;
++
++	client->addr = priv->max9271_addr;			/* MAX9271-CAMx I2C new */
++	max9288_write_remote_verify(client, 0x04, on ? (conf_link ? 0x43 : 0x83) : 0x43); /* enable serial_link or conf_link */
++	usleep_range(2000, 2500);				/* wait 2ms after changing reverse_control */
++	client->addr = priv->des_addr;				/* MAX9288-CAMx I2C */
++
++	return 0;
++}
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int max9288_g_register(struct v4l2_subdev *sd,
+ 				      struct v4l2_dbg_register *reg)
+@@ -516,19 +505,6 @@ static int max9288_s_register(struct v4l2_subdev *sd,
+ }
+ #endif
+ 
+-static int max9288_s_power(struct v4l2_subdev *sd, int on)
+-{
+-	struct max9288_priv *priv = v4l2_get_subdevdata(sd);
+-	struct i2c_client *client = priv->client;
+-
+-	client->addr = priv->max9271_addr;			/* MAX9271-CAMx I2C new */
+-	max9288_write_remote_verify(client, 0x04, on ? (conf_link ? 0x43 : 0x83) : 0x43); /* enable serial_link or conf_link */
+-	usleep_range(2000, 2500);				/* wait 2ms after changing reverse_control */
+-	client->addr = priv->des_addr;				/* MAX9288-CAMx I2C */
+-
+-	return 0;
+-}
+-
+ static struct v4l2_subdev_core_ops max9288_subdev_core_ops = {
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ 	.g_register		= max9288_g_register,
+-- 
+2.7.4
+

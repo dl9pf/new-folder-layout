@@ -1,0 +1,36 @@
+From 24aeecff3debd8fcd167979867cf6abc1e5ba329 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 27 Oct 2018 00:19:07 +0300
+Subject: [PATCH 135/211] arm64: dts: renesas: v3msk: Add mmngr and mmngrbuf
+ nodes
+
+This adds mmngr and mmngrbuf nodes.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+index 8e0dbd7..3deda9f 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+@@ -54,6 +54,15 @@
+ 		};
+ 	};
+ 
++	mmngr {
++		compatible = "renesas,mmngr";
++		memory-region = <&lossy_decompress>;
++	};
++
++	mmngrbuf {
++		compatible = "renesas,mmngrbuf";
++	};
++
+ 	osc5_clk: osc5-clock {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+-- 
+2.7.4
+

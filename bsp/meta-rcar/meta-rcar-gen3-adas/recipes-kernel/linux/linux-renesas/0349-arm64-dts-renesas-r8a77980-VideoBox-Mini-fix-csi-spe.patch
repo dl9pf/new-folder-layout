@@ -1,0 +1,26 @@
+From 1412299ecb8c31937e6e2db81c46cc89260ff30a Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 7 Nov 2018 14:52:34 +0300
+Subject: [PATCH 169/211] arm64: dts: renesas: r8a77980 VideoBox Mini: fix csi
+ speed.
+
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
+index 1b0649f..e362045 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
+@@ -250,7 +250,7 @@
+ 				};
+ 				port@1 {
+ 					ti9x4_csi0ep0: endpoint {
+-						csi-rate = <700>;
++						csi-rate = <1450>;
+ 						remote-endpoint = <&csi41_ep>;
+ 					};
+ 				};
+-- 
+2.7.4
+

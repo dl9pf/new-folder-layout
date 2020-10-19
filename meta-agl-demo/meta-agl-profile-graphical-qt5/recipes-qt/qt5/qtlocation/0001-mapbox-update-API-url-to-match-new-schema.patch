@@ -1,0 +1,47 @@
+From 58197439eade86e7efc6fe98116c0092ea429d29 Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Tue, 10 Mar 2020 13:59:58 -0700
+Subject: [PATCH] mapbox: update API url to match new schema
+
+---
+ src/plugins/geoservices/mapbox/qgeotilefetchermapbox.cpp | 7 ++++---
+ src/plugins/geoservices/mapbox/qmapboxcommon.h           | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/plugins/geoservices/mapbox/qgeotilefetchermapbox.cpp b/src/plugins/geoservices/mapbox/qgeotilefetchermapbox.cpp
+index 0b128556..bd2be6b6 100644
+--- a/src/plugins/geoservices/mapbox/qgeotilefetchermapbox.cpp
++++ b/src/plugins/geoservices/mapbox/qgeotilefetchermapbox.cpp
+@@ -88,12 +88,13 @@ QGeoTiledMapReply *QGeoTileFetcherMapbox::getTileImage(const QGeoTileSpec &spec)
+     request.setRawHeader("User-Agent", m_userAgent);
+ 
+     request.setUrl(QUrl(mapboxTilesApiPath +
+-                        ((spec.mapId() >= m_mapIds.size()) ? QStringLiteral("mapbox.streets") : m_mapIds[spec.mapId() - 1]) + QLatin1Char('/') +
++                        m_mapIds[m_mapIds.size() - 1] +
++                        QStringLiteral("/tiles/256/") +
+                         QString::number(spec.zoom()) + QLatin1Char('/') +
+                         QString::number(spec.x()) + QLatin1Char('/') +
+                         QString::number(spec.y()) +
+-                        ((m_scaleFactor > 1) ? (QLatin1Char('@') + QString::number(m_scaleFactor) + QLatin1String("x.")) : QLatin1String(".")) +
+-                        m_format + QLatin1Char('?') +
++                        ((m_scaleFactor > 1) ? (QLatin1Char('@') + QString::number(m_scaleFactor) + QLatin1String("x")) : QLatin1String("")) +
++                        QLatin1Char('?') +
+                         QStringLiteral("access_token=") + m_accessToken));
+ 
+     QNetworkReply *reply = m_networkManager->get(request);
+diff --git a/src/plugins/geoservices/mapbox/qmapboxcommon.h b/src/plugins/geoservices/mapbox/qmapboxcommon.h
+index e60c4e83..4b2ea98d 100644
+--- a/src/plugins/geoservices/mapbox/qmapboxcommon.h
++++ b/src/plugins/geoservices/mapbox/qmapboxcommon.h
+@@ -46,7 +46,7 @@
+ 
+ QT_BEGIN_NAMESPACE
+ 
+-static const QString mapboxTilesApiPath = QStringLiteral("http://api.tiles.mapbox.com/v4/");
++static const QString mapboxTilesApiPath = QStringLiteral("https://api.mapbox.com/");
+ 
+ // https://www.mapbox.com/api-documentation/#geocoding
+ static const QString mapboxGeocodingApiPath = QStringLiteral("https://api.mapbox.com/geocoding/v5/mapbox.places/");
+-- 
+2.25.0
+

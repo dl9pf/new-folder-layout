@@ -1,0 +1,180 @@
+From 1f7ba56c9ced669951061d13b06e31d96a170e37 Mon Sep 17 00:00:00 2001
+From: Jacek Bukarewicz <j.bukarewicz@samsung.com>
+Date: Tue, 23 Jun 2015 11:08:48 +0200
+Subject: [PATCH 5/8] Perform Cynara runtime policy checks by default
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This change introduces http://tizen.org/privilege/internal/dbus privilege
+which is supposed to be available only to trusted system resources.
+Checks for this privilege are used in place of certain allow rules to
+make security policy more strict.
+
+For system bus sending and receiving signals now requires
+http://tizen.org/privilege/internal/dbus privilege. Requesting name
+ownership and sending methods is still denied by default.
+
+For session bus http://tizen.org/privilege/internal/dbus privilege
+is now required for requesting name, calling methods, sending and receiving
+signals.
+
+Services are supposed to override these default settings to implement their
+own security policy.
+
+Cherry picked from e8610297cf7031e94eb314a2e8c11246f4405403 by Jose Bollo
+
+Updated for dbus 1.10.20 by Scott Murray and José Bollo
+
+Signed-off-by: Jacek Bukarewicz <j.bukarewicz@samsung.com>
+Signed-off-by: José Bollo <jose.bollo@iot.bzh>
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+---
+ bus/activation.c    | 42 ++++++++++++++++++++++++++----------------
+ bus/session.conf.in | 32 ++++++++++++++++++++++++++------
+ bus/system.conf.in  | 19 +++++++++++++++----
+ 3 files changed, 67 insertions(+), 26 deletions(-)
+
+diff --git a/bus/activation.c b/bus/activation.c
+index d4b597c..8aabeaa 100644
+--- a/bus/activation.c
++++ b/bus/activation.c
+@@ -1840,22 +1840,32 @@ bus_activation_activate_service (BusActivation  *activation,
+     }
+ 
+   if (auto_activation &&
+-      entry != NULL &&
+-      BUS_RESULT_TRUE != bus_context_check_security_policy (activation->context,
+-        transaction,
+-        connection, /* sender */
+-        NULL, /* addressed recipient */
+-        NULL, /* proposed recipient */
+-        activation_message,
+-        entry,
+-        error,
+-        NULL))
+-    {
+-      _DBUS_ASSERT_ERROR_IS_SET (error);
+-      _dbus_verbose ("activation not authorized: %s: %s\n",
+-          error != NULL ? error->name : "(error ignored)",
+-          error != NULL ? error->message : "(error ignored)");
+-      return FALSE;
++      entry != NULL)
++   {
++      BusResult result;
++
++      result = bus_context_check_security_policy (activation->context,
++                      transaction,
++                      connection, /* sender */
++                      NULL, /* addressed recipient */
++                      NULL, /* proposed recipient */
++                      activation_message,
++                      entry,
++                      error,
++                      NULL);
++      if (result == BUS_RESULT_FALSE)
++        {
++          _DBUS_ASSERT_ERROR_IS_SET (error);
++          _dbus_verbose ("activation not authorized: %s: %s\n",
++              error != NULL ? error->name : "(error ignored)",
++              error != NULL ? error->message : "(error ignored)");
++          return FALSE;
++        }
++      if (result == BUS_RESULT_LATER)
++        {
++          /* TODO */
++          _dbus_verbose ("ALERT FIX ME!!!!!!!!!!!!!!!");
++        }
+     }
+ 
+   /* Bypass the registry lookup if we're auto-activating, bus_dispatch would not
+diff --git a/bus/session.conf.in b/bus/session.conf.in
+index affa7f1..157dfb4 100644
+--- a/bus/session.conf.in
++++ b/bus/session.conf.in
+@@ -27,12 +27,32 @@
+   <standard_session_servicedirs />
+ 
+   <policy context="default">
+-    <!-- Allow everything to be sent -->
+-    <allow send_destination="*" eavesdrop="true"/>
+-    <!-- Allow everything to be received -->
+-    <allow eavesdrop="true"/>
+-    <!-- Allow anyone to own anything -->
+-    <allow own="*"/>
++    <!-- By default clients require internal/dbus privilege to communicate
++         with D-Bus services and to claim name ownership. This is internal privilege that
++         is only accessible to trusted system services -->
++    <check own="*"                  privilege="http://tizen.org/privilege/internal/dbus" />
++    <check send_type="method_call"  privilege="http://tizen.org/privilege/internal/dbus" />
++    <check send_type="signal"       privilege="http://tizen.org/privilege/internal/dbus" />
++    <check receive_type="signal"    privilege="http://tizen.org/privilege/internal/dbus" />
++
++    <!-- Reply messages (method returns, errors) are allowed
++         by default -->
++    <allow send_requested_reply="true" send_type="method_return"/>
++    <allow send_requested_reply="true" send_type="error"/>
++
++    <!-- All messages but signals may be received by default -->
++    <allow receive_type="method_call"/>
++    <allow receive_type="method_return"/>
++    <allow receive_type="error"/>
++
++    <!-- Allow anyone to talk to the message bus -->
++    <allow send_destination="org.freedesktop.DBus"/>
++    <allow receive_sender="org.freedesktop.DBus"/>
++
++    <!-- But disallow some specific bus services -->
++    <deny send_destination="org.freedesktop.DBus"
++          send_interface="org.freedesktop.DBus"
++          send_member="UpdateActivationEnvironment"/>
+   </policy>
+ 
+   <!-- Include legacy configuration location -->
+diff --git a/bus/system.conf.in b/bus/system.conf.in
+index f139b55..19d0c04 100644
+--- a/bus/system.conf.in
++++ b/bus/system.conf.in
+@@ -50,17 +50,20 @@
+     <deny own="*"/>
+     <deny send_type="method_call"/>
+ 
+-    <!-- Signals and reply messages (method returns, errors) are allowed
++    <!-- By default clients require internal/dbus privilege to send and receive signaks.
++         This is internal privilege that is only accessible to trusted system services -->
++    <check send_type="signal"       privilege="http://tizen.org/privilege/internal/dbus" />
++    <check receive_type="signal"    privilege="http://tizen.org/privilege/internal/dbus" />
++
++    <!-- Reply messages (method returns, errors) are allowed
+          by default -->
+-    <allow send_type="signal"/>
+     <allow send_requested_reply="true" send_type="method_return"/>
+     <allow send_requested_reply="true" send_type="error"/>
+ 
+-    <!-- All messages may be received by default -->
++    <!-- All messages but signals may be received by default -->
+     <allow receive_type="method_call"/>
+     <allow receive_type="method_return"/>
+     <allow receive_type="error"/>
+-    <allow receive_type="signal"/>
+ 
+     <!-- Allow anyone to talk to the message bus -->
+     <allow send_destination="org.freedesktop.DBus"
+@@ -69,6 +72,14 @@
+            send_interface="org.freedesktop.DBus.Introspectable"/>
+     <allow send_destination="org.freedesktop.DBus"
+            send_interface="org.freedesktop.DBus.Properties"/>
++    <!-- If there is a need specific bus services could be protected by Cynara as well.
++         However, this can lead to deadlock during the boot process when such check is made and
++         Cynara is not yet activated (systemd calls protected method synchronously,
++         dbus daemon tries to consult Cynara, Cynara waits for systemd activation).
++         Therefore it is advised to allow root processes to use bus services.
++         Currently anyone is allowed to talk to the message bus -->
++    <allow receive_sender="org.freedesktop.DBus"/>
++
+     <!-- But disallow some specific bus services -->
+     <deny send_destination="org.freedesktop.DBus"
+           send_interface="org.freedesktop.DBus"
+-- 
+2.21.1
+

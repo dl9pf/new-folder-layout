@@ -1,0 +1,339 @@
+From 64aba50a93e9a1980b291cb71bd7a62d1faa9ca7 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 7 Nov 2018 13:06:39 +0300
+Subject: [PATCH 167/211] arm64: renesas: r8a77980: use CSI 4 lanes
+
+H/w must use 4 lanes
+add PWM for external FSIN on deserializers
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ .../boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts     | 60 ++++---------------
+ .../boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts     | 69 +++++++---------------
+ 2 files changed, 32 insertions(+), 97 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index 1dd93fd..406ff2f 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -108,32 +108,13 @@
+ &csi40 {
+ 	status = "okay";
+ 
+-	virtual,channel {
+-		csi2_vc0 {
+-			data,type = "ycbcr422";
+-			receive,vc = <0>;
+-		};
+-		csi2_vc1 {
+-			data,type = "ycbcr422";
+-			receive,vc = <1>;
+-		};
+-		csi2_vc2 {
+-			data,type = "ycbcr422";
+-			receive,vc = <2>;
+-		};
+-		csi2_vc3 {
+-			data,type = "ycbcr422";
+-			receive,vc = <3>;
+-		};
+-	};
+-
+ 	port {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+ 		csi2_40_ep: endpoint {
+ 			clock-lanes = <0>;
+-			data-lanes = <1 2 3>;
++			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1450>;
+ 		};
+ 	};
+@@ -142,32 +123,13 @@
+ &csi41 {
+ 	status = "okay";
+ 
+-	virtual,channel {
+-		csi2_vc0 {
+-			data,type = "ycbcr422";
+-			receive,vc = <0>;
+-		};
+-		csi2_vc1 {
+-			data,type = "ycbcr422";
+-			receive,vc = <1>;
+-		};
+-		csi2_vc2 {
+-			data,type = "ycbcr422";
+-			receive,vc = <2>;
+-		};
+-		csi2_vc3 {
+-			data,type = "ycbcr422";
+-			receive,vc = <3>;
+-		};
+-	};
+-
+ 	port {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+ 		csi2_41_ep: endpoint {
+ 			clock-lanes = <0>;
+-			data-lanes = <1 2 3>;
++			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1450>;
+ 		};
+ 	};
+@@ -201,7 +163,7 @@
+ 				port@0 {
+ 					ov106xx_in0: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin0ep0>;
+ 					};
+ 				};
+@@ -219,7 +181,7 @@
+ 				port@0 {
+ 					ov106xx_in1: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin1ep0>;
+ 					};
+ 				};
+@@ -237,7 +199,7 @@
+ 				port@0 {
+ 					ov106xx_in2: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin6ep0>;
+ 					};
+ 				};
+@@ -255,7 +217,7 @@
+ 				port@0 {
+ 					ov106xx_in3: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin7ep0>;
+ 					};
+ 				};
+@@ -272,7 +234,7 @@
+ 				clock-names = "ref_clk";
+ 				reg = <0x3a>;
+ 				ti,links = <4>;
+-				ti,lanes = <3>;
++				ti,lanes = <4>;
+ 				ti,forwarding-mode = "round-robin";
+ 				ti,cable-mode = "coax";
+ 				gpios = <&gpio_exp_ch0 13 GPIO_ACTIVE_LOW>;
+@@ -559,7 +521,7 @@
+ 			vin0ep0: endpoint {
+ 				csi,select = "csi40";
+ 				virtual,channel = <0>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in0>;
+ 			};
+ 		};
+@@ -587,7 +549,7 @@
+ 			vin1ep0: endpoint {
+ 				csi,select = "csi40";
+ 				virtual,channel = <1>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in1>;
+ 			};
+ 		};
+@@ -615,7 +577,7 @@
+ 			vin6ep0: endpoint {
+ 				csi,select = "csi41";
+ 				virtual,channel = <2>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in2>;
+ 			};
+ 		};
+@@ -643,7 +605,7 @@
+ 			vin7ep0: endpoint {
+ 				csi,select = "csi41";
+ 				virtual,channel = <3>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in3>;
+ 			};
+ 		};
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index 0db52f4..f8657ed 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -108,25 +108,6 @@
+ &csi40 {
+ 	status = "okay";
+ 
+-	virtual,channel {
+-		csi2_vc0 {
+-			data,type = "ycbcr422";
+-			receive,vc = <0>;
+-		};
+-		csi2_vc1 {
+-			data,type = "ycbcr422";
+-			receive,vc = <1>;
+-		};
+-		csi2_vc2 {
+-			data,type = "ycbcr422";
+-			receive,vc = <2>;
+-		};
+-		csi2_vc3 {
+-			data,type = "ycbcr422";
+-			receive,vc = <3>;
+-		};
+-	};
+-
+ 	port {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+@@ -142,32 +123,13 @@
+ &csi41 {
+ 	status = "okay";
+ 
+-	virtual,channel {
+-		csi2_vc0 {
+-			data,type = "ycbcr422";
+-			receive,vc = <0>;
+-		};
+-		csi2_vc1 {
+-			data,type = "ycbcr422";
+-			receive,vc = <1>;
+-		};
+-		csi2_vc2 {
+-			data,type = "ycbcr422";
+-			receive,vc = <2>;
+-		};
+-		csi2_vc3 {
+-			data,type = "ycbcr422";
+-			receive,vc = <3>;
+-		};
+-	};
+-
+ 	port {
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+ 		csi2_41_ep: endpoint {
+ 			clock-lanes = <0>;
+-			data-lanes = <1 2 3>;
++			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1450>;
+ 		};
+ 	};
+@@ -359,7 +321,7 @@
+ 				port@0 {
+ 					ov106xx_in4: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin4ep0>;
+ 					};
+ 				};
+@@ -377,7 +339,7 @@
+ 				port@0 {
+ 					ov106xx_in5: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin5ep0>;
+ 					};
+ 				};
+@@ -395,7 +357,7 @@
+ 				port@0 {
+ 					ov106xx_in6: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin6ep0>;
+ 					};
+ 				};
+@@ -413,7 +375,7 @@
+ 				port@0 {
+ 					ov106xx_in7: endpoint {
+ 						clock-lanes = <0>;
+-						data-lanes = <1 2 3>;
++						data-lanes = <1 2 3 4>;
+ 						remote-endpoint = <&vin7ep0>;
+ 					};
+ 				};
+@@ -430,7 +392,7 @@
+ 				clock-names = "ref_clk";
+ 				reg = <0x3a>;
+ 				ti,links = <4>;
+-				ti,lanes = <3>;
++				ti,lanes = <4>;
+ 				ti,forwarding-mode = "round-robin";
+ 				ti,cable-mode = "coax";
+ 				gpios = <&gpio_exp_ch1 13 GPIO_ACTIVE_LOW>;
+@@ -682,12 +644,23 @@
+ 		function = "i2c1";
+ 	};
+ 
++	pwm0_pins: pwm0 {
++		groups = "pwm0_a";
++		function = "pwm0";
++	};
++
+ 	scif3_pins: scif3 {
+ 		groups = "scif3_data";
+ 		function = "scif3";
+ 	};
+ };
+ 
++&pwm0 {
++	pinctrl-0 = <&pwm0_pins>;
++	pinctrl-names = "default";
++	status = "okay";
++};
++
+ &scif3 {
+ 	pinctrl-0 = <&scif3_pins>;
+ 	pinctrl-names = "default";
+@@ -822,7 +795,7 @@
+ 			vin4ep0: endpoint {
+ 				csi,select = "csi41";
+ 				virtual,channel = <0>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in4>;
+ 			};
+ 		};
+@@ -850,7 +823,7 @@
+ 			vin5ep0: endpoint {
+ 				csi,select = "csi41";
+ 				virtual,channel = <1>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in5>;
+ 			};
+ 		};
+@@ -878,7 +851,7 @@
+ 			vin6ep0: endpoint {
+ 				csi,select = "csi41";
+ 				virtual,channel = <2>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in6>;
+ 			};
+ 		};
+@@ -906,7 +879,7 @@
+ 			vin7ep0: endpoint {
+ 				csi,select = "csi41";
+ 				virtual,channel = <3>;
+-				data-lanes = <1 2 3>;
++				data-lanes = <1 2 3 4>;
+ 				remote-endpoint = <&ov106xx_in7>;
+ 			};
+ 		};
+-- 
+2.7.4
+

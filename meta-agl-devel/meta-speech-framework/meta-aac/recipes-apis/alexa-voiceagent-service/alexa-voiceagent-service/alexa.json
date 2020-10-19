@@ -1,0 +1,14 @@
+{
+  "id": "VA-001",
+  "active": true,
+  "name": "Alexa",
+  "api": "alexa-voiceagent",
+  "wakewords": [
+    "alexa",
+    "computer",
+    "echo"
+  ],
+  "activewakeword": "alexa",
+  "description": "Alexa voice assistant by Amazon.",
+  "vendor": "Amazon.com Services Inc"
+}

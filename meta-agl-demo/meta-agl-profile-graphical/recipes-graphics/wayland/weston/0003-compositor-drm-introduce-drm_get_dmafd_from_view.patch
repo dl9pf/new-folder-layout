@@ -1,0 +1,111 @@
+From 2cb25adac6b968104bbfb276c684506607dfbff4 Mon Sep 17 00:00:00 2001
+From: Veeresh Kadasani <external.vkadasani@jp.adit-jv.com>
+Date: Wed, 7 Aug 2019 21:05:11 +0900
+Subject: [PATCH 1/1] compositor-drm: introduce drm_get_dmafd_from_view
+
+This API enables to get dmafd from weston_view
+
+Signed-off-by: Veeresh Kadasani <external.vkadasani@jp.adit-jv.com>
+---
+ libweston/compositor-drm.c | 59 ++++++++++++++++++++++++++++++++++++++++++++++
+ libweston/compositor-drm.h |  7 ++++++
+ 2 files changed, 66 insertions(+)
+
+diff --git a/libweston/compositor-drm.c b/libweston/compositor-drm.c
+index b83459a..98ad85c 100644
+--- a/libweston/compositor-drm.c
++++ b/libweston/compositor-drm.c
+@@ -5848,6 +5848,64 @@ drm_output_set_seat(struct weston_output *base,
+ 				     seat ? seat : "");
+ }
+ 
++ static int
++drm_get_dma_fd_from_view(struct weston_output *base,
++			   struct weston_view *ev, int *buf_stride)
++{
++	struct drm_backend *b = to_drm_backend(base->compositor);
++	struct weston_buffer *buffer = ev->surface->buffer_ref.buffer;
++	struct gbm_bo *bo;
++	struct drm_fb *current;
++	struct linux_dmabuf_buffer *dmabuf;
++	bool is_opaque = weston_view_is_opaque(ev,&ev->transform.boundingbox);
++	uint32_t format;
++	int fd, ret;
++
++	if(!buffer) {
++		weston_log("buffer is NULL\n");
++		return -1;
++	}
++
++	if(dmabuf = linux_dmabuf_buffer_get(buffer->resource)) {
++		current = drm_fb_get_from_dmabuf(dmabuf, b, is_opaque);
++		if (!current)
++		{
++			fprintf(stderr, "failed to get drm_fb from dmabuf\n");
++			return -1;
++		}
++		*buf_stride=current->strides[0];
++	}
++	else if(ev->surface->buffer_ref.buffer->legacy_buffer) {
++		bo = gbm_bo_import(b->gbm, GBM_BO_IMPORT_WL_BUFFER,
++				   buffer->resource, GBM_BO_USE_SCANOUT);
++		if (!bo) {
++			weston_log("failed to get gbm_bo\n");
++			return -1;
++		}
++		current = drm_fb_get_from_bo(bo, b, is_opaque, BUFFER_CLIENT);
++
++		if (!current) {
++			weston_log("failed to get drm_fb from bo\n");
++			return -1;
++		}
++                *buf_stride=current->strides[0];
++	}
++	else {
++		weston_log("Buffer is not supported\n");
++		return -1;
++	}
++
++	ret = drmPrimeHandleToFD(b->drm.fd, current->handles[0],
++				 DRM_CLOEXEC, &fd);
++	free(current);
++	if (ret) {
++		weston_log("failed to create prime fd for front buffer\n");
++		return -1;
++	}
++
++	return fd;
++}
++
+ static int
+ drm_output_init_gamma_size(struct drm_output *output)
+ {
+@@ -7396,6 +7454,7 @@ static const struct weston_drm_output_api api = {
+ 	drm_output_set_mode,
+ 	drm_output_set_gbm_format,
+ 	drm_output_set_seat,
++	drm_get_dma_fd_from_view
+ };
+ 
+ static const struct weston_drm_virtual_output_api virt_api = {
+diff --git a/libweston/compositor-drm.h b/libweston/compositor-drm.h
+index 71a306f..a9379e4 100644
+--- a/libweston/compositor-drm.h
++++ b/libweston/compositor-drm.h
+@@ -78,6 +78,13 @@ struct weston_drm_output_api {
+ 	 */
+ 	void (*set_seat)(struct weston_output *output,
+ 			 const char *seat);
++
++	/** Get the dma fd from drm view.
++	 *
++	 *  The dma fd is got from weston_view.
++	 *  Returns fd on success, -1 on failure.
++	 */
++	int (*get_dma_fd_from_view)(struct weston_output *output, struct weston_view *view, int *buf_stride);
+ };
+ 
+ static inline const struct weston_drm_output_api *
+-- 
+2.7.4
+

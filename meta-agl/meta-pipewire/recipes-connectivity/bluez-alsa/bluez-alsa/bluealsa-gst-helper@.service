@@ -1,0 +1,18 @@
+[Unit]
+Description=Bluetooth audio helper for user %i
+Requires=pipewire@%i.socket bluez-alsa.service
+After=pipewire@%i.socket bluez-alsa.service
+
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/usr/bin/bluealsa-gst-helper
+
+Environment=XDG_RUNTIME_DIR=/run/user/%i
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%i/bus
+
+User=%i
+Slice=user-%i.slice
+SupplementaryGroups=audio
+UMask=0077
+CapabilityBoundingSet=

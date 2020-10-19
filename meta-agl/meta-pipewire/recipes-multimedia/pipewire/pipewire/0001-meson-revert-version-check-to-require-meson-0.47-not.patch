@@ -1,0 +1,30 @@
+From 5a249321aa84cd74e3d83bcd555c85fba3cd682d Mon Sep 17 00:00:00 2001
+From: George Kiagiadakis <george.kiagiadakis@collabora.com>
+Date: Sun, 22 Sep 2019 17:59:19 +0300
+Subject: [PATCH] meson: revert version check to require meson 0.47, not 0.50
+
+meson 0.50 is not really needed, but there are some strange warnings
+if you require an older version; in any case, AGL does not have 0.50
+yet, so let's not fail compilation because of that...
+
+Upstream-Status: Inappropriate [workaround]
+---
+ meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index 2734b0d2..c9da6b4d 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1,7 +1,7 @@
+ project('pipewire', ['c' ],
+   version : '0.2.9',
+   license : 'MIT',
+-  meson_version : '>= 0.50.0',
++  meson_version : '>= 0.47.0',
+   default_options : [ 'warning_level=1',
+                       'c_std=gnu99',
+                       'buildtype=debugoptimized' ])
+-- 
+2.24.0
+

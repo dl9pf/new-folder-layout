@@ -1,0 +1,46 @@
+From 19b051580b0d5665ff2ac66cd753b2e7b6bd05b9 Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Mon, 25 Sep 2017 07:13:29 +0300
+Subject: [PATCH 053/122] MOST: dim2: add timeouts
+
+Get rid from loop hang if device not functional
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/staging/most/hdm-dim2/dim2_hal.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/staging/most/hdm-dim2/dim2_hal.c b/drivers/staging/most/hdm-dim2/dim2_hal.c
+index a685c5a..d0f78ac 100644
+--- a/drivers/staging/most/hdm-dim2/dim2_hal.c
++++ b/drivers/staging/most/hdm-dim2/dim2_hal.c
+@@ -19,6 +19,7 @@
+ #include "dim2_reg.h"
+ #include <linux/stddef.h>
+ #include <linux/kernel.h>
++#include <linux/delay.h>
+ 
+ /*
+  * Size factor for isochronous DBR buffer.
+@@ -149,11 +150,16 @@ static void free_dbr(int offs, int size)
+ 
+ static void dim2_transfer_madr(u32 val)
+ {
++	int timeout = 1000;
+ 	dimcb_io_write(&g.dim2->MADR, val);
+ 
+ 	/* wait for transfer completion */
+-	while ((dimcb_io_read(&g.dim2->MCTL) & 1) != 1)
++	while ((dimcb_io_read(&g.dim2->MCTL) & 1) != 1) {
++		if (--timeout == 0)
++			break;
++		udelay(1);
+ 		continue;
++	}
+ 
+ 	dimcb_io_write(&g.dim2->MCTL, 0);   /* clear transfer complete */
+ }
+-- 
+2.7.4
+

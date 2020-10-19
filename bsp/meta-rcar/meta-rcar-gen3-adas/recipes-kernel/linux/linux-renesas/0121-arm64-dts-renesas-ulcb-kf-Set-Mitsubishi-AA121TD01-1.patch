@@ -1,0 +1,71 @@
+From 10517a5740e7b6f24fd5a45d8f9635ed13e94ddd Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 17 Dec 2018 17:56:40 +0300
+Subject: [PATCH 069/122] arm64: dts: renesas: ulcb-kf: Set Mitsubishi
+ AA121TD01 1280x800 panel
+
+This sets LVDS LCD parameters for Mitsubishi AA121TD01 1280x800 panel.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/ulcb-kf-panel.dtsi | 33 ++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/ulcb-kf-panel.dtsi b/arch/arm64/boot/dts/renesas/ulcb-kf-panel.dtsi
+index b54c935..2fe2b6c 100644
+--- a/arch/arm64/boot/dts/renesas/ulcb-kf-panel.dtsi
++++ b/arch/arm64/boot/dts/renesas/ulcb-kf-panel.dtsi
+@@ -12,30 +12,37 @@
+ &lvds {
+ 	compatible = "panel-lvds";
+ 
+-	width-mm = <210>;
+-	height-mm = <158>;
++	width-mm = <261>;
++	height-mm = <163>;
+ 
+ 	data-mapping = "jeida-24";
+ 
+ 	panel-timing {
+-		/* 1280x800 @60Hz Boundary Devices BD101LCC1 compatible panel */
+-		clock-frequency = <65000000>;
++		/* 1280x800 @60Hz Mitsubishi AA121TD01 compatible panel */
++		clock-frequency = <71000000>;
+ 		hactive = <1280>;
+ 		vactive = <800>;
+-		hsync-len = <40>;
+-		hfront-porch = <80>;
+-		hback-porch = <40>;
+-		vfront-porch = <14>;
+-		vback-porch = <14>;
+-		vsync-len = <4>;
++		hsync-len = <70>;
++		hfront-porch = <20>;
++		hback-porch = <70>;
++		vsync-len = <5>;
++		vfront-porch = <3>;
++		vback-porch = <15>;
+ 	};
+ };
+ 
+ &gpio2 {
+-	bl_pwm {
++	mode {
++		gpio-hog;
++		gpios = <2 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "LVDS ISP 6-Bit Compatibility Mode";
++	};
++
++	sd {
+ 		gpio-hog;
+ 		gpios = <3 GPIO_ACTIVE_HIGH>;
+-		output-high;
+-		line-name = "BL PWM 100%";
++		output-low;
++		line-name = "LVDS Scan Direction Normal";
+ 	};
+ };
+-- 
+2.7.4
+

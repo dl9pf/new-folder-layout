@@ -1,0 +1,157 @@
+From 5046390d1114d716fece7508cc199516df4ee610 Mon Sep 17 00:00:00 2001
+From: Jacopo Mondi <jacopo+renesas@jmondi.org>
+Date: Fri, 12 Apr 2019 13:38:32 +0200
+Subject: [PATCH 100/211] arm64: dts: renesas: r8a77980: Add "renesas,id" to
+ VIN
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add the "renesas,id" property to VIN nodes in the R-Car V3H R8A77980
+device tree.
+
+Fixes: 3182aa4e0bf4 ("arm64: dts: renesas: r8a77980: add CSI2/VIN support")
+Signed-off-by: Jacopo Mondi <jacopo+renesas@jmondi.org>
+Reviewed-by: Niklas Söderlund <niklas.soderlund@ragnatech.se>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit b7f5a8e435ecc7198407f44a2a5a6cdae1056b0d)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index 4e019f7..1b56b1f 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -865,6 +865,7 @@
+ 			clocks = <&cpg CPG_MOD 811>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 811>;
++			renesas,id = <0>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -892,6 +893,7 @@
+ 			clocks = <&cpg CPG_MOD 810>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			status = "disabled";
++			renesas,id = <1>;
+ 			resets = <&cpg 810>;
+ 
+ 			ports {
+@@ -919,6 +921,7 @@
+ 			clocks = <&cpg CPG_MOD 809>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 809>;
++			renesas,id = <2>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -946,6 +949,7 @@
+ 			clocks = <&cpg CPG_MOD 808>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 808>;
++			renesas,id = <3>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -973,6 +977,7 @@
+ 			clocks = <&cpg CPG_MOD 807>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 807>;
++			renesas,id = <4>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -1000,6 +1005,7 @@
+ 			clocks = <&cpg CPG_MOD 806>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 806>;
++			renesas,id = <5>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -1027,6 +1033,7 @@
+ 			clocks = <&cpg CPG_MOD 805>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 805>;
++			renesas,id = <6>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -1054,6 +1061,7 @@
+ 			clocks = <&cpg CPG_MOD 804>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 804>;
++			renesas,id = <7>;
+ 			status = "disabled";
+ 
+ 			ports {
+@@ -1081,6 +1089,7 @@
+ 			clocks = <&cpg CPG_MOD 628>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 628>;
++			renesas,id = <8>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1091,6 +1100,7 @@
+ 			clocks = <&cpg CPG_MOD 627>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 627>;
++			renesas,id = <9>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1101,6 +1111,7 @@
+ 			clocks = <&cpg CPG_MOD 625>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 625>;
++			renesas,id = <10>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1111,6 +1122,7 @@
+ 			clocks = <&cpg CPG_MOD 618>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 618>;
++			renesas,id = <11>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1121,6 +1133,7 @@
+ 			clocks = <&cpg CPG_MOD 612>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 612>;
++			renesas,id = <12>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1131,6 +1144,7 @@
+ 			clocks = <&cpg CPG_MOD 608>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 608>;
++			renesas,id = <13>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1141,6 +1155,7 @@
+ 			clocks = <&cpg CPG_MOD 605>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 605>;
++			renesas,id = <14>;
+ 			status = "disabled";
+ 		};
+ 
+@@ -1151,6 +1166,7 @@
+ 			clocks = <&cpg CPG_MOD 604>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 604>;
++			renesas,id = <15>;
+ 			status = "disabled";
+ 		};
+ 
+-- 
+2.7.4
+

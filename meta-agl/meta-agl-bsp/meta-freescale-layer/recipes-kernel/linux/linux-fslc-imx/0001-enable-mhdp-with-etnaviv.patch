@@ -1,0 +1,23 @@
+Tweak MHDP driver Kconfig so it can be enabled with etnaviv
+
+The MHDP driver is needed for using HDMI on the i.MX8MQ EVK, tweak its
+Kconfig entry so that it can be enabled when using etnaviv, not just
+Vivante.
+
+Upstream-Status: pending
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+---
+
+diff --git a/drivers/gpu/drm/imx/Kconfig b/drivers/gpu/drm/imx/Kconfig
+index 63d5f1b532ee..a18ba56aa218 100644
+--- a/drivers/gpu/drm/imx/Kconfig
++++ b/drivers/gpu/drm/imx/Kconfig
+@@ -85,7 +85,7 @@ config DRM_IMX_CDNS_MHDP
+ 	select DRM_CDNS_DP
+ 	select DRM_CDNS_HDMI
+ 	select DRM_CDNS_AUDIO
+-	depends on DRM_IMX
++	depends on DRM_IMX || DRM_ETNAVIV
+ 	help
+ 	  Choose this if you want to use HDMI on i.MX8.
+ 

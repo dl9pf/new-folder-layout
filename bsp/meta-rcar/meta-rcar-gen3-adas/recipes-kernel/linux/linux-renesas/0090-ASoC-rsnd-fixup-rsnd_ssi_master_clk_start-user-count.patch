@@ -1,0 +1,41 @@
+From 5c621fb5ee767836a56fb1f1f73087d494c2e196 Mon Sep 17 00:00:00 2001
+From: Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+Date: Wed, 30 Jan 2019 14:11:21 +0300
+Subject: [PATCH] ASoC: rsnd: fixup rsnd_ssi_master_clk_start() user count
+ check
+
+commit 4d230d1271064 ("ASoC: rsnd: fixup not to call clk_get/set
+under non-atomic") added new rsnd_ssi_prepare() and moved
+rsnd_ssi_master_clk_start() to .prepare.
+But, ssi user count (= ssi->usrcnt) is incremented at .init
+(= rsnd_ssi_init()).
+Because of these timing exchange, ssi->usrcnt check at
+rsnd_ssi_master_clk_start() should be adjusted.
+Otherwise, 2nd master clock setup will be no check.
+This patch fixup this issue.
+
+Fixes: commit 4d230d1271064 ("ASoC: rsnd: fixup not to call clk_get/set under non-atomic")
+Reported-by: Yusuke Goda <yusuke.goda.sx@renesas.com>
+Reported-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Signed-off-by: Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+Tested-by: Yusuke Goda <yusuke.goda.sx@renesas.com>
+---
+ sound/soc/sh/rcar/ssi.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/soc/sh/rcar/ssi.c b/sound/soc/sh/rcar/ssi.c
+index a9d0692..d9f02b0 100644
+--- a/sound/soc/sh/rcar/ssi.c
++++ b/sound/soc/sh/rcar/ssi.c
+@@ -287,7 +287,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
+ 	if (rsnd_ssi_is_multi_slave(mod, io))
+ 		return 0;
+ 
+-	if (ssi->usrcnt > 1) {
++	if (ssi->usrcnt > 0) {
+ 		if (ssi->rate != rate) {
+ 			dev_err(dev, "SSI parent/child should use same rate\n");
+ 			return -EINVAL;
+-- 
+2.7.4
+

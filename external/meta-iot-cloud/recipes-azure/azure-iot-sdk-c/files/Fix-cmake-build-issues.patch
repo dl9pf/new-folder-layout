@@ -1,0 +1,25 @@
+From e41c3783d1fdbca9572fcb386c9c16663dc7cc63 Mon Sep 17 00:00:00 2001
+From: Scott Ware <scott.r.ware@intel.com>
+Date: Thu, 8 Nov 2018 14:08:34 +0000
+Subject: [PATCH 2/3] Fix cmake build issues
+
+Signed-off-by: Scott Ware <scott.r.ware@intel.com>
+---
+ iothub_client/CMakeLists.txt | 1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/iothub_client/CMakeLists.txt b/iothub_client/CMakeLists.txt
+index 99e74dd..20eccd2 100644
+--- a/iothub_client/CMakeLists.txt
++++ b/iothub_client/CMakeLists.txt
+@@ -332,7 +332,6 @@ if(${use_amqp})
+             ${iothub_client_amqp_ws_transport_c_files}
+             ${iothub_client_amqp_ws_transport_h_files})
+ 
+-        set(iothub_client_libs ${iothub_client_libs} uamqp)
+     endif(build_as_dynamic)
+ endif()
+ 
+-- 
+2.7.4
+

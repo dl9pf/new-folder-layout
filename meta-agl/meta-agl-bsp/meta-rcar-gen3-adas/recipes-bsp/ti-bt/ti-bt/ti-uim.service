@@ -1,0 +1,10 @@
+[Unit]
+Description=User Mode Init Manager for TI shared transport
+Before=bluetooth.service
+
+[Service]
+ExecStartPre=-/sbin/modprobe -q btwilink
+ExecStart=/usr/bin/uim -f /sys/devices/platform/kim
+
+[Install]
+WantedBy=multi-user.target

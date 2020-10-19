@@ -1,0 +1,53 @@
+--- a/Makefile.orig	2016-04-01 15:50:20.636358716 +0200
++++ b/Makefile	2016-04-01 15:51:58.916361191 +0200
+@@ -1,3 +1,9 @@
++INCDIR = $(SDKROOT)/usr/include
++LIBDIR = $(SDKROOT)/usr/lib
++
++EXTRA_CFLAGS=-I$(INCDIR)
++EXTRA_LDFLAGS=-Wl,-rpath-link=$(LIBDIR) -L$(LIBDIR)
++
+ OBJECTS = bs_main.o \
+     bs_vector.o \
+     bs_pointmass.o \
+@@ -15,21 +21,21 @@
+     bs_profiler.o \
+     bs_rubberband.o
+ 
+-CC = gcc 
++#CC = gcc 
+ 
+ DISTDIR = blobsallad-src
+ 
+-CFLAGS = `pkg-config --cflags cairo; sdl-config --cflags`
+-LIBS = `pkg-config --libs cairo; sdl-config --libs` -lm -lGL -lGLU
++EXTRA_CFLAGS += -I$(INCDIR)/cairo -I$(INCDIR)/SDL -D_GNU_SOURCE=1 -D_REENTRANT
++EXTRA_LDFLAGS += -lcairo -lSDL -lpthread -lm
+ 
+ all: $(OBJECTS)
+-	$(CC) -g -o blobsallad $(OBJECTS) $(LIBS)
++	$(CC) -g -o blobsallad $(OBJECTS) $(EXTRA_LDFLAGS)
+ 
+ map: 
+-	gcc -o createmap create_testdata.c -Wall -g -lm
++	$(CC) -o createmap create_testdata.c -Wall -g -lm
+ 
+ octree:
+-	gcc -o test_octree test_octree.c bs_octree.c bs_list.c bs_vector.c bs_vector_util.c bs_timer.c bs_array.c -Wall -O2 $(LIBS) $(CFLAGS)
++	$(CC) -o test_octree test_octree.c bs_octree.c bs_list.c bs_vector.c bs_vector_util.c bs_timer.c bs_array.c -Wall -O2 $(EXTRA_LDFLAGS) $(EXTRA_CFLAGS)
+ 
+ GFX_OBJECTS = gfx_main.o \
+ 	bs_gfx.o \
+@@ -41,10 +47,10 @@
+ 	bs_list.o 
+ 
+ gfx: $(GFX_OBJECTS)
+-	gcc -o gfx_main -Wall -g $(GFX_OBJECTS) $(LIBS)
++	$(CC) -o gfx_main -Wall -g $(GFX_OBJECTS) $(EXTRA_LDFLAGS)
+ 
+ .c.o:
+-	$(CC) -g -Wall $(CFLAGS) $ -c $<
++	$(CC) -g -Wall $(EXTRA_CFLAGS) $ -c $<
+ 
+ clean: 
+ 	rm -f *.o; rm -f blobsallad; 

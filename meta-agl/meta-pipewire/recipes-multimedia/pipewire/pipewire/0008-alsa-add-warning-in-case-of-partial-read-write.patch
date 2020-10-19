@@ -1,0 +1,80 @@
+From 45658f75e61da47b274f2eba3a55e62d016f8b42 Mon Sep 17 00:00:00 2001
+From: Walter Lozano <walter.lozano@collabora.com>
+Date: Mon, 24 Aug 2020 12:08:32 -0300
+Subject: [PATCH 8/9] alsa: add warning in case of partial read/write
+
+Currently alsa_read and alsa_write assumes that all the frames committed
+using snd_pcm_mmap_commit are read or written, which is probably true.
+However, as it could be some corner cases add a warning to notice this
+fact.
+
+Signed-off-by: Walter Lozano <walter.lozano@collabora.com>
+---
+ spa/plugins/alsa/alsa-pcm.c | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/spa/plugins/alsa/alsa-pcm.c b/spa/plugins/alsa/alsa-pcm.c
+index ed9bf42b..92ef2151 100644
+--- a/spa/plugins/alsa/alsa-pcm.c
++++ b/spa/plugins/alsa/alsa-pcm.c
+@@ -721,6 +721,7 @@ int spa_alsa_write(struct state *state, snd_pcm_uframes_t silence)
+ 	snd_pcm_t *hndl = state->hndl;
+ 	const snd_pcm_channel_area_t *my_areas;
+ 	snd_pcm_uframes_t written, frames, offset, off, to_write, total_written;
++	snd_pcm_sframes_t commitres;
+ 	int res;
+ 
+ 	if (state->position && state->duration != state->position->clock.duration) {
+@@ -834,11 +835,16 @@ again:
+ 			state, offset, written, state->sample_count);
+ 	total_written += written;
+ 
+-	if ((res = snd_pcm_mmap_commit(hndl, offset, written)) < 0) {
++	if ((commitres = snd_pcm_mmap_commit(hndl, offset, written)) < 0) {
+ 		spa_log_error(state->log, NAME" %p: snd_pcm_mmap_commit error: %s",
+-				state, snd_strerror(res));
+-		if (res != -EPIPE && res != -ESTRPIPE)
+-			return res;
++				state, snd_strerror(commitres));
++		if (commitres != -EPIPE && commitres != -ESTRPIPE)
++			return commitres;
++	}
++
++	if (commitres > 0 && written != (snd_pcm_uframes_t) commitres) {
++		spa_log_warn(state->log, NAME" %p: mmap_commit wrote %ld instead of %ld",
++			     state, commitres, written);
+ 	}
+ 
+ 	if (!spa_list_is_empty(&state->ready) && written > 0)
+@@ -922,6 +928,7 @@ int spa_alsa_read(struct state *state, snd_pcm_uframes_t silence)
+ 	snd_pcm_uframes_t total_read = 0, to_read;
+ 	const snd_pcm_channel_area_t *my_areas;
+ 	snd_pcm_uframes_t read, frames, offset;
++	snd_pcm_sframes_t commitres;
+ 	int res;
+ 
+ 	if (state->position) {
+@@ -994,11 +1001,16 @@ int spa_alsa_read(struct state *state, snd_pcm_uframes_t silence)
+ 			offset, read, state->sample_count);
+ 	total_read += read;
+ 
+-	if ((res = snd_pcm_mmap_commit(hndl, offset, read)) < 0) {
++	if ((commitres = snd_pcm_mmap_commit(hndl, offset, read)) < 0) {
+ 		spa_log_error(state->log, NAME" %p: snd_pcm_mmap_commit error: %s",
+-				state, snd_strerror(res));
+-		if (res != -EPIPE && res != -ESTRPIPE)
+-			return res;
++				state, snd_strerror(commitres));
++		if (commitres != -EPIPE && commitres != -ESTRPIPE)
++			return commitres;
++	}
++
++	if (commitres > 0 && read != (snd_pcm_uframes_t) commitres) {
++		spa_log_warn(state->log, NAME" %p: mmap_commit read %ld instead of %ld",
++			     state, commitres, read);
+ 	}
+ 
+ 	state->sample_count += total_read;
+-- 
+2.20.1
+

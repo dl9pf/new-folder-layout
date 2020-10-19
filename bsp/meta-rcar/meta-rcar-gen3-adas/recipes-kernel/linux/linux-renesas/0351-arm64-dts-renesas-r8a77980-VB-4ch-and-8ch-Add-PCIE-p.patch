@@ -1,0 +1,44 @@
+From 75f23c3e3581eca8a5b0098943c246f64f55d406 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 7 Nov 2018 19:09:18 +0300
+Subject: [PATCH 171/211] arm64: dts: renesas: r8a77980 VB 4ch and 8ch: Add
+ PCIE phy node.
+
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts | 4 ++++
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index d281871..7b35608 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -469,6 +469,10 @@
+ 	status = "okay";
+ };
+ 
++&pcie_phy {
++	status = "okay";
++};
++
+ &pfc {
+ 	canfd0_pins: canfd0 {
+ 		groups = "canfd0_data_a";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index e5a8a18..84d89d2 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -618,6 +618,10 @@
+ 	status = "okay";
+ };
+ 
++&pcie_phy {
++	status = "okay";
++};
++
+ &pfc {
+ 	canfd0_pins: canfd0 {
+ 		groups = "canfd0_data_a";
+-- 
+2.7.4
+

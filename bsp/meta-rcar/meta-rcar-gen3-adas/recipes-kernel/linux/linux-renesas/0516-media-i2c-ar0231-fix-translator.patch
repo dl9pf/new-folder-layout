@@ -1,0 +1,37 @@
+From 104e7ee4ee011b6050dc9b55b993c811e3efc959 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Tue, 5 May 2020 00:36:27 +0300
+Subject: [PATCH 3/3] media: i2c: ar0231: fix translator
+
+This fixes translator imager address
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imagers/ar0231.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imagers/ar0231.c b/drivers/media/i2c/soc_camera/imagers/ar0231.c
+index fc08793..42f125c 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ar0231.c
++++ b/drivers/media/i2c/soc_camera/imagers/ar0231.c
+@@ -27,7 +27,7 @@ static const int ar0231_i2c_addr[] = {0x10, 0x20};
+ 
+ #define AR0231_PID_REG		0x3000
+ #define AR0231_REV_REG		0x31FE
+-#define AR0231_PID	0x0354
++#define AR0231_PID		0x0354
+ 
+ #define AR0231_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG12_1X12
+ 
+@@ -403,7 +403,7 @@ static int ar0231_initialize(struct i2c_client *client)
+ 	int i;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(ar0231_i2c_addr); i++) {
+-		setup_i2c_translator(client, priv->ser_addr, ar0231_i2c_addr[i] << 1);
++		setup_i2c_translator(client, priv->ser_addr, ar0231_i2c_addr[i]);
+ 
+ 		/* check model ID */
+ 		reg16_read16(client, AR0231_PID_REG, &pid);
+-- 
+2.7.4
+

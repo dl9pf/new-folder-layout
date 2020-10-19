@@ -1,0 +1,36 @@
+From c735a6b07b3fdb830cf0655c7c3aa447be8d62d6 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 29 Jul 2019 16:01:38 +0300
+Subject: [PATCH] media: platform: soc_mediabus: add Bayer 16bit format
+
+This adds MBUS format SBGGR16
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/soc_mediabus.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/drivers/media/platform/soc_camera/soc_mediabus.c b/drivers/media/platform/soc_camera/soc_mediabus.c
+index d4e5c1e..768918e 100644
+--- a/drivers/media/platform/soc_camera/soc_mediabus.c
++++ b/drivers/media/platform/soc_camera/soc_mediabus.c
+@@ -392,6 +392,16 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
+ 		.order			= SOC_MBUS_ORDER_LE,
+ 		.layout			= SOC_MBUS_LAYOUT_PACKED,
+ 	},
++}, {
++	.code = MEDIA_BUS_FMT_SBGGR16_1X16,
++	.fmt = {
++		.fourcc			= V4L2_PIX_FMT_SBGGR16,
++		.name			= "Bayer 16 RGGB",
++		.bits_per_sample	= 16,
++		.packing		= SOC_MBUS_PACKING_NONE,
++		.order			= SOC_MBUS_ORDER_LE,
++		.layout			= SOC_MBUS_LAYOUT_PACKED,
++	},
+ },
+ };
+ 
+-- 
+2.7.4
+

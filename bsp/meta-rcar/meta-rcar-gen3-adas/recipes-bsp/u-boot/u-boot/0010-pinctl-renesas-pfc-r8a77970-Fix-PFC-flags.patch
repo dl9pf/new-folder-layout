@@ -1,0 +1,49 @@
+From 1148272d7fb0ead160d668895346b652f2426284 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 3 Aug 2019 00:36:18 +0300
+Subject: [PATCH 10/23] pinctl: renesas: pfc-r8a77970: Fix PFC flags
+
+This removes SH_PFC_PIN_CFG_DRIVE_STRENGTH flag, and
+adds SH_PFC_PIN_CFG_IO_VOLTAGE where appropriate.
+
+The datasheet does not document any registers to control
+drive strength, and no drive strength registers are for
+this reason described for this SoC.
+Remove SH_PFC_PIN_CFG_DRIVE_STRENGTH flag to avoid
+possible NULL pointer dereference when the PFC core
+tries to access the drive_regs structure.
+
+The SH_PFC_PIN_CFG_IO_VOLTAGE flag is used, for example,
+by the SDHI driver for voltage switching.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/pinctrl/renesas/pfc-r8a77970.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/pinctrl/renesas/pfc-r8a77970.c b/drivers/pinctrl/renesas/pfc-r8a77970.c
+index c44e1bc..87af391 100644
+--- a/drivers/pinctrl/renesas/pfc-r8a77970.c
++++ b/drivers/pinctrl/renesas/pfc-r8a77970.c
+@@ -20,12 +20,12 @@
+ #include "sh_pfc.h"
+ 
+ #define CPU_ALL_PORT(fn, sfx)						\
+-	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
+-	PORT_GP_CFG_28(1, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
+-	PORT_GP_CFG_17(2, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
+-	PORT_GP_CFG_17(3, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
+-	PORT_GP_CFG_6(4, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
+-	PORT_GP_CFG_15(5, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH)
++	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
++	PORT_GP_28(1, fn, sfx),					\
++	PORT_GP_CFG_17(2, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
++	PORT_GP_CFG_17(3, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
++	PORT_GP_6(4, fn, sfx),					\
++	PORT_GP_15(5, fn, sfx)
+ /*
+  * F_() : just information
+  * FM() : macro for FN_xxx / xxx_MARK
+-- 
+2.7.4
+

@@ -1,0 +1,13 @@
+type: books
+books:
+-
+    id: meta-agl-devel
+    title: Meta AGL Devel
+    description: Meta AGL Devel documentation
+    keywords:
+    author: "AGL"
+    version: master
+    chapters:
+    - url: ../meta-agl-devel.md
+      destination: meta-agl-devel.md
+      name: meta-agl-devel

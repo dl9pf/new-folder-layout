@@ -1,0 +1,162 @@
+From 8eb36a5043bfb90974d3149f29197cb7f72df171 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Tue, 12 Nov 2019 22:57:34 +0300
+Subject: [PATCH] media: i2c: ar0140: update driver to use rGPIO and dynamic
+ i2c
+
+This fix driver to use remote gpio from deserizlier and dynamic
+i2c probing
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0140.c  | 36 +++++++++++++++++++++-------------
+ drivers/media/i2c/soc_camera/ar0140.h  |  4 +---
+ drivers/media/i2c/soc_camera/ov106xx.c | 22 ++++++++++-----------
+ 3 files changed, 34 insertions(+), 28 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0140.c b/drivers/media/i2c/soc_camera/ar0140.c
+index b156fc5..ec2b2e5 100644
+--- a/drivers/media/i2c/soc_camera/ar0140.c
++++ b/drivers/media/i2c/soc_camera/ar0140.c
+@@ -22,7 +22,7 @@
+ 
+ #include "ar0140.h"
+ 
+-#define AR0140_I2C_ADDR		0x10
++static const int ar0140_i2c_addr[] = {0x10, 0x20};
+ 
+ #define AR0140_PID		0x3000
+ #define AR0140_VERSION_REG	0x0051
+@@ -407,15 +407,30 @@ static DEVICE_ATTR(otp_id_ar0140, S_IRUGO, ar0140_otp_id_show, NULL);
+ static int ar0140_initialize(struct i2c_client *client)
+ {
+ 	struct ar0140_priv *priv = to_ar0140(client);
+-	u16 val = 0;
+-	u16 pid = 0;
++	u16 val = 0, pid = 0;
+ 	int ret = 0;
+-	int tmp_addr;
++	int tmp_addr, i;
+ 
+-	ar0140_s_port(client, 1);
++	for (i = 0; i < ARRAY_SIZE(ar0140_i2c_addr); i++) {
++		tmp_addr = client->addr;
++		if (priv->ti9x4_addr) {
++			client->addr = priv->ti9x4_addr;
++			reg8_write(client, 0x5d, ar0140_i2c_addr[i] << 1); /* Sensor native I2C address */
++			usleep_range(2000, 2500);
++		}
++		if (priv->max9286_addr) {
++			client->addr = priv->max9271_addr;
++			reg8_write(client, 0x0a, ar0140_i2c_addr[i] << 1); /* Sensor native I2C address */
++			usleep_range(2000, 2500);
++		};
++		client->addr = tmp_addr;
+ 
+-	/* check and show model ID */
+-	reg16_read16(client, AR0140_PID, &pid);
++		/* check model ID */
++		reg16_read16(client, AR0140_PID, &pid);
++
++		if (pid == AR0140_VERSION_REG)
++			break;
++	}
+ 
+ 	if (pid != AR0140_VERSION_REG) {
+ 		dev_dbg(&client->dev, "Product ID error %x\n", pid);
+@@ -452,7 +467,6 @@ static int ar0140_initialize(struct i2c_client *client)
+ 		 pid, AR0140_MAX_WIDTH, AR0140_MAX_HEIGHT, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ err:
+ 	ar0140_s_port(client, 0);
+-
+ 	return ret;
+ }
+ 
+@@ -499,7 +513,6 @@ static int ar0140_parse_dt(struct device_node *np, struct ar0140_priv *priv)
+ 		client->addr = priv->max9271_addr;			/* Serializer I2C address */
+ 
+ 		reg8_write(client, 0x09, tmp_addr << 1);		/* Sensor translated I2C address */
+-		reg8_write(client, 0x0A, AR0140_I2C_ADDR << 1);		/* Sensor native I2C address */
+ 		usleep_range(2000, 2500);				/* wait 2ms */
+ 	};
+ 	if (priv->ti9x4_addr) {
+@@ -508,14 +521,9 @@ static int ar0140_parse_dt(struct device_node *np, struct ar0140_priv *priv)
+ 		reg8_write(client, 0x4c, (priv->port << 4) | (1 << priv->port)); /* Select RX port number */
+ 		usleep_range(2000, 2500);				/* wait 2ms */
+ 		reg8_write(client, 0x65, tmp_addr << 1);		/* Sensor translated I2C address */
+-		reg8_write(client, 0x5d, AR0140_I2C_ADDR << 1);		/* Sensor native I2C address */
+-
+-		reg8_write(client, 0x6e, 0x9a);				/* GPIO0 - fsin, GPIO1 - reset */
+ 	}
+ 	client->addr = tmp_addr;
+ 
+-	mdelay(10);
+-
+ 	return 0;
+ }
+ 
+diff --git a/drivers/media/i2c/soc_camera/ar0140.h b/drivers/media/i2c/soc_camera/ar0140.h
+index f90762c..2993478 100644
+--- a/drivers/media/i2c/soc_camera/ar0140.h
++++ b/drivers/media/i2c/soc_camera/ar0140.h
+@@ -467,9 +467,7 @@ static const struct ar0140_reg ar0140_regs_wizard[] = {
+ // patch start
+ {0x3012, 0x0206}, // COARSE_INTEGRATION_TIME_: T1 exposure - max=0x400
+ // patch end
+-// enable trigger
+-{0x340A, 0x0070}, // GPIO_CONTROL1: GPIO3 is trigger
+-{0x340C, 0x0080}, // GPIO_CONTROL2: GPIO3 is trigger
++// enable trigger (trigger pin is dedicated)
+ {0x30CE, 0x0120}, // TRIGGER_MODE
+ //{0x30DC, 0x0120}, // TRIGGER_DELAY
+ };
+diff --git a/drivers/media/i2c/soc_camera/ov106xx.c b/drivers/media/i2c/soc_camera/ov106xx.c
+index 208267c..08d3816 100644
+--- a/drivers/media/i2c/soc_camera/ov106xx.c
++++ b/drivers/media/i2c/soc_camera/ov106xx.c
+@@ -67,6 +67,12 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
++	ret = ar0140_probe(client, did);
++	if (!ret) {
++		chip_id = ID_AR0140;
++		goto out;
++	}
++
+ 	ret = ar0231_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_AR0231;
+@@ -85,11 +91,11 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
+-        ret = ap0101_probe(client, did);
+-        if (!ret) {
+-                chip_id = ID_AP0101_AR014X;
+-                goto out;
+-        }
++	ret = ap0101_probe(client, did);
++	if (!ret) {
++		chip_id = ID_AP0101_AR014X;
++		goto out;
++	}
+ 
+ 	ret = ov495_probe(client, did);
+ 	if (!ret) {
+@@ -127,12 +133,6 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
+-	ret = ar0140_probe(client, did);
+-	if (!ret) {
+-		chip_id = ID_AR0140;
+-		goto out;
+-	}
+-
+ 	ret = ar0143_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_AR0143;
+-- 
+2.7.4
+

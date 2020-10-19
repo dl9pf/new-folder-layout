@@ -1,0 +1,29 @@
+From b000da3023f944bb078c7bc284279b91854b0882 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 28 Feb 2020 11:51:12 +0300
+Subject: [PATCH] media: i2c: soc_camera: ov10640: fix emb lines number
+
+The number of emb lines are documnted as 2+2, but really
+we see 4+4
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov10640.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov10640.h b/drivers/media/i2c/soc_camera/ov10640.h
+index 04ff326..de89b19 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.h
++++ b/drivers/media/i2c/soc_camera/ov10640.h
+@@ -15,7 +15,7 @@
+ #define OV10640_DEFAULT_WIDTH	1280
+ #define OV10640_DEFAULT_HEIGHT	1080
+ 
+-#define OV10640_EMB_LINES	4 /* 2 emb lines at top and 2 stat lines at bottom */
++#define OV10640_EMB_LINES	8 /* 2+2 emb lines at top and 2+2 stat lines at bottom */
+ #define OV10640_EMB_PADDED	(priv->emb_enable ? OV10640_EMB_LINES : 0) /* embedded data (SOF) and stats (EOF) */
+ 
+ #define OV10640_DELAY		0xffff
+-- 
+2.7.4
+

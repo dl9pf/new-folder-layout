@@ -1,0 +1,16 @@
+[Unit]
+Description=Lightmediascanner (LMS)
+After=run-agl-postinsts.service systemd-remount-fs.service systemd-tmpfiles-setup.service tmp.mount
+ConditionPathIsReadWrite=/var/volatile/tmp
+
+[Service]
+Type=dbus
+Restart=on-failure
+RestartSec=0
+BusName=org.lightmediascanner
+SmackProcessLabel=User::App::agl-service-mediascanner
+ExecStart=/usr/bin/lightmediascannerd --startup-scan --db-path=/var/volatile/tmp/lightmediascannerd.db --directory=/media
+
+[Install]
+WantedBy=multi-user.target
+Alias=dbus-org.lightmediascanner.service

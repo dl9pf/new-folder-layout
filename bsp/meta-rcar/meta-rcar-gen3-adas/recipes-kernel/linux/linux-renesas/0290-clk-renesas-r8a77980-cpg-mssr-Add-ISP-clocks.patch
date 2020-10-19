@@ -1,0 +1,28 @@
+From 4636088d830f0cf114e50ed997dcd8cdaf80f12f Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 29 Oct 2018 13:58:17 +0300
+Subject: [PATCH 110/211] clk: renesas: r8a77980: cpg-mssr: Add ISP clocks
+
+This adds ISP clocks.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/r8a77980-cpg-mssr.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/clk/renesas/r8a77980-cpg-mssr.c b/drivers/clk/renesas/r8a77980-cpg-mssr.c
+index dfa947a..61ffe60 100644
+--- a/drivers/clk/renesas/r8a77980-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77980-cpg-mssr.c
+@@ -166,6 +166,8 @@ static const struct mssr_mod_clk r8a77980_mod_clks[] __initconst = {
+ 	DEF_MOD("vin0",			 811,	R8A77980_CLK_S2D1),
+ 	DEF_MOD("etheravb",		 812,	R8A77980_CLK_S3D2),
+ 	DEF_MOD("gether",		 813,	R8A77980_CLK_S3D2),
++	DEF_MOD("isp1",			 814,	R8A77980_CLK_S3D1),
++	DEF_MOD("isp0",			 817,	R8A77980_CLK_S3D1),
+ 	DEF_MOD("imr3",			 820,	R8A77980_CLK_S2D1),
+ 	DEF_MOD("imr2",			 821,	R8A77980_CLK_S2D1),
+ 	DEF_MOD("imr1",			 822,	R8A77980_CLK_S2D1),
+-- 
+2.7.4
+

@@ -1,0 +1,97 @@
+From 9d8155ae4fbf9f480c993447f6f4753ec2f9c3bf Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 30 Apr 2020 11:03:16 +0300
+Subject: [PATCH] media: i2c: ap0101,ap0201: fix vendor name, fsin fix on ap0102
+
+This fixes vendor name, fix fsync on ap0102
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c | 14 ++++++++++++--
+ drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.h |  8 ++++++++
+ drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c |  6 ++++--
+ 3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c b/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c
+index d2a6ff9..526d4ea 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c
++++ b/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c
+@@ -27,7 +27,9 @@ static const int ap0101_i2c_addr[] = {0x5d, 0x48};
+ 
+ #define AP0101_PID_REG		0x0000
+ #define AP0101_REV_REG		0x0058
++#define AP0100_PID		0x0062
+ #define AP0101_PID		0x0160
++#define AP0102_PID		0x0064
+ 
+ #define AP0101_MEDIA_BUS_FMT	MEDIA_BUS_FMT_YUYV8_2X8
+ 
+@@ -434,7 +436,15 @@ static int ap0101_initialize(struct i2c_client *client)
+ 	priv->max_height = AP0101_MAX_HEIGHT;
+ #endif
+ 	/* Program wizard registers */
+-	ap0101_set_regs(client, ap0101_regs_wizard, ARRAY_SIZE(ap0101_regs_wizard));
++	switch (pid) {
++	case AP0100_PID:
++	case AP0101_PID:
++		ap0101_set_regs(client, ap0101_regs_wizard, ARRAY_SIZE(ap0101_regs_wizard));
++		break;
++	case AP0102_PID:
++		ap0101_set_regs(client, ap0102_regs_wizard, ARRAY_SIZE(ap0102_regs_wizard));
++		break;
++	}
+ 	/* Read OTP IDs */
+ 	ap0101_otp_id_read(client);
+ 
+@@ -471,7 +481,7 @@ static const struct i2c_device_id ap0101_id[] = {
+ MODULE_DEVICE_TABLE(i2c, ap0101_id);
+ 
+ static const struct of_device_id ap0101_of_ids[] = {
+-	{ .compatible = "onsemi,ap0101", },
++	{ .compatible = "onnn,ap0101", },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, ap0101_of_ids);
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.h b/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.h
+index d0d6205..5755b87 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.h
++++ b/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.h
+@@ -26,3 +26,11 @@ static const struct ap0101_reg ap0101_regs_wizard[] = {
+ {0x0040, 0x8100},
+ {AP0101_DELAY, 100},
+ };
++
++static const struct ap0101_reg ap0102_regs_wizard[] = {
++/* enable FSIN */
++{0xc890, 0x0303},
++{0xfc00, 0x2800},
++{0x0040, 0x8100},
++{AP0101_DELAY, 100},
++};
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+index 7b274ce..10bf6f7 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
++++ b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+@@ -27,7 +27,9 @@ static const int ap0201_i2c_addr[] = {0x5d, 0x48};
+ 
+ #define AP0201_PID_REG		0x0000
+ #define AP0201_REV_REG		0x0058
+-#define AP0201_PID		0x0064
++#define AP0200_PID		0x0062
++#define AP0201_PID		0x0160
++#define AP0202_PID		0x0064
+ 
+ #define AP0201_MEDIA_BUS_FMT	MEDIA_BUS_FMT_YUYV8_2X8
+ 
+@@ -446,7 +448,7 @@ static const struct i2c_device_id ap0201_id[] = {
+ MODULE_DEVICE_TABLE(i2c, ap0201_id);
+ 
+ static const struct of_device_id ap0201_of_ids[] = {
+-	{ .compatible = "onsemi,ap0201", },
++	{ .compatible = "onnn,ap0201", },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, ap0201_of_ids);
+-- 
+2.7.4
+

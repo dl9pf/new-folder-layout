@@ -1,0 +1,28 @@
+From e5efe3d4f0abc28251dac245ce0cf4124e7e2a12 Mon Sep 17 00:00:00 2001
+From: George Kiagiadakis <george.kiagiadakis@collabora.com>
+Date: Thu, 5 Dec 2019 17:59:44 +0200
+Subject: [PATCH] Build cpptoml without a cmake subproject
+
+Upstream-Status: Inappropriate
+---
+ meson.build | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/meson.build b/meson.build
+index 5a75d96..0b21377 100644
+--- a/meson.build
++++ b/meson.build
+@@ -24,9 +24,7 @@ else
+   wireplumber_config_dir = join_paths(get_option('prefix'), get_option('sysconfdir'), 'wireplumber')
+ endif
+ 
+-cmake = import('cmake')
+-cpptoml = cmake.subproject('cpptoml')
+-cpptoml_dep = cpptoml.dependency('cpptoml')
++cpptoml_dep = declare_dependency(include_directories: include_directories('subprojects/cpptoml'))
+ 
+ gobject_dep = dependency('gobject-2.0')
+ gmodule_dep = dependency('gmodule-2.0')
+-- 
+2.24.0
+

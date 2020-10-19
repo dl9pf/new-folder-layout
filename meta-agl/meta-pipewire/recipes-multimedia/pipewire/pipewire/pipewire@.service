@@ -1,0 +1,24 @@
+[Unit]
+Description=Multimedia Service for user %i
+Requires=pipewire@%i.socket
+
+[Install]
+Also=pipewire@%i.socket
+
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/usr/bin/pipewire
+
+Environment=XDG_RUNTIME_DIR=/run/user/%i
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%i/bus
+EnvironmentFile=-/etc/pipewire/environment
+
+User=%i
+Slice=user-%i.slice
+SmackProcessLabel=System::Pipewire
+SupplementaryGroups=audio
+UMask=0077
+CapabilityBoundingSet=
+SystemCallFilter=@basic-io @file-system @io-event @ipc \
+    @memlock @network-io @process @resources @signal

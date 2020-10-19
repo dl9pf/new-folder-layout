@@ -1,0 +1,7 @@
+.repo
+.DS_Store
+/extras
+.vscode
+/build
+
+*native-dependencies/

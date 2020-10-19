@@ -1,0 +1,55 @@
+From 2bda1ee68a17dcc3774073dd2b35d2525a079a7d Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Tue, 27 Aug 2019 17:26:13 +0300
+Subject: [PATCH 3/6] arm64: dtb: renesas: vb2.1: enable usb2 channel 3
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/ulcb-vb2.1.dtsi | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/ulcb-vb2.1.dtsi b/arch/arm64/boot/dts/renesas/ulcb-vb2.1.dtsi
+index 0df720d..f77b4c3 100644
+--- a/arch/arm64/boot/dts/renesas/ulcb-vb2.1.dtsi
++++ b/arch/arm64/boot/dts/renesas/ulcb-vb2.1.dtsi
+@@ -72,6 +72,11 @@
+ 		groups = "usb1";
+ 		function = "usb1";
+ 	};
++
++	usb3_pins: usb3 {
++		groups = "usb2_ch3";
++		function = "usb2_ch3";
++	};
+ };
+ 
+ &usb2_phy1 {
+@@ -81,6 +86,13 @@
+ 	status = "okay";
+ };
+ 
++&usb2_phy3 {
++	pinctrl-0 = <&usb3_pins>;
++	pinctrl-names = "default";
++
++	status = "okay";
++};
++
+ &ehci1 {
+ 	status = "okay";
+ };
+@@ -88,3 +100,11 @@
+ &ohci1 {
+ 	status = "okay";
+ };
++
++&ehci3 {
++	status = "okay";
++};
++
++&ohci3 {
++	status = "okay";
++};
+-- 
+2.7.4
+

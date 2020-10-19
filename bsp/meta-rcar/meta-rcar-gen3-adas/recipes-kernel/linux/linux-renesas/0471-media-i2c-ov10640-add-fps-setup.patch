@@ -1,0 +1,104 @@
+From 969dff5e0dbd9ad6b289073410dbd3013ccd5e31 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 10 Feb 2020 21:09:29 +0300
+Subject: [PATCH] media: i2c: ov10640: add fps setup
+
+This adds framerate change support for OV10640 imager
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov10640.c | 50 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+
+diff --git a/drivers/media/i2c/soc_camera/ov10640.c b/drivers/media/i2c/soc_camera/ov10640.c
+index fab2c0d..0af091e 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov10640.c
+@@ -38,6 +38,7 @@ struct ov10640_priv {
+ 	struct media_pad		pad;
+ 	struct v4l2_rect		rect;
+ 	int				subsampling;
++	int				fps_numerator;
+ 	int				fps_denominator;
+ 	int				init_complete;
+ 	u8				id[6];
+@@ -51,6 +52,7 @@ struct ov10640_priv {
+ 	int				port;
+ 	int				gpio_resetb;
+ 	int				gpio_fsin;
++	int				vts;
+ };
+ 
+ static inline struct ov10640_priv *to_ov10640(const struct i2c_client *client)
+@@ -276,6 +278,51 @@ static int ov10640_g_mbus_config(struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
++static int ov10640_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ov10640_priv *priv = to_ov10640(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++
++	memset(cp, 0, sizeof(struct v4l2_captureparm));
++	cp->capability = V4L2_CAP_TIMEPERFRAME;
++	cp->timeperframe.numerator = priv->fps_numerator;
++	cp->timeperframe.denominator = priv->fps_denominator;
++
++	return 0;
++}
++
++static int ov10640_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ov10640_priv *priv = to_ov10640(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++	int ret = 0;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		priv->vts = (OV10640_SENSOR_HEIGHT + 208) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++
++		reg16_write(client, 0x3012, 0);
++		reg16_write(client, 0x3082, priv->vts >> 8);
++		reg16_write(client, 0x3083, priv->vts & 0xff);
++		ret = reg16_write(client, 0x3012, 1);
++
++		priv->fps_denominator = cp->timeperframe.numerator;
++		priv->fps_denominator = cp->timeperframe.denominator;
++	}
++
++	return ret;
++}
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int ov10640_g_register(struct v4l2_subdev *sd,
+ 			      struct v4l2_dbg_register *reg)
+@@ -417,6 +464,8 @@ static const struct v4l2_ctrl_ops ov10640_ctrl_ops = {
+ static struct v4l2_subdev_video_ops ov10640_video_ops = {
+ 	.s_stream	= ov10640_s_stream,
+ 	.g_mbus_config	= ov10640_g_mbus_config,
++	.g_parm		= ov10640_g_parm,
++	.s_parm		= ov10640_s_parm,
+ };
+ 
+ static const struct v4l2_subdev_pad_ops ov10640_subdev_pad_ops = {
+@@ -643,6 +692,7 @@ static int ov10640_probe(struct i2c_client *client,
+ 	priv->rect.top = 0;
+ 	priv->rect.width = OV10640_DEFAULT_WIDTH;
+ 	priv->rect.height = OV10640_DEFAULT_HEIGHT;
++	priv->fps_numerator = 1;
+ 	priv->fps_denominator = 30;
+ 
+ 	v4l2_ctrl_handler_init(&priv->hdl, 4);
+-- 
+2.7.4
+

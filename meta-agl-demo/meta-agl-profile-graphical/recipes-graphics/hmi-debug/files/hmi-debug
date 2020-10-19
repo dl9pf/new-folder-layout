@@ -1,0 +1,8 @@
+#You can select log level of HMI framework
+#1 ERROR
+#2 WARNING
+#3 NOTICE
+#4 INFO
+#5 DEBUG
+#If you want to output debug log about hmi-framework, please uncomment the following.
+#USE_HMI_DEBUG=5

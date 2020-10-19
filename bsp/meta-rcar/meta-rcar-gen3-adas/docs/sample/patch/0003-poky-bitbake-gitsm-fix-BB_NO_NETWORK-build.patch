@@ -1,0 +1,47 @@
+From e0eb46a08a0bdd278800f75c0004e33af2376374 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Sun, 17 Sep 2017 00:39:12 +0300
+Subject: [PATCH] poky: bitbake: gitsm: fix BB_NO_NETWORK build
+
+This allows to fetch submodules from download cache.
+
+Signed-off-by: Mikko Rapeli <mikko.rapeli@bmw.de>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ bitbake/lib/bb/fetch2/gitsm.py | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/bitbake/lib/bb/fetch2/gitsm.py b/bitbake/lib/bb/fetch2/gitsm.py
+index 752f1d3..cb417a3 100644
+--- a/bitbake/lib/bb/fetch2/gitsm.py
++++ b/bitbake/lib/bb/fetch2/gitsm.py
+@@ -109,7 +109,7 @@ class GitSM(Git):
+         runfetchcmd("sed " + gitdir + "/config -i -e 's/bare.*=.*true/bare = false/'", d)
+         os.chdir(tmpclonedir)
+         runfetchcmd(ud.basecmd + " reset --hard", d)
+-        runfetchcmd(ud.basecmd + " checkout " + ud.revisions[ud.names[0]], d)
++        runfetchcmd(ud.basecmd + " checkout -f " + ud.revisions[ud.names[0]], d)
+         runfetchcmd(ud.basecmd + " submodule update --init --recursive", d)
+         self._set_relative_paths(tmpclonedir)
+         runfetchcmd("sed " + gitdir + "/config -i -e 's/bare.*=.*false/bare = true/'", d)
+@@ -130,5 +130,16 @@ class GitSM(Git):
+         os.chdir(ud.destdir)
+         submodules = self.uses_submodules(ud, d)
+         if submodules:
++            # Copy also submodule trees from download cache instead of
++            # downloading again from the upstream repository.
++            # For some reason git does not clone them.
++            clone_modules = os.path.join(ud.clonedir, "modules")
++            if os.path.exists(clone_modules):
++                dest_modules = os.path.join(ud.destdir, ".git")
++                runfetchcmd("cp -a " + clone_modules + " " + dest_modules, d)
++
+             runfetchcmd(ud.basecmd + " checkout " + ud.revisions[ud.names[0]], d)
+-            runfetchcmd(ud.basecmd + " submodule update --init --recursive", d)
++            if d.getVar("BB_NO_NETWORK", True) == "1":
++                runfetchcmd(ud.basecmd + " submodule update --no-fetch --init --recursive", d)
++            else:
++                runfetchcmd(ud.basecmd + " submodule update --init --recursive", d)
+-- 
+1.9.1
+

@@ -1,0 +1,33 @@
+From ed1df4bb5937065d06cd7893d7ee3bdd5324eb7e Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 17 Jul 2018 22:23:17 +0300
+Subject: [PATCH 021/211] dt-bindings: irqchip: renesas-irqc: Document r8a77980
+ support
+
+Document R-Car V3H (AKA R8A77980) SoC bindings.
+
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Marc Zyngier <marc.zyngier@arm.com>
+(cherry picked from commit d5fd14803573e57941100d11dd9cf3e84d17e180)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ Documentation/devicetree/bindings/interrupt-controller/renesas,irqc.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/interrupt-controller/renesas,irqc.txt b/Documentation/devicetree/bindings/interrupt-controller/renesas,irqc.txt
+index 20f121d..c389791 100644
+--- a/Documentation/devicetree/bindings/interrupt-controller/renesas,irqc.txt
++++ b/Documentation/devicetree/bindings/interrupt-controller/renesas,irqc.txt
+@@ -16,6 +16,7 @@ Required properties:
+     - "renesas,intc-ex-r8a7796" (R-Car M3-W)
+     - "renesas,intc-ex-r8a77965" (R-Car M3-N)
+     - "renesas,intc-ex-r8a77970" (R-Car V3M)
++    - "renesas,intc-ex-r8a77980" (R-Car V3H)
+     - "renesas,intc-ex-r8a77995" (R-Car D3)
+ - #interrupt-cells: has to be <2>: an interrupt index and flags, as defined in
+   interrupts.txt in this directory
+-- 
+2.7.4
+

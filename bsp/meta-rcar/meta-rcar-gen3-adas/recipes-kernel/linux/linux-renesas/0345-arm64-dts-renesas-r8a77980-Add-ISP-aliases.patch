@@ -1,0 +1,46 @@
+From 069bb03da39d46d50251459920f3ab95e8ff5c02 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 6 Nov 2018 21:11:09 +0300
+Subject: [PATCH 165/211] arm64: dts: renesas: r8a77980: Add ISP aliases
+
+This adds ISP0 and ISP1 aliases.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index 8af443d..e0d2213 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -23,6 +23,8 @@
+ 		i2c3 = &i2c3;
+ 		i2c4 = &i2c4;
+ 		i2c5 = &i2c5;
++		isp0 = &isp0;
++		isp1 = &isp1;
+ 	};
+ 
+ 	/* External CAN clock - to be overridden by boards that provide it */
+@@ -1443,7 +1445,7 @@
+ 			power-domains = <&sysc R8A77980_PD_A3VIP2>;
+ 		};
+ 
+-		isp@fec00000 {
++		isp0: isp@fec00000 {
+ 			compatible = "renesas,isp-r8a77980";
+ 			reg = <0 0xfec00000 0 0x20000>,
+ 			      <0 0xfed00000 0 0x10000>;
+@@ -1453,7 +1455,7 @@
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 		};
+ 
+-		isp@fee00000 {
++		isp1: isp@fee00000 {
+ 			compatible = "renesas,isp-r8a77980";
+ 			reg = <0 0xfee00000 0 0x20000>,
+ 			      <0 0xfed20000 0 0x10000>;
+-- 
+2.7.4
+

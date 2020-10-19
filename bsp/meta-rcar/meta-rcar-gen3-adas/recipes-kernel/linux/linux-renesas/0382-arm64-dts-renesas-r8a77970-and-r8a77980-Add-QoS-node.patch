@@ -1,0 +1,46 @@
+From 5afe6a9d9e087dee62d593c09e71da800b5f6e88 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 21 Nov 2018 15:22:45 +0300
+Subject: [PATCH 202/211] arm64: dts: renesas: r8a77970 and r8a77980: Add QoS
+ nodes
+
+---
+ arch/arm64/boot/dts/renesas/r8a77970.dtsi | 5 +++++
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970.dtsi b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+index dd0a814..be793ff 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+@@ -1348,6 +1348,11 @@
+ 			iccom,ack-timeout = <100>;
+ 			iccom,trg-timeout = <100>;
+ 		};
++
++		qos@e67e0000 {
++			compatible = "renesas,qos";
++			reg = <0 0xe67e0000 0 0x10090>;
++		};
+ 	};
+ 
+ 	thermal-zones {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index cdbdebc..045b517 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -1941,6 +1941,11 @@
+ 			iccom,ack-timeout = <100>;
+ 			iccom,trg-timeout = <100>;
+ 		};
++
++		qos@e67e0000 {
++			compatible = "renesas,qos";
++			reg = <0 0xe67e0000 0 0x10090>;
++		};
+ 	};
+ 
+ 	thermal-zones {
+-- 
+2.7.4
+

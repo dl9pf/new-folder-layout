@@ -1,0 +1,135 @@
+From a7032bf42a9e8452ac2bc01a5bed0775ce80d4b3 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 27 Apr 2020 11:33:26 +0300
+Subject: [PATCH] media: platform: soc_camera: rcar_vin: add max96712, max9296
+
+This adds MAX96712 and MAX9296 deserializers in VIN binding
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/rcar_vin.c | 75 ++++++++++------------------
+ 1 file changed, 27 insertions(+), 48 deletions(-)
+
+diff --git a/drivers/media/platform/soc_camera/rcar_vin.c b/drivers/media/platform/soc_camera/rcar_vin.c
+index 93bc1e4..564c371 100644
+--- a/drivers/media/platform/soc_camera/rcar_vin.c
++++ b/drivers/media/platform/soc_camera/rcar_vin.c
+@@ -880,6 +880,14 @@ enum rcar_vin_state {
+ 	STOPPING,
+ };
+ 
++static const char *deser_names[] = {
++	"max9286",
++	"ti9x4",
++	"max9288",
++	"max9296",
++	"max96712"
++};
++
+ struct rcar_vin_async_client {
+ 	struct v4l2_async_subdev *sensor;
+ 	struct v4l2_async_notifier notifier;
+@@ -1571,23 +1579,15 @@ static struct v4l2_subdev *find_csi2(struct rcar_vin_priv *pcdev)
+ 
+ static struct v4l2_subdev *find_deser(struct rcar_vin_priv *pcdev)
+ {
++	int i;
+ 	struct v4l2_subdev *sd;
+-	char name[] = "max9286";
+-	char name2[] = "ti9x4";
+-	char name3[] = "max9288";
+ 
+ 	v4l2_device_for_each_subdev(sd, &pcdev->ici.v4l2_dev) {
+-		if (!strncmp(name, sd->name, sizeof(name) - 1)) {
+-			pcdev->deser_sd = sd;
+-			return sd;
+-		}
+-		if (!strncmp(name2, sd->name, sizeof(name2) - 1)) {
+-			pcdev->deser_sd = sd;
+-			return sd;
+-		}
+-		if (!strncmp(name3, sd->name, sizeof(name3) - 1)) {
+-			pcdev->deser_sd = sd;
+-			return sd;
++		for (i = 0; i < ARRAY_SIZE(deser_names); i++) {
++			if (!strncmp(deser_names[i], sd->name, strlen(deser_names[i]))) {
++				pcdev->deser_sd = sd;
++				return sd;
++			}
+ 		}
+ 	}
+ 
+@@ -3054,13 +3054,11 @@ static int rcar_vin_probe(struct platform_device *pdev)
+ 	unsigned int pdata_flags;
+ 	int irq, ret;
+ 	const char *str;
+-	unsigned int i;
++	unsigned int i, j;
+ 	struct device_node *epn = NULL, *ren = NULL;
+-	struct device_node *csi2_ren = NULL, *max9286_ren = NULL, *ti9x4_ren = NULL, *max9288_ren = NULL;
++	struct device_node *csi2_ren = NULL;
++	struct device_node *deser_ren[ARRAY_SIZE(deser_names)] = {NULL};
+ 	bool csi_use = false;
+-	bool max9286_use = false;
+-	bool ti9x4_use = false;
+-	bool max9288_use = false;
+ 
+ 	match = of_match_device(of_match_ptr(rcar_vin_of_table), &pdev->dev);
+ 
+@@ -3092,19 +3090,10 @@ static int rcar_vin_probe(struct platform_device *pdev)
+ 			csi_use = true;
+ 		}
+ 
+-		if (strcmp(ren->parent->name, "max9286") == 0) {
+-			max9286_ren = of_parse_phandle(epn, "remote-endpoint", 0);
+-			max9286_use = true;
+-		}
+-
+-		if (strcmp(ren->parent->name, "ti9x4") == 0) {
+-			ti9x4_ren = of_parse_phandle(epn, "remote-endpoint", 0);
+-			ti9x4_use = true;
+-		}
+-
+-		if (strcmp(ren->parent->name, "max9288") == 0) {
+-			max9288_ren = of_parse_phandle(epn, "remote-endpoint", 0);
+-			max9288_use = true;
++		for (j = 0; j < ARRAY_SIZE(deser_names); j++) {
++			if (strcmp(ren->parent->name, deser_names[j]) == 0) {
++				deser_ren[j] = of_parse_phandle(epn, "remote-endpoint", 0);
++			}
+ 		}
+ 
+ 		of_node_put(ren);
+@@ -3372,22 +3361,12 @@ static int rcar_vin_probe(struct platform_device *pdev)
+ 			goto cleanup;
+ 	}
+ 
+-	if (max9286_use) {
+-		ret = rcar_vin_soc_of_bind(priv, &priv->ici, epn, max9286_ren);
+-		if (ret)
+-			goto cleanup;
+-	}
+-
+-	if (ti9x4_use) {
+-		ret = rcar_vin_soc_of_bind(priv, &priv->ici, epn, ti9x4_ren);
+-		if (ret)
+-			goto cleanup;
+-	}
+-
+-	if (max9288_use) {
+-		ret = rcar_vin_soc_of_bind(priv, &priv->ici, epn, max9288_ren);
+-		if (ret)
+-			goto cleanup;
++	for (j = 0; j < ARRAY_SIZE(deser_names); j++) {
++		if (deser_ren[j]) {
++			ret = rcar_vin_soc_of_bind(priv, &priv->ici, epn, deser_ren[j]);
++			if (ret)
++				goto cleanup;
++		}
+ 	}
+ 
+ 	vin_debug = 0;
+-- 
+2.7.4
+

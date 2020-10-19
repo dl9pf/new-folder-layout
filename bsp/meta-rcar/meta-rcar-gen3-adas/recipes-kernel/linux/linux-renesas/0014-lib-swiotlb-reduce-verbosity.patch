@@ -1,0 +1,40 @@
+From f52105d57c1ec04f8dac9b403232d8b1965a02ca Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 26 Jan 2017 16:37:50 +0300
+Subject: [PATCH] lib: swiotlb: reduce verbosity
+
+Signed-off-by: Nikita Yushchenko <nikita.yoush@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ lib/swiotlb.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/swiotlb.c b/lib/swiotlb.c
+index 771234d..b395abc 100644
+--- a/lib/swiotlb.c
++++ b/lib/swiotlb.c
+@@ -513,8 +513,10 @@ phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
+ 
+ not_found:
+ 	spin_unlock_irqrestore(&io_tlb_lock, flags);
++#if 0
+ 	if (printk_ratelimit())
+ 		dev_warn(hwdev, "swiotlb buffer is full (sz: %zd bytes)\n", size);
++#endif
+ 	return SWIOTLB_MAP_ERROR;
+ found:
+ 	spin_unlock_irqrestore(&io_tlb_lock, flags);
+@@ -714,8 +714,10 @@ swiotlb_full(struct device *dev, size_t size, enum dma_data_direction dir,
+ 	 * When the mapping is small enough return a static buffer to limit
+ 	 * the damage, or panic when the transfer is too big.
+ 	 */
++#if 0
+ 	dev_err_ratelimited(dev, "DMA: Out of SW-IOMMU space for %zu bytes\n",
+ 			    size);
++#endif
+ 
+ 	if (size <= io_tlb_overflow || !do_panic)
+ 		return;
+-- 
+1.9.1
+

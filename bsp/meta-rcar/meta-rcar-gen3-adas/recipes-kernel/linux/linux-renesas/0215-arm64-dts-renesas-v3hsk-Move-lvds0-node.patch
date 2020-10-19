@@ -1,0 +1,61 @@
+From b681b5c0577d05ffa6bfbcd964d7128bd1407985 Mon Sep 17 00:00:00 2001
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Date: Tue, 28 Aug 2018 16:15:40 +0200
+Subject: [PATCH 035/211] arm64: dts: renesas: v3hsk: Move lvds0 node
+
+To preserve alphabetical sort order.
+
+Fixes: 4edac426aff11a37 ("arm64: dts: renesas: condor/v3hsk: add DU/LVDS/HDMI support")
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit 47d7f6822864a8cf2f09d27cb1321bd36ab6d9e4)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index 44ab734..dd14a41 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -119,18 +119,6 @@
+ 	};
+ };
+ 
+-&lvds0 {
+-	status = "okay";
+-
+-	ports {
+-		port@1 {
+-			lvds0_out: endpoint {
+-				remote-endpoint = <&thc63lvd1024_in>;
+-			};
+-		};
+-	};
+-};
+-
+ &i2c0 {
+ 	pinctrl-0 = <&i2c0_pins>;
+ 	pinctrl-names = "default";
+@@ -177,6 +165,18 @@
+ 	};
+ };
+ 
++&lvds0 {
++	status = "okay";
++
++	ports {
++		port@1 {
++			lvds0_out: endpoint {
++				remote-endpoint = <&thc63lvd1024_in>;
++			};
++		};
++	};
++};
++
+ &pfc {
+ 	gether_pins: gether {
+ 		groups = "gether_mdio_a", "gether_rgmii",
+-- 
+2.7.4
+

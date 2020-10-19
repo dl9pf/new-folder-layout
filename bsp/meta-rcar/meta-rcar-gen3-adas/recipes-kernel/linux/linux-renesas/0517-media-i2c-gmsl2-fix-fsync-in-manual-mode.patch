@@ -1,0 +1,43 @@
+From bc3d7daebf2a0e35d859d847bbe3f9e648cb1c71 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Tue, 5 May 2020 00:52:41 +0300
+Subject: [PATCH] media: i2c: gmsl2: fix fsync in manual mode
+
+disable back control from pipes, since this is needed only for
+automatic mode, that we do not use
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/gmsl/max9296.c  | 2 +-
+ drivers/media/i2c/soc_camera/gmsl/max96712.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max9296.c b/drivers/media/i2c/soc_camera/gmsl/max9296.c
+index daa2201..a2a30ef 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max9296.c
++++ b/drivers/media/i2c/soc_camera/gmsl/max9296.c
+@@ -926,7 +926,7 @@ static void max9296_gmsl2_fsync_setup(struct max9296_priv *priv)
+ 	des_write(MAX9296_FSYNC_11, 0x00);
+ 
+ 	des_write(MAX9296_FSYNC_0, 0x00);			/* Manual method, Internal GMSL2 generator mode */
+-	des_write(MAX9296_FSYNC_15, 0x9f);			/* GMSL2 Type Fsync, Enable all pipes */
++	des_write(MAX9296_FSYNC_15, 0x80);			/* GMSL2 Type Fsync, Disable all pipes for manual mode */
+ 	des_write(MAX9296_FSYNC_17, 8 << 3);			/* GPIO ID=8 assosiated with FSYNC transmission */
+ }
+ 
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max96712.c b/drivers/media/i2c/soc_camera/gmsl/max96712.c
+index 17eed0b..80e26d0 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max96712.c
++++ b/drivers/media/i2c/soc_camera/gmsl/max96712.c
+@@ -925,7 +925,7 @@ static void max96712_gmsl2_fsync_setup(struct max96712_priv *priv)
+ 	des_write(MAX96712_FSYNC_11, 0x00);
+ 
+ 	des_write(MAX96712_FSYNC_0, 0x00);			/* Manual method, Internal GMSL2 generator mode */
+-	des_write(MAX96712_FSYNC_15, 0x9f);			/* GMSL2 Type Fsync, Enable all pipes */
++	des_write(MAX96712_FSYNC_15, 0x80);			/* GMSL2 Type Fsync, Disable all pipes for manual mode */
+ 	des_write(MAX96712_FSYNC_17, 8 << 3);			/* GPIO ID=8 assosiated with FSYNC transmission */
+ }
+ 
+-- 
+2.7.4
+

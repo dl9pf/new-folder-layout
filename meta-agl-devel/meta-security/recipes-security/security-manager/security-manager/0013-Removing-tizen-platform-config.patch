@@ -1,0 +1,259 @@
+From 6c96a39ba7a7763ccd47e379dbfd8d376164985f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jos=C3=A9=20Bollo?= <jose.bollo@iot.bzh>
+Date: Mon, 16 Nov 2015 14:26:25 +0100
+Subject: [PATCH 13/14] Removing tizen-platform-config
+
+Change-Id: Ic832a2b75229517b09faba969c27fb1a4b490121
+---
+ CMakeLists.txt                                | 16 +++++++-
+ db/CMakeLists.txt                             |  2 +-
+ policy/CMakeLists.txt                         |  1 +
+ ...load => security-manager-policy-reload.in} |  4 +-
+ src/common/file-lock.cpp                      |  4 +-
+ src/common/include/file-lock.h                |  1 -
+ src/common/include/privilege_db.h             |  3 +-
+ src/common/service_impl.cpp                   | 39 ++++++-------------
+ src/common/smack-rules.cpp                    | 12 ++----
+ 9 files changed, 37 insertions(+), 45 deletions(-)
+ rename policy/{security-manager-policy-reload => security-manager-policy-reload.in} (94%)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 28790d8..37a43cc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -49,7 +49,7 @@ ADD_DEFINITIONS("-Wall")                        # Generate all warnings
+ ADD_DEFINITIONS("-Wextra")                      # Generate even more extra warnings
+ 
+ STRING(REGEX MATCH "([^.]*)" API_VERSION "${VERSION}")
+-ADD_DEFINITIONS("-DAPI_VERSION=\"$(API_VERSION)\"")
++ADD_DEFINITIONS("-DAPI_VERSION=\"${API_VERSION}\"")
+ 
+ ADD_DEFINITIONS("-DSMACK_ENABLED")
+ 
+@@ -58,6 +58,20 @@ IF (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+     ADD_DEFINITIONS("-DBUILD_TYPE_DEBUG")
+ ENDIF (CMAKE_BUILD_TYPE MATCHES "DEBUG")
+ 
++SET(DATADIR        "/usr/share/security-manager" CACHE STRING "path to data directory")
++SET(SMACKRULESDIR  "/etc/smack/accesses.d"       CACHE STRING "path to Smack rules directory")
++SET(LOCKDIR        "/var/run/lock"               CACHE STRING "path to lock directory")
++SET(DB_INSTALL_DIR "/var/db/security-manager"    CACHE STRING "path to database directory")
++SET(DB_FILENAME    ".security-manager.db"        CACHE STRING "basename of database")
++SET(GLOBALUSER     "userapp"                     CACHE STRING "name of the global user")
++
++ADD_DEFINITIONS("-DDATADIR=\"${DATADIR}\"")
++ADD_DEFINITIONS("-DSMACKRULESDIR=\"${SMACKRULESDIR}\"")
++ADD_DEFINITIONS("-DLOCKDIR=\"${LOCKDIR}\"")
++ADD_DEFINITIONS("-DDB_INSTALL_DIR=\"${DB_INSTALL_DIR}\"")
++ADD_DEFINITIONS("-DDB_FILENAME=\"${DB_FILENAME}\"")
++ADD_DEFINITIONS("-DGLOBALUSER=\"${GLOBALUSER}\"")
++
+ ADD_SUBDIRECTORY(src)
+ ADD_SUBDIRECTORY(pc)
+ ADD_SUBDIRECTORY(systemd)
+diff --git a/db/CMakeLists.txt b/db/CMakeLists.txt
+index 9e8ffcc..d7af1a0 100644
+--- a/db/CMakeLists.txt
++++ b/db/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-SET(TARGET_DB ".security-manager.db")
++SET(TARGET_DB "$(DB_FILENAME)")
+ 
+ ADD_CUSTOM_COMMAND(
+     OUTPUT ${TARGET_DB} ${TARGET_DB}-journal
+diff --git a/policy/CMakeLists.txt b/policy/CMakeLists.txt
+index bd08edc..626a2bd 100644
+--- a/policy/CMakeLists.txt
++++ b/policy/CMakeLists.txt
+@@ -1,4 +1,5 @@
+ FILE(GLOB USERTYPE_POLICY_FILES usertype-*.profile)
++CONFIGURE_FILE(security-manager-policy-reload.in security-manager-policy-reload @ONLY)
+ INSTALL(FILES ${USERTYPE_POLICY_FILES} DESTINATION ${SHARE_INSTALL_PREFIX}/security-manager/policy)
+ INSTALL(FILES "app-rules-template.smack" DESTINATION ${SHARE_INSTALL_PREFIX}/security-manager/policy)
+ INSTALL(FILES "privilege-group.list" DESTINATION ${SHARE_INSTALL_PREFIX}/security-manager/policy)
+diff --git a/policy/security-manager-policy-reload b/policy/security-manager-policy-reload.in
+similarity index 94%
+rename from policy/security-manager-policy-reload
+rename to policy/security-manager-policy-reload.in
+index 6f211c6..c1bc4e2 100755
+--- a/policy/security-manager-policy-reload
++++ b/policy/security-manager-policy-reload.in
+@@ -1,8 +1,8 @@
+ #!/bin/sh -e
+ 
+-POLICY_PATH=/usr/share/security-manager/policy
++POLICY_PATH=@DATADIR@/policy
+ PRIVILEGE_GROUP_MAPPING=$POLICY_PATH/privilege-group.list
+-DB_FILE=`tzplatform-get TZ_SYS_DB | cut -d= -f2`/.security-manager.db
++DB_FILE=@DB_INSTALL_DIR@/@DB_FILENAME@
+ 
+ # Create default buckets
+ while read bucket default_policy
+diff --git a/src/common/file-lock.cpp b/src/common/file-lock.cpp
+index 6f3996c..88d2092 100644
+--- a/src/common/file-lock.cpp
++++ b/src/common/file-lock.cpp
+@@ -30,9 +30,7 @@
+ 
+ namespace SecurityManager {
+ 
+-char const * const SERVICE_LOCK_FILE = tzplatform_mkpath3(TZ_SYS_RUN,
+-                                                         "lock",
+-                                                         "security-manager.lock");
++char const * const SERVICE_LOCK_FILE = LOCKDIR "/security-manager.lock";
+ 
+ FileLocker::FileLocker(const std::string &lockFile, bool blocking)
+ {
+diff --git a/src/common/include/file-lock.h b/src/common/include/file-lock.h
+index 604b019..21a86a0 100644
+--- a/src/common/include/file-lock.h
++++ b/src/common/include/file-lock.h
+@@ -29,7 +29,6 @@
+ 
+ #include <dpl/exception.h>
+ #include <dpl/noncopyable.h>
+-#include <tzplatform_config.h>
+ 
+ namespace SecurityManager {
+ 
+diff --git a/src/common/include/privilege_db.h b/src/common/include/privilege_db.h
+index 08fb9d6..3344987 100644
+--- a/src/common/include/privilege_db.h
++++ b/src/common/include/privilege_db.h
+@@ -35,14 +35,13 @@
+ #include <vector>
+ 
+ #include <dpl/db/sql_connection.h>
+-#include <tzplatform_config.h>
+ 
+ #ifndef PRIVILEGE_DB_H_
+ #define PRIVILEGE_DB_H_
+ 
+ namespace SecurityManager {
+ 
+-const char *const PRIVILEGE_DB_PATH = tzplatform_mkpath(TZ_SYS_DB, ".security-manager.db");
++const char *const PRIVILEGE_DB_PATH = DB_INSTALL_DIR "/" DB_FILENAME;
+ 
+ enum class QueryType {
+     EGetPkgPrivileges,
+diff --git a/src/common/service_impl.cpp b/src/common/service_impl.cpp
+index ae305d3..42150fe 100644
+--- a/src/common/service_impl.cpp
++++ b/src/common/service_impl.cpp
+@@ -32,7 +32,6 @@
+ #include <algorithm>
+ 
+ #include <dpl/log/log.h>
+-#include <tzplatform_config.h>
+ 
+ #include "protocols.h"
+ #include "privilege_db.h"
+@@ -131,7 +130,13 @@ static inline int validatePolicy(policy_entry &policyEntry, std::string uidStr,
+ 
+ static uid_t getGlobalUserId(void)
+ {
+-    static uid_t globaluid = tzplatform_getuid(TZ_SYS_GLOBALAPP_USER);
++    static uid_t globaluid = 0;
++    if (!globaluid) {
++        struct passwd pw, *p;
++        char buf[4096];
++        int rc = getpwnam_r(GLOBALUSER, &pw, buf, sizeof buf, &p);
++        globaluid = (rc || p == NULL) ? 555 : p->pw_uid;
++    }
+     return globaluid;
+ }
+ 
+@@ -161,37 +166,17 @@ static inline bool isSubDir(const char *parent, const char *subdir)
+ 
+ static bool getUserAppDir(const uid_t &uid, std::string &userAppDir)
+ {
+-    struct tzplatform_context *tz_ctx = nullptr;
+-
+-    if (tzplatform_context_create(&tz_ctx))
+-            return false;
+-
+-    if (tzplatform_context_set_user(tz_ctx, uid)) {
+-        tzplatform_context_destroy(tz_ctx);
+-        tz_ctx = nullptr;
++    struct passwd pw, *p;
++    char buf[4096];
++    int rc = getpwuid_r(uid, &pw, buf, sizeof buf, &p);
++    if (rc || p == NULL)
+         return false;
+-    }
+-
+-    enum tzplatform_variable id =
+-            (uid == getGlobalUserId()) ? TZ_SYS_RW_APP : TZ_USER_APP;
+-    const char *appDir = tzplatform_context_getenv(tz_ctx, id);
+-    if (!appDir) {
+-        tzplatform_context_destroy(tz_ctx);
+-        tz_ctx = nullptr;
+-        return false;
+-    }
+-
+-    userAppDir = appDir;
+-
+-    tzplatform_context_destroy(tz_ctx);
+-    tz_ctx = nullptr;
+-
++    userAppDir = p->pw_dir;
+     return true;
+ }
+ 
+ static inline bool installRequestAuthCheck(const app_inst_req &req, uid_t uid, bool &isCorrectPath, std::string &appPath)
+ {
+-    std::string userHome;
+     std::string userAppDir;
+     std::stringstream correctPath;
+ 
+diff --git a/src/common/smack-rules.cpp b/src/common/smack-rules.cpp
+index 922a56f..c2e0041 100644
+--- a/src/common/smack-rules.cpp
++++ b/src/common/smack-rules.cpp
+@@ -34,7 +34,6 @@
+ #include <memory>
+ 
+ #include <dpl/log/log.h>
+-#include <tzplatform_config.h>
+ 
+ #include "smack-labels.h"
+ #include "smack-rules.h"
+@@ -43,7 +42,7 @@ namespace SecurityManager {
+ 
+ const char *const SMACK_APP_LABEL_TEMPLATE     = "~APP~";
+ const char *const SMACK_PKG_LABEL_TEMPLATE     = "~PKG~";
+-const char *const APP_RULES_TEMPLATE_FILE_PATH = tzplatform_mkpath4(TZ_SYS_SHARE, "security-manager", "policy", "app-rules-template.smack");
++const char *const APP_RULES_TEMPLATE_FILE_PATH = DATADIR "/policy/app-rules-template.smack";
+ const char *const SMACK_APP_IN_PACKAGE_PERMS   = "rwxat";
+ 
+ SmackRules::SmackRules()
+@@ -237,14 +236,12 @@ void SmackRules::generatePackageCrossDeps(const std::vector<std::string> &pkgCon
+ 
+ std::string SmackRules::getPackageRulesFilePath(const std::string &pkgId)
+ {
+-    std::string path(tzplatform_mkpath3(TZ_SYS_SMACK, "accesses.d", ("pkg_" + pkgId).c_str()));
+-    return path;
++    return SMACKRULESDIR "/pkg_" + pkgId;
+ }
+ 
+ std::string SmackRules::getApplicationRulesFilePath(const std::string &appId)
+ {
+-    std::string path(tzplatform_mkpath3(TZ_SYS_SMACK, "accesses.d", ("app_" +  appId).c_str()));
+-    return path;
++    return SMACKRULESDIR "/app_" + appId;
+ }
+ void SmackRules::installApplicationPrivilegesRules(const std::string &appId, const std::string &pkgId,
+         const std::vector<std::string> &pkgContents, const std::vector<std::string> &privileges)
+@@ -256,8 +253,7 @@ void SmackRules::installApplicationPrivilegesRules(const std::string &appId, con
+     for (auto privilege : privileges) {
+         if (privilege.empty())
+             continue;
+-        std::string fprivilege ( privilege + "-template.smack");
+-        std::string path(tzplatform_mkpath4(TZ_SYS_SHARE, "security-manager", "policy", fprivilege.c_str()));
++        std::string path = DATADIR "/policy/" + privilege + "-template.smack";
+         if( stat(path.c_str(), &buffer) == 0)
+             smackRules.addFromTemplateFile(appId, pkgId, path);
+     }
+-- 
+2.21.0
+

@@ -1,0 +1,132 @@
+From 193b183e75deb047c60196e987b3112e134abe17 Mon Sep 17 00:00:00 2001
+From: Petr Nechaev <petr.nechaev@cogentembedded.com>
+Date: Thu, 13 Jun 2019 21:20:25 -0400
+Subject: [PATCH] v3hsk: Add separate dts for dummy camera 1920x1080
+
+To be used as LVDS -> HDMI converter.
+---
+ arch/arm64/boot/dts/renesas/Makefile          |  1 +
+ .../renesas/r8a77980-v3hsk-vb-4ch-hdmi.dts    | 46 +++++++++++++++++++
+ .../renesas/r8a77980-v3hsk-vb-8ch-hdmi.dts    | 46 +++++++++++++++++++
+ 3 files changed, 93 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch-hdmi.dts
+ create mode 100644 arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch-hdmi.dts
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 4b2f4fb73bed..89da50cbfbdb 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -42,5 +42,6 @@ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vbm-v2.dtb
+ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vbm-v3.dtb
+ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vb-8ch.dtb r8a77980-v3hsk-vb-4ch.dtb
+ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vb-gmsl-8ch.dtb
++dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vb-4ch-hdmi.dtb r8a77980-v3hsk-vb-8ch-hdmi.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch-hdmi.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch-hdmi.dts
+new file mode 100644
+index 000000000000..f5931c5d3ef6
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch-hdmi.dts
+@@ -0,0 +1,46 @@
++/*
++ * Device Tree Source for the V3HSK VideoBox 4-channel board on r8a7798 with dummy LVDS input
++ *
++ * Copyright (C) 2018 Cogent Embedded, Inc.
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include "r8a77980-v3hsk-vb-4ch.dts"
++
++&i2cswitch1 {
++	i2c@2 {
++		/delete-node/ ov106xx@0;
++
++		dummy-camera@0 {
++			compatible = "dummy-camera";
++			reg = <0x60>;
++
++			dummy,width = <1920>;
++			dummy,height = <1080>;
++
++			port@0 {
++				dummy_camera_in0: endpoint {
++					clock-lanes = <0>;
++					data-lanes = <1 2 3 4>;
++					remote-endpoint = <&vin0ep0>;
++				};
++			};
++			port@1 {
++				dummy_camera_ti9x4_des0ep0: endpoint@1 {
++					remote-endpoint = <&ti9x4_des0ep0>;
++				};
++			};
++		};
++	};
++};
++
++&ti9x4_des0ep0 {
++	remote-endpoint = <&dummy_camera_in0>;
++};
++
++&vin0ep0 {
++	remote-endpoint = <&dummy_camera_in0>;
++};
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch-hdmi.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch-hdmi.dts
+new file mode 100644
+index 000000000000..5aecc0e80cde
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch-hdmi.dts
+@@ -0,0 +1,46 @@
++/*
++ * Device Tree Source for the V3HSK VideoBox 8-channel board on r8a7798 with dummy LVDS input
++ *
++ * Copyright (C) 2018 Cogent Embedded, Inc.
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include "r8a77980-v3hsk-vb-8ch.dts"
++
++&i2cswitch1 {
++	i2c@2 {
++		/delete-node/ ov106xx@0;
++
++		dummy-camera@0 {
++			compatible = "dummy-camera";
++			reg = <0x60>;
++
++			dummy,width = <1920>;
++			dummy,height = <1080>;
++
++			port@0 {
++				dummy_camera_in0: endpoint {
++					clock-lanes = <0>;
++					data-lanes = <1 2 3 4>;
++					remote-endpoint = <&vin0ep0>;
++				};
++			};
++			port@1 {
++				dummy_camera_ti9x4_des0ep0: endpoint@1 {
++					remote-endpoint = <&ti9x4_des0ep0>;
++				};
++			};
++		};
++	};
++};
++
++&ti9x4_des0ep0 {
++	remote-endpoint = <&dummy_camera_in0>;
++};
++
++&vin0ep0 {
++	remote-endpoint = <&dummy_camera_in0>;
++};
+-- 
+2.20.1
+

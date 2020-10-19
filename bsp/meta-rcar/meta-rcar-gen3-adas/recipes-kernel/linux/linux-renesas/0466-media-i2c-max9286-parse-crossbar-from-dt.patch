@@ -1,0 +1,58 @@
+From 0220ffebe645d66242aca68d7a374140dea9e6a3 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 30 Jan 2020 16:38:19 +0300
+Subject: [PATCH] media: i2c: max9286: parse crossbar from dt
+
+This allows to parse crossbar from device tree
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/max9286.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/max9286.c b/drivers/media/i2c/soc_camera/max9286.c
+index f6c6b0a..0a1732a 100644
+--- a/drivers/media/i2c/soc_camera/max9286.c
++++ b/drivers/media/i2c/soc_camera/max9286.c
+@@ -56,6 +56,7 @@ struct max9286_priv {
+ 	int			dbl;
+ 	int			dt;
+ 	int			hsgen;
++	u64			crossbar;
+ 	char			cb[16];
+ 	int			hts;
+ 	int			vts;
+@@ -141,8 +142,8 @@ static int switchin = 0;
+ module_param(switchin, int, 0644);
+ MODULE_PARM_DESC(switchin, " COAX SWITCH IN+ and IN- (default: 0 - not switched)");
+ 
+-static long crossbar = 0xba9876543210;
+-module_param(crossbar, long, 0644);
++static unsigned long crossbar = 0xba9876543210;
++module_param(crossbar, ulong, 0644);
+ MODULE_PARM_DESC(crossbar, " Crossbar setup (default: ba9876543210 - reversed)");
+ 
+ enum {
+@@ -738,6 +739,8 @@ static int max9286_parse_dt(struct i2c_client *client)
+ 		priv->pclk = pclk;
+ 	if (of_property_read_u32(np, "maxim,switchin", &priv->switchin))
+ 		priv->switchin = 0;
++	if (of_property_read_u64(np, "maxim,crossbar", &priv->crossbar))
++		priv->crossbar = crossbar;
+ 
+ 	/* module params override dts */
+ 	if (him)
+@@ -773,8 +776,8 @@ static int max9286_parse_dt(struct i2c_client *client)
+ 
+ 	/* parse crossbar setup */
+ 	for (i = 0; i < 16; i++) {
+-		priv->cb[i] = crossbar % 16;
+-		crossbar /= 16;
++		priv->cb[i] = priv->crossbar % 16;
++		priv->crossbar /= 16;
+ 	}
+ 
+ 	for (i = 0; i < priv->links; i++) {
+-- 
+2.7.4
+

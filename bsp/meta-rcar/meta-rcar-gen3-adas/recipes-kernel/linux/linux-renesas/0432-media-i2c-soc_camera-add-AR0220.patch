@@ -1,0 +1,1689 @@
+From b79fd9163f868b78aea5ba634b52541d518f10a5 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 18 Nov 2019 19:07:21 +0300
+Subject: [PATCH] media: i2c: soc_camera: add AR0220
+
+This adds AR0220 imager glue driver
+The chip is appended to AR0233 glue for further rework of all AR0XXX chips
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0220.c      | 539 -----------------------------
+ drivers/media/i2c/soc_camera/ar0220.h      |  39 +--
+ drivers/media/i2c/soc_camera/ar0220_rev4.h | 370 ++++++++++++++++++++
+ drivers/media/i2c/soc_camera/ar0233.c      | 164 ++++++---
+ drivers/media/i2c/soc_camera/ar0233.h      |   7 -
+ drivers/media/i2c/soc_camera/ar0233_rev1.h |  26 +-
+ drivers/media/i2c/soc_camera/ar0233_rev2.h |  38 +-
+ drivers/media/i2c/soc_camera/ov106xx.c     |  54 ++-
+ 8 files changed, 549 insertions(+), 688 deletions(-)
+ delete mode 100644 drivers/media/i2c/soc_camera/ar0220.c
+ create mode 100644 drivers/media/i2c/soc_camera/ar0220_rev4.h
+
+diff --git a/drivers/media/i2c/soc_camera/ar0220.c b/drivers/media/i2c/soc_camera/ar0220.c
+deleted file mode 100644
+index b1ca101..0000000
+--- a/drivers/media/i2c/soc_camera/ar0220.c
++++ /dev/null
+@@ -1,539 +0,0 @@
+-/*
+- * ON Semiconductor AR0220 sensor camera driver
+- *
+- * Copyright (C) 2017-2018 Cogent Embedded, Inc.
+- *
+- * This program is free software; you can redistribute  it and/or modify it
+- * under  the terms of  the GNU General  Public License as published by the
+- * Free Software Foundation;  either version 2 of the  License, or (at your
+- * option) any later version.
+- */
+-
+-#include <linux/delay.h>
+-#include <linux/init.h>
+-#include <linux/i2c.h>
+-#include <linux/module.h>
+-#include <linux/of_graph.h>
+-#include <linux/videodev2.h>
+-
+-#include <media/soc_camera.h>
+-#include <media/v4l2-common.h>
+-#include <media/v4l2-ctrls.h>
+-
+-#include "ar0220.h"
+-
+-#define AR0220_I2C_ADDR		0x10
+-//#define AR0220_I2C_ADDR		0x54 // eeprom
+-
+-#define AR0220_PID		0x3000
+-#define AR0220_VERSION_REG	0x0C54
+-
+-#define AR0220_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG14_1X14
+-
+-struct ar0220_priv {
+-	struct v4l2_subdev		sd;
+-	struct v4l2_ctrl_handler	hdl;
+-	struct media_pad		pad;
+-	struct v4l2_rect		rect;
+-	int				init_complete;
+-	u8				id[6];
+-	int				exposure;
+-	int				gain;
+-	int				autogain;
+-	/* serializers */
+-	int				ti9x4_addr;
+-	int				ti9x3_addr;
+-	int				port;
+-	int				gpio_resetb;
+-	int				gpio_fsin;
+-};
+-
+-static inline struct ar0220_priv *to_ar0220(const struct i2c_client *client)
+-{
+-	return container_of(i2c_get_clientdata(client), struct ar0220_priv, sd);
+-}
+-
+-static int ar0220_set_regs(struct i2c_client *client,
+-			  const struct ar0220_reg *regs, int nr_regs)
+-{
+-	int i;
+-
+-	for (i = 0; i < nr_regs; i++) {
+-		if (regs[i].reg == AR0220_DELAY) {
+-			mdelay(regs[i].val);
+-			continue;
+-		}
+-
+-		reg16_write16(client, regs[i].reg, regs[i].val);
+-	}
+-
+-	return 0;
+-}
+-
+-static int ar0220_s_stream(struct v4l2_subdev *sd, int enable)
+-{
+-	return 0;
+-}
+-
+-static int ar0220_get_fmt(struct v4l2_subdev *sd,
+-			 struct v4l2_subdev_pad_config *cfg,
+-			 struct v4l2_subdev_format *format)
+-{
+-	struct v4l2_mbus_framefmt *mf = &format->format;
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	struct ar0220_priv *priv = to_ar0220(client);
+-
+-	if (format->pad)
+-		return -EINVAL;
+-
+-	mf->width = priv->rect.width;
+-	mf->height = priv->rect.height;
+-	mf->code = AR0220_MEDIA_BUS_FMT;
+-	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
+-	mf->field = V4L2_FIELD_NONE;
+-
+-	return 0;
+-}
+-
+-static int ar0220_set_fmt(struct v4l2_subdev *sd,
+-			 struct v4l2_subdev_pad_config *cfg,
+-			 struct v4l2_subdev_format *format)
+-{
+-	struct v4l2_mbus_framefmt *mf = &format->format;
+-
+-	mf->code = AR0220_MEDIA_BUS_FMT;
+-	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
+-	mf->field = V4L2_FIELD_NONE;
+-
+-	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+-		cfg->try_fmt = *mf;
+-
+-	return 0;
+-}
+-
+-static int ar0220_enum_mbus_code(struct v4l2_subdev *sd,
+-				struct v4l2_subdev_pad_config *cfg,
+-				struct v4l2_subdev_mbus_code_enum *code)
+-{
+-	if (code->pad || code->index > 0)
+-		return -EINVAL;
+-
+-	code->code = AR0220_MEDIA_BUS_FMT;
+-
+-	return 0;
+-}
+-
+-static int ar0220_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
+-{
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	struct ar0220_priv *priv = to_ar0220(client);
+-
+-	memcpy(edid->edid, priv->id, 6);
+-
+-	edid->edid[6] = 0xff;
+-	edid->edid[7] = client->addr;
+-	edid->edid[8] = AR0220_VERSION_REG >> 8;
+-	edid->edid[9] = AR0220_VERSION_REG & 0xff;
+-
+-	return 0;
+-}
+-
+-static int ar0220_set_selection(struct v4l2_subdev *sd,
+-			       struct v4l2_subdev_pad_config *cfg,
+-			       struct v4l2_subdev_selection *sel)
+-{
+-	struct v4l2_rect *rect = &sel->r;
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	struct ar0220_priv *priv = to_ar0220(client);
+-
+-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+-	    sel->target != V4L2_SEL_TGT_CROP)
+-		return -EINVAL;
+-
+-	rect->left = ALIGN(rect->left, 2);
+-	rect->top = ALIGN(rect->top, 2);
+-	rect->width = ALIGN(rect->width, 2);
+-	rect->height = ALIGN(rect->height, 2);
+-
+-	if ((rect->left + rect->width > AR0220_MAX_WIDTH) ||
+-	    (rect->top + rect->height > AR0220_MAX_HEIGHT))
+-		*rect = priv->rect;
+-
+-	priv->rect.left = rect->left;
+-	priv->rect.top = rect->top;
+-	priv->rect.width = rect->width;
+-	priv->rect.height = rect->height;
+-
+-	return 0;
+-}
+-
+-static int ar0220_get_selection(struct v4l2_subdev *sd,
+-			       struct v4l2_subdev_pad_config *cfg,
+-			       struct v4l2_subdev_selection *sel)
+-{
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	struct ar0220_priv *priv = to_ar0220(client);
+-
+-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+-		return -EINVAL;
+-
+-	switch (sel->target) {
+-	case V4L2_SEL_TGT_CROP_BOUNDS:
+-		sel->r.left = 0;
+-		sel->r.top = 0;
+-		sel->r.width = AR0220_MAX_WIDTH;
+-		sel->r.height = AR0220_MAX_HEIGHT;
+-		return 0;
+-	case V4L2_SEL_TGT_CROP_DEFAULT:
+-		sel->r.left = 0;
+-		sel->r.top = 0;
+-		sel->r.width = AR0220_MAX_WIDTH;
+-		sel->r.height = AR0220_MAX_HEIGHT;
+-		return 0;
+-	case V4L2_SEL_TGT_CROP:
+-		sel->r = priv->rect;
+-		return 0;
+-	default:
+-		return -EINVAL;
+-	}
+-}
+-
+-static int ar0220_g_mbus_config(struct v4l2_subdev *sd,
+-			       struct v4l2_mbus_config *cfg)
+-{
+-	cfg->flags = V4L2_MBUS_CSI2_1_LANE | V4L2_MBUS_CSI2_CHANNEL_0 |
+-		     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+-	cfg->type = V4L2_MBUS_CSI2;
+-
+-	return 0;
+-}
+-
+-#ifdef CONFIG_VIDEO_ADV_DEBUG
+-static int ar0220_g_register(struct v4l2_subdev *sd,
+-			    struct v4l2_dbg_register *reg)
+-{
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	int ret;
+-	u16 val = 0;
+-
+-	ret = reg16_read16(client, (u16)reg->reg, &val);
+-	if (ret < 0)
+-		return ret;
+-
+-	reg->val = val;
+-	reg->size = sizeof(u16);
+-
+-	return 0;
+-}
+-
+-static int ar0220_s_register(struct v4l2_subdev *sd,
+-			    const struct v4l2_dbg_register *reg)
+-{
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-
+-	return reg16_write16(client, (u16)reg->reg, (u16)reg->val);
+-}
+-#endif
+-
+-static struct v4l2_subdev_core_ops ar0220_core_ops = {
+-#ifdef CONFIG_VIDEO_ADV_DEBUG
+-	.g_register = ar0220_g_register,
+-	.s_register = ar0220_s_register,
+-#endif
+-};
+-
+-static int ar0220_s_ctrl(struct v4l2_ctrl *ctrl)
+-{
+-	struct v4l2_subdev *sd = to_sd(ctrl);
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	struct ar0220_priv *priv = to_ar0220(client);
+-	int ret = -EINVAL;
+-
+-	if (!priv->init_complete)
+-		return 0;
+-
+-	switch (ctrl->id) {
+-	case V4L2_CID_BRIGHTNESS:
+-	case V4L2_CID_CONTRAST:
+-	case V4L2_CID_SATURATION:
+-	case V4L2_CID_HUE:
+-	case V4L2_CID_GAMMA:
+-	case V4L2_CID_SHARPNESS:
+-	case V4L2_CID_AUTOGAIN:
+-	case V4L2_CID_GAIN:
+-	case V4L2_CID_EXPOSURE:
+-	case V4L2_CID_HFLIP:
+-	case V4L2_CID_VFLIP:
+-		break;
+-	}
+-
+-	return ret;
+-}
+-
+-static const struct v4l2_ctrl_ops ar0220_ctrl_ops = {
+-	.s_ctrl = ar0220_s_ctrl,
+-};
+-
+-static struct v4l2_subdev_video_ops ar0220_video_ops = {
+-	.s_stream	= ar0220_s_stream,
+-	.g_mbus_config	= ar0220_g_mbus_config,
+-};
+-
+-static const struct v4l2_subdev_pad_ops ar0220_subdev_pad_ops = {
+-	.get_edid	= ar0220_get_edid,
+-	.enum_mbus_code	= ar0220_enum_mbus_code,
+-	.get_selection	= ar0220_get_selection,
+-	.set_selection	= ar0220_set_selection,
+-	.get_fmt	= ar0220_get_fmt,
+-	.set_fmt	= ar0220_set_fmt,
+-};
+-
+-static struct v4l2_subdev_ops ar0220_subdev_ops = {
+-	.core	= &ar0220_core_ops,
+-	.video	= &ar0220_video_ops,
+-	.pad	= &ar0220_subdev_pad_ops,
+-};
+-
+-static void ar0220_otp_id_read(struct i2c_client *client)
+-{
+-}
+-
+-static ssize_t ar0220_otp_id_show(struct device *dev,
+-				 struct device_attribute *attr, char *buf)
+-{
+-	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
+-	struct i2c_client *client = v4l2_get_subdevdata(sd);
+-	struct ar0220_priv *priv = to_ar0220(client);
+-
+-	return snprintf(buf, 32, "%02x:%02x:%02x:%02x:%02x:%02x\n",
+-			priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+-}
+-
+-static DEVICE_ATTR(otp_id_ar0220, S_IRUGO, ar0220_otp_id_show, NULL);
+-
+-static int ar0220_initialize(struct i2c_client *client)
+-{
+-	struct ar0220_priv *priv = to_ar0220(client);
+-	u16 val = 0;
+-	u16 pid = 0;
+-	int ret = 0;
+-	int tmp_addr;
+-
+-	/* check and show model ID */
+-	reg16_read16(client, AR0220_PID, &pid);
+-
+-	if (pid != AR0220_VERSION_REG) {
+-		dev_dbg(&client->dev, "Product ID error %x\n", pid);
+-		ret = -ENODEV;
+-		goto err;
+-	}
+-
+-	/* setup XCLK */
+-	tmp_addr = client->addr;
+-	if (priv->ti9x4_addr) {
+-		/* CLK_OUT=22.5792*160*M/N/CLKDIV -> CLK_OUT=27MHz: CLKDIV=2, M=15, N=251: 22.5792*160/8*15/251=26.987MHz=CLK_OUT */
+-		client->addr = priv->ti9x3_addr;			/* Serializer I2C address */
+-		reg8_write(client, 0x06, 0x6f);				/* Set CLKDIV and M */
+-		reg8_write(client, 0x07, 0xfb);				/* Set N */
+-	}
+-	client->addr = tmp_addr;
+-
+-	/* Program wizard registers */
+-	ar0220_set_regs(client, ar0220_regs_wizard, ARRAY_SIZE(ar0220_regs_wizard));
+-
+-	/* Enable stream */
+-	reg16_read16(client, 0x301a, &val);	// read inital reset_register value
+-	val |= (1 << 2);			// Set streamOn bit
+-	reg16_write16(client, 0x301a, val);	// Start Streaming
+-
+-	/* Read OTP IDs */
+-	ar0220_otp_id_read(client);
+-
+-	dev_info(&client->dev, "ar0220 PID %x, res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+-		 pid, AR0220_MAX_WIDTH, AR0220_MAX_HEIGHT, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+-err:
+-	return ret;
+-}
+-
+-static int ar0220_parse_dt(struct device_node *np, struct ar0220_priv *priv)
+-{
+-	struct i2c_client *client = v4l2_get_subdevdata(&priv->sd);
+-	int i;
+-	struct device_node *endpoint = NULL, *rendpoint = NULL;
+-	int tmp_addr = 0;
+-
+-	for (i = 0; ; i++) {
+-		endpoint = of_graph_get_next_endpoint(np, endpoint);
+-		if (!endpoint)
+-			break;
+-
+-
+-		rendpoint = of_parse_phandle(endpoint, "remote-endpoint", 0);
+-		if (!rendpoint)
+-			continue;
+-
+-		if (!of_property_read_u32(rendpoint, "ti9x3-addr", &priv->ti9x3_addr) &&
+-		    !of_property_match_string(rendpoint->parent->parent, "compatible", "ti,ti9x4") &&
+-		    !of_property_read_u32(rendpoint->parent->parent, "reg", &priv->ti9x4_addr) &&
+-		    !kstrtouint(strrchr(rendpoint->full_name, '@') + 1, 0, &priv->port))
+-			break;
+-	}
+-
+-	of_node_put(endpoint);
+-
+-	if (!priv->ti9x4_addr) {
+-		dev_err(&client->dev, "deserializer does not present\n");
+-		return -EINVAL;
+-	}
+-
+-	/* setup I2C translator address */
+-	tmp_addr = client->addr;
+-	if (priv->ti9x4_addr) {
+-		client->addr = priv->ti9x4_addr;			/* Deserializer I2C address */
+-
+-		reg8_write(client, 0x4c, (priv->port << 4) | (1 << priv->port)); /* Select RX port number */
+-		usleep_range(2000, 2500);				/* wait 2ms */
+-		reg8_write(client, 0x65, tmp_addr << 1);		/* Sensor translated I2C address */
+-		reg8_write(client, 0x5d, AR0220_I2C_ADDR << 1);		/* Sensor native I2C address */
+-
+-//		reg8_write(client, 0x6e, 0xa9);				/* GPIO0 - reset, GPIO1 - fsin */
+-	}
+-	client->addr = tmp_addr;
+-
+-	mdelay(10);
+-
+-	return 0;
+-}
+-
+-static int ar0220_probe(struct i2c_client *client,
+-		       const struct i2c_device_id *did)
+-{
+-	struct ar0220_priv *priv;
+-	int ret;
+-
+-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+-	if (!priv)
+-		return -ENOMEM;
+-
+-	v4l2_i2c_subdev_init(&priv->sd, client, &ar0220_subdev_ops);
+-	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+-
+-	priv->exposure = 0x100;
+-	priv->gain = 0x100;
+-	priv->autogain = 1;
+-	v4l2_ctrl_handler_init(&priv->hdl, 4);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_BRIGHTNESS, 0, 16, 1, 7);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_CONTRAST, 0, 16, 1, 7);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_SATURATION, 0, 7, 1, 2);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_HUE, 0, 23, 1, 12);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_GAMMA, -128, 128, 1, 0);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_SHARPNESS, 0, 10, 1, 3);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_AUTOGAIN, 0, 1, 1, priv->autogain);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_GAIN, 0, 0xffff, 1, priv->gain);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_EXPOSURE, 0, 0xffff, 1, priv->exposure);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+-	v4l2_ctrl_new_std(&priv->hdl, &ar0220_ctrl_ops,
+-			  V4L2_CID_VFLIP, 0, 1, 1, 0);
+-	priv->sd.ctrl_handler = &priv->hdl;
+-
+-	ret = priv->hdl.error;
+-	if (ret)
+-		goto cleanup;
+-
+-	v4l2_ctrl_handler_setup(&priv->hdl);
+-
+-	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
+-	priv->sd.entity.flags |= MEDIA_ENT_F_CAM_SENSOR;
+-	ret = media_entity_pads_init(&priv->sd.entity, 1, &priv->pad);
+-	if (ret < 0)
+-		goto cleanup;
+-
+-	ret = ar0220_parse_dt(client->dev.of_node, priv);
+-	if (ret)
+-		goto cleanup;
+-
+-	ret = ar0220_initialize(client);
+-	if (ret < 0)
+-		goto cleanup;
+-
+-	priv->rect.left = 0;
+-	priv->rect.top = 0;
+-	priv->rect.width = AR0220_MAX_WIDTH;
+-	priv->rect.height = AR0220_MAX_HEIGHT;
+-
+-	ret = v4l2_async_register_subdev(&priv->sd);
+-	if (ret)
+-		goto cleanup;
+-
+-	if (device_create_file(&client->dev, &dev_attr_otp_id_ar0220) != 0) {
+-		dev_err(&client->dev, "sysfs otp_id entry creation failed\n");
+-		goto cleanup;
+-	}
+-
+-	priv->init_complete = 1;
+-
+-	return 0;
+-
+-cleanup:
+-	media_entity_cleanup(&priv->sd.entity);
+-	v4l2_ctrl_handler_free(&priv->hdl);
+-	v4l2_device_unregister_subdev(&priv->sd);
+-#ifdef CONFIG_SOC_CAMERA_AR0220
+-	v4l_err(client, "failed to probe @ 0x%02x (%s)\n",
+-		client->addr, client->adapter->name);
+-#endif
+-	return ret;
+-}
+-
+-static int ar0220_remove(struct i2c_client *client)
+-{
+-	struct ar0220_priv *priv = i2c_get_clientdata(client);
+-
+-	device_remove_file(&client->dev, &dev_attr_otp_id_ar0220);
+-	v4l2_async_unregister_subdev(&priv->sd);
+-	media_entity_cleanup(&priv->sd.entity);
+-	v4l2_ctrl_handler_free(&priv->hdl);
+-	v4l2_device_unregister_subdev(&priv->sd);
+-
+-	return 0;
+-}
+-
+-#ifdef CONFIG_SOC_CAMERA_AR0220
+-static const struct i2c_device_id ar0220_id[] = {
+-	{ "ar0220", 0 },
+-	{ }
+-};
+-MODULE_DEVICE_TABLE(i2c, ar0220_id);
+-
+-static const struct of_device_id ar0220_of_ids[] = {
+-	{ .compatible = "aptina,ar0220", },
+-	{ }
+-};
+-MODULE_DEVICE_TABLE(of, ar0220_of_ids);
+-
+-static struct i2c_driver ar0220_i2c_driver = {
+-	.driver	= {
+-		.name		= "ar0220",
+-		.of_match_table	= ar0220_of_ids,
+-	},
+-	.probe		= ar0220_probe,
+-	.remove		= ar0220_remove,
+-	.id_table	= ar0220_id,
+-};
+-
+-module_i2c_driver(ar0220_i2c_driver);
+-
+-MODULE_DESCRIPTION("SoC Camera driver for AR0220");
+-MODULE_AUTHOR("Vladimir Barinov");
+-MODULE_LICENSE("GPL");
+-#endif
+diff --git a/drivers/media/i2c/soc_camera/ar0220.h b/drivers/media/i2c/soc_camera/ar0220.h
+index 205c351..e372a9c 100644
+--- a/drivers/media/i2c/soc_camera/ar0220.h
++++ b/drivers/media/i2c/soc_camera/ar0220.h
+@@ -1,7 +1,7 @@
+ /*
+- * ON Semiconductor AR0220 sensor camera wizard 1820x940@44/RCCB/MIPI
++ * ON Semiconductor AR0220 sensor camera wizard 1848x948@30/BGGR/MIPI
+  *
+- * Copyright (C) 2017 Cogent Embedded, Inc.
++ * Copyright (C) 2019 Cogent Embedded, Inc.
+  *
+  * This program is free software; you can redistribute  it and/or modify it
+  * under  the terms of  the GNU General  Public License as published by the
+@@ -12,32 +12,15 @@
+ //#define AR0220_DISPLAY_PATTERN_FIXED
+ //#define AR0220_DISPLAY_PATTERN_COLOR_BAR
+ 
+-#define AR0220_MAX_WIDTH	1820
+-#define AR0220_MAX_HEIGHT	944
++#define AR0220_MAX_WIDTH	1828
++#define AR0220_MAX_HEIGHT	948
+ 
+-#define AR0220_DELAY		0xffff
++#define AR0220_SENSOR_WIDTH	1828
++#define AR0220_SENSOR_HEIGHT	948
+ 
+-struct ar0220_reg {
+-	u16	reg;
+-	u16	val;
+-};
++#define AR0220_X_START		((AR0220_SENSOR_WIDTH - AR0220_MAX_WIDTH) / 2)
++#define AR0220_Y_START		((AR0220_SENSOR_HEIGHT - AR0220_MAX_HEIGHT) / 2)
++#define AR0220_X_END		(AR0220_X_START + AR0220_MAX_WIDTH - 1)
++#define AR0220_Y_END		(AR0220_Y_START + AR0220_MAX_HEIGHT - 1)
+ 
+-static const struct ar0220_reg ar0220_regs_wizard[] = {
+-{0x301A, 0x0018}, // RESET_REGISTER
+-{AR0220_DELAY, 500}, // Wait 500ms
+-{0x3070, 0x0000},	//  1: Solid color test pattern,
+-			//  2: Full color bar test pattern,
+-			//  3: Fade to grey color bar test pattern,
+-			//256: Walking 1 test pattern (12 bit)
+-{0x3072, 0x0123},	// R
+-{0x3074, 0x0456},	// G(GR row)
+-{0x3076, 0x0abc},	// B
+-{0x3078, 0x0def},	// G(GB row)
+-#ifdef AR0220_DISPLAY_PATTERN_FIXED
+-{0x3070, 0x0001},
+-#endif
+-#ifdef AR0220_DISPLAY_PATTERN_COLOR_BAR
+-{0x3070, 0x0002},
+-#endif
+-{AR0220_DELAY, 100}, // Wait 100ms
+-};
++#include "ar0220_rev4.h"
+diff --git a/drivers/media/i2c/soc_camera/ar0220_rev4.h b/drivers/media/i2c/soc_camera/ar0220_rev4.h
+new file mode 100644
+index 0000000..55923a3
+--- /dev/null
++++ b/drivers/media/i2c/soc_camera/ar0220_rev4.h
+@@ -0,0 +1,370 @@
++/*
++ * ON Semiconductor AR0220 sensor camera wizard 1848x944@30/BGGR/MIPI
++ *
++ * Copyright (C) 2019 Cogent Embedded, Inc.
++ *
++ * This program is free software; you can redistribute  it and/or modify it
++ * under  the terms of  the GNU General  Public License as published by the
++ * Free Software Foundation;  either version 2 of the  License, or (at your
++ * option) any later version.
++ */
++
++static const struct ar0xxx_reg ar0220_rev4_Reset[] = {
++{0x301A, 0x0018},	// Stream off and setup MIPI
++{AR_DELAY, 200},
++{0x3070, 0x0000},	//  1: Solid color test pattern,
++			//  2: Full color bar test pattern,
++			//  3: Fade to grey color bar test pattern,
++			//256: Walking 1 test pattern (12 bit)
++{0x3072, 0x0123},	// R
++{0x3074, 0x0456},	// G(GR row)
++{0x3076, 0x0abc},	// B
++{0x3078, 0x0def},	// G(GB row)
++#ifdef AR0220_DISPLAY_PATTERN_FIXED
++{0x3070, 0x0001},
++#endif
++#ifdef AR0220_DISPLAY_PATTERN_COLOR_BAR
++{0x3070, 0x0002},
++#endif
++{AR_DELAY, 100},
++{ }
++}; /* Reset */
++
++static const struct ar0xxx_reg ar0220_rev4_Recommended_Settings[] = {
++// Set the SREG_WRITE_ALL bit to remove potential higher current during intial standby
++{0x3500, 0x0100},  //This is a self clearing bit
++{AR_DELAY, 1},     //Delay => 4100 * Extclk 
++
++{0x3092, 0x0824},  // row noise dither enabled, dither scale=0 udpated 6/30/2017
++{0x3096, 0x227C},  // row noise adjust top update 4/27/2017 with Jan-4 timing...YL
++{0x3098, 0x227C},  // row noise adjust bot update 4/27/2017 with Jan-4 timing...YL
++{0x3750, 0x227C},  // row noise adjust top gain ... these are for T1, 4/27/2017 with Jan-4 timing...YL
++{0x3752, 0x227C},  // row noise adjust btm gain ... these are for T1, 4/27/2017 with Jan-4 timing...YL
++{0x351C, 0x00B3},  // vaapix load cap=11, agnd load cap=3 updated 4/27 with Jan-4 timing...YL
++
++{0x3364, 172},     // set dual conversion gain ratio (HCG/LCG) to 5.3x  (~172/32) 	updated 3/29
++{0x337A, 0x0BB8},  // dblc scale factor 0.733x, 					updated 4/25
++
++//  DLO settings
++{0x3110, 0x0011}, // Pre-HDR gain enable; Pixel_width_enable
++//  These settings match AR0138 REV3 settings
++{0x3100, 0x4000},  // dlo control.  turn on dlo noise filter.  set barrier dither select to 0 to match AR0138
++{0x3102, 0x6060},  // "better" filter settings.  This is S2=96 and range=6
++{0x3104, 0x6060},  // T3
++{0x3106, 0x6060},  // T4
++
++{0x32EC, 0x72A2},  // shut_ctrl2_t3_sh_adcance=2
++{0x350E, 0x0F14},  // adc_pedestal_dither_en=15 (from 231) to minimize RTN periodical bumps... updated 8/9/17 
++
++// boost settings
++// Load booster settings. Early CREV4 headboards and parts will require booster settings to be manually programmed, 
++// while CREV4 ES samples have part-specific booster settings programmed in OTPM. Booster settings are instored in
++// following 4 registers: 0x3520, 0x3522, 0x3524, and 0x352C. (9/22/2017 Lin)
++// Remove soft trim booster settings for CRev3-1 sensors as they are boosters trimmed. (01/14/2018 Lin)
++//PYTHON= loadBoosterSettings() 
++//{0x3520, 0x1288  // RSTHI=3.9v, use fine_code=18 and coarse_code=0, Casey's rec'd, updated 12/16, 
++//{0x3522, 0x860C  // ROWHI=3.6v, Vrst_lo for hcg_lg change from 8 to 6 for eclipse margin 9/27, HTOL updated 12/16, use fine_code=12 and coarse_code=0, Casey's rec'd
++//{0x3524, 0x0C12  // DCGHI=3.6v, TXHI=3.9v updated HTOL voltage 12/16 Casey's rec'd 
++//{0x352c, 0x0012  // RSTWELLHI=3.9v using fine_code=18 and coarse_code=0 HTOL voltage updated 12/16  C. Hoekstra rec'd, 
++//{0x3532, 0x826C  // updated (12/14)
++{0x3528, 0x3633},  //update vtxlo for lcg_lg to 0.3V for blue blooming issue 6/1/2018
++{0x3532, 0xAE6C},  // ECL settings updated (1/9 Lin)
++{0x353a, 0x9000},  // use AGND based boosters, enable continuous boost for RSTHI_WELL, TXHI_WELL (12/14)
++
++{0x3540, 0xC63C},  // eclipse clamp updated 5/16
++{0x3542, 0x4637},  // eclipse clamp updated 5/16
++{0x3544, 0x3750},  // eclipse clamp updated 5/16
++{0x3546, 0x5656},  // eclipse clamp updated 5/16
++{0x3548, 0x5600},  // eclipse clamp updated 5/16
++
++//{0x3566, 0xBF38},  // col_mem settings, sa_park_en  
++{0x3566, 0x3F28},  // col_mem settings, sa_park_en  5/2/2019 disable READOUT_PARK_ENABLE and SA_PARK_EN
++
++{0x30BA, 0x0112},  // Add dither after delay buffer decompander
++{0x30BA, 0x0112},  //stop read back of dtest register from analog core to remove dark row on top 5/9
++{ }
++}; /* Rev3 Recommended Settings */
++
++static const struct ar0xxx_reg ar0220_rev4_REV3_Optimized_Sequencer[] = {
++{0x2512, 0x8000},
++{0x2510, 0x0905},
++{0x2510, 0x3350},
++{0x2510, 0x2004},
++{0x2510, 0x1460},
++{0x2510, 0x1578},
++{0x2510, 0x1360},
++{0x2510, 0x7B24},
++{0x2510, 0xFF24},
++{0x2510, 0xFF24},
++{0x2510, 0xEA24},
++{0x2510, 0x1022},
++{0x2510, 0x2410},
++{0x2510, 0x155A},
++{0x2510, 0x1342},
++{0x2510, 0x1440},
++{0x2510, 0x24FF},
++{0x2510, 0x24FF},
++{0x2510, 0x24EA},
++{0x2510, 0x2324},
++{0x2510, 0x647A},
++{0x2510, 0x2404},
++{0x2510, 0x052C},
++{0x2510, 0x400A},
++{0x2510, 0xFF0A},
++{0x2510, 0x850A},
++{0x2510, 0x0608},
++{0x2510, 0x3851},
++{0x2510, 0x0905},
++{0x2510, 0x15DC},
++{0x2510, 0x134C},
++{0x2510, 0x0004},
++{0x2510, 0x0801},
++{0x2510, 0x0408},
++{0x2510, 0x1180},
++{0x2510, 0x1002},
++{0x2510, 0x1016},
++{0x2510, 0x1181},
++{0x2510, 0x1189},
++{0x2510, 0x1056},
++{0x2510, 0x1210},
++{0x2510, 0x0D09},
++{0x2510, 0x0714},
++{0x2510, 0x4114},
++{0x2510, 0x4009},
++{0x2510, 0x0815},
++{0x2510, 0xCC13},
++{0x2510, 0xCC15},
++{0x2510, 0x8813},
++{0x2510, 0x8809},
++{0x2510, 0x1111},
++{0x2510, 0x9909},
++{0x2510, 0x0B11},
++{0x2510, 0xD909},
++{0x2510, 0x0B12},
++{0x2510, 0x1409},
++{0x2510, 0x0112},
++{0x2510, 0x1010},
++{0x2510, 0xD612},
++{0x2510, 0x1212},
++{0x2510, 0x1011},
++{0x2510, 0xDD11},
++{0x2510, 0xD910},
++{0x2510, 0x5609},
++{0x2510, 0x1111},
++{0x2510, 0xDB09},
++{0x2510, 0x1D11},
++{0x2510, 0xFB09},
++{0x2510, 0x0911},
++{0x2510, 0xBB12},
++{0x2510, 0x1A12},
++{0x2510, 0x1010},
++{0x2510, 0xD612},
++{0x2510, 0x5010},
++{0x2510, 0xF610},
++{0x2510, 0xE609},
++{0x2510, 0x0315},
++{0x2510, 0xAB13},
++{0x2510, 0xAB12},
++{0x2510, 0x4012},
++{0x2510, 0x6009},
++{0x2510, 0x2315},
++{0x2510, 0x8809},
++{0x2510, 0x0113},
++{0x2510, 0x880B},
++{0x2510, 0x0906},
++{0x2510, 0x158D},
++{0x2510, 0x138D},
++{0x2510, 0x090B},
++{0x2510, 0x1066},
++{0x2510, 0x1588},
++{0x2510, 0x1388},
++{0x2510, 0x0C09},
++{0x2510, 0x0410},
++{0x2510, 0xE612},
++{0x2510, 0x6212},
++{0x2510, 0x6011},
++{0x2510, 0xBF11},
++{0x2510, 0xFB10},
++{0x2510, 0x6609},
++{0x2510, 0x3B11},
++{0x2510, 0xBB12},
++{0x2510, 0x6312},
++{0x2510, 0x6009},
++{0x2510, 0x0115},
++{0x2510, 0x5A11},
++{0x2510, 0xB812},
++{0x2510, 0xA012},
++{0x2510, 0x0010},
++{0x2510, 0x2610},
++{0x2510, 0x0013},
++{0x2510, 0x0211},
++{0x2510, 0x8014},
++{0x2510, 0x007A},
++{0x2510, 0x0611},
++{0x2510, 0x0005},
++{0x2510, 0x0708},
++{0x2510, 0x4137},
++{0x2510, 0x502C},
++{0x2510, 0x2CFE},
++{0x2510, 0x112C},
++{AR_DELAY, 300},
++
++{0x1008, 0x02B6}, //fine_integration_time_min
++{0x100c, 0x0452}, //fine_integration_time2_min
++{0x100e, 0x05EE}, //fine_integration_time3_min
++{0x1010, 0x011A}, //fine_integration_time4_min
++
++{0x3230, 0x0254}, //fine_correction
++{0x3232, 0x03F0}, //fine_correction2
++{0x3234, 0x058C}, //fine_correction3
++{0x3236, 0x00B8}, //fine_correction4
++//{0x32e6, 0x009A}, //min_subrow
++{0x32e6, 0x00BC}, //min_subrow 188 2/6/2018 Lin
++{ }
++}; /* AR0220AT REV3 Optimized Sequencer */
++
++static const struct ar0xxx_reg ar0220_rev4_pll_23_4lane_12b[] = {
++/* PCLK=DES_REFCLK/PRE_PLL_CLK_DIV *PLL_MULTIPLIER /P1 /P4 *2 */
++/* PCLK=23Mhz/2 *44/1/12 *2= 84Mhz - TI serializers */
++{0x3030, 44}, //PLL_MULTIPLIER
++{0x302E, 2}, //PRE_PLL_CLK_DIV
++{0x302C, 1}, //P1 divider (vt_sys_clk_div)
++{0x302A, 6}, //P2 divider (vt_pix_clk_div)
++{0x3038, 1}, //P3 divider (op_sys_clk_div)
++{0x3036, 12}, //P4 divider (op_word_clk_div)
++{0x30B0, 0x800}, // digital_test: pll_complete_bypass=0
++{ }
++}; /* PLL Setup Serial 4 lane 12-bit Output 23Mhz MCLK */
++
++static const struct ar0xxx_reg ar0220_rev4_pll_25_4lane_12b[] = {
++/* PCLK=DES_REFCLK/PRE_PLL_CLK_DIV *PLL_MULTIPLIER /P1 /P4 *2 */
++/* PCLK=25Mhz/5 *102/1/12 *2= 85Mhz - IN-CAMERA REFCLK */
++/* PCLK=23Mhz/3 *56/1/12 *2= 71Mhz - TI serializers */
++{0x3030, 102}, //PLL_MULTIPLIER
++{0x302E, 5}, //PRE_PLL_CLK_DIV
++{0x302C, 1}, //P1 divider (vt_sys_clk_div)
++{0x302A, 6}, //P2 divider (vt_pix_clk_div)
++{0x3038, 1}, //P3 divider (op_sys_clk_div)
++{0x3036, 12}, //P4 divider (op_word_clk_div)
++{0x30B0, 0x800}, // digital_test: pll_complete_bypass=0
++{ }
++}; /* PLL Setup Serial 4 lane 12-bit Output 25Mhz MCLK */
++
++static const struct ar0xxx_reg ar0220_rev4_pll_27_4lane_12b[] = {
++/* PCLK=DES_REFCLK/PRE_PLL_CLK_DIV *PLL_MULTIPLIER /P1 /P4 *2 */
++/* PCLK=27Mhz/3 *56/1/12 *2= 84Mhz - IN-CAMERA REFCLK */
++/* PCLK=23Mhz/3 *56/1/12 *2= 71Mhz - TI serializers */
++{0x3030, 56}, //PLL_MULTIPLIER
++{0x302E, 3}, //PRE_PLL_CLK_DIV
++{0x302C, 1}, //P1 divider (vt_sys_clk_div)
++{0x302A, 6}, //P2 divider (vt_pix_clk_div)
++{0x3038, 1}, //P3 divider (op_sys_clk_div)
++{0x3036, 12}, //P4 divider (op_word_clk_div)
++{0x30B0, 0x800}, // digital_test: pll_complete_bypass=0
++{ }
++}; /* PLL Setup Serial 4 lane 12-bit Output 27Mhz MCLK */
++
++static const struct ar0xxx_reg ar0220_rev4_Readout_Mode_Configuration[] = {
++{0x30A2, 1}, // x_odd_inc_
++{0x30A6, 1}, // y_odd_inc_
++{0x3040, 0}, // read_mode
++{ }
++}; /* Readout Mode Configuration */
++
++static const struct ar0xxx_reg ar0220_rev4_Full_Res_FOV[] = {
++{0x3004, AR0220_X_START}, // X_ADDR_START_
++{0x3008, AR0220_X_END}, // X_ADDR_END_
++{0x3002, AR0220_Y_START}, // Y_ADDR_START_
++{0x3006, AR0220_Y_END}, // Y_ADDR_END_
++{ }
++}; /* Full Res FOV */
++
++static const struct ar0xxx_reg ar0220_rev4_hdr_Timing_and_Exposure[] = {
++{0x3082, 0x8}, // operation_mode_ctrl
++{0x30BA, 0x1112}, // digital_ctrl: num_exp_max=2
++#ifdef AR0231_EMBEDDED_LINE
++{0x3064, 0x1982}, // SMIA_TEST
++#else
++{0x3064, 0x1802}, // SMIA_TEST
++#endif
++//{0x33E0, 0xC80},
++//{0x3180, 0x80},
++//{0x33E4, 0x80},
++
++{0x306e, 9010}, // datapath_select,ime_mode,0
++
++{0x300A, AR0220_SENSOR_HEIGHT + 794}, // frame_length_lines_ (1742)
++{0x300C, AR0220_SENSOR_WIDTH/2 + 424}, // line_length_pck_ (1338)
++{0x3042, 0}, // extra_delay
++
++{0x3238, 0x444}, // exposure_ratio
++{0x3012, 1000}, // coarse_integration_time_
++{0x3014, 1526}, // fine_integration_time_
++{0x321E, 1526}, // fine_integration_time2
++{0x3222, 282}, // fine_integration_time3
++{0x32EA, 0x3C0E},
++//{0x32EC, 0x7151},
++
++{0x30B0, 0x800}, // enable_subrow_pair_reset
++{0x32E8, 637}, // max subrow margin for 3exp HDR
++{ }
++}; /* 3exp 36FPS Timing and Exposure */
++
++static const struct ar0xxx_reg ar0220_rev4_hdr_12bit_output[] = {
++{0x31D0, 1}, // companding
++{0x31AC, 0x140C}, // data_format_bits: RAW20, OUT12
++{ }
++}; /* HDR Serial 4 lane 12 bit Output */
++
++static const struct ar0xxx_reg ar0220_rev4_mipi_12bit_4lane[] = {
++{0x31AE, 0x204}, // serial_format: MIPI 4 lanes
++//{0x3342, 0x122C}, // default, DT=0x12, DT=0x2C
++//{0x3346, 0x122C}, // default, DT=0x12, DT=0x2C
++//{0x334A, 0x122C}, // default, DT=0x12, DT=0x2C
++//{0x334E, 0x122C}, // default, DT=0x12, DT=0x2C
++//{0x3344, 0x0011}, // default, VC=0
++//{0x3348, 0x0111}, // default, VC=1
++//{0x334C, 0x0211}, // default, VC=2
++//{0x3350, 0x0311}, // default, VC=3
++{0x31B0, 0x46}, // frame_preamble
++{0x31B2, 0x31}, // line_preamble
++{0x31B4, 0x2144}, //MIPI_TIMING_0 update @504Mbps 12 bit, 04/17
++{0x31B6, 0x3145}, //MIPI_TIMING_1 update @504Mbps 12 bit, 04/17
++{0x31B8, 0x3147}, //MIPI_TIMING_2 update @504Mbps 12 bit, 04/17
++{0x31BA, 0x0186}, //MIPI_TIMING_3
++{0x31BC, 0x0785}, //MIPI_TIMING_4
++{ }
++}; /* HDR MIPI 12 bit Settings */
++
++static const struct ar0xxx_reg ar0220_rev4_Recommended_HDR_Settings[] = {
++{ }
++}; /* Recommended HDR Settings */
++
++/* 3exp HDR, Full Resolution, MIPI 4-lane 12-bit 36FPS, EXTCLK=23MHz (comes from deser) */
++static const struct ar0xxx_reg *ar0220_regs_hdr_mipi_12bit_36fps_rev4[] = {
++	ar0220_rev4_Reset,
++	ar0220_rev4_Recommended_Settings,
++	ar0220_rev4_pll_23_4lane_12b,
++	ar0220_rev4_Readout_Mode_Configuration,
++	ar0220_rev4_Full_Res_FOV,
++	ar0220_rev4_hdr_Timing_and_Exposure,
++	ar0220_rev4_hdr_12bit_output,
++	ar0220_rev4_mipi_12bit_4lane,
++	ar0220_rev4_Recommended_HDR_Settings,
++	NULL,
++};
++
++/* 3exp HDR, Full Resolution, MIPI 4-lane 12-bit 36FPS, EXTCLK=23MHz (comes from deser) */
++static const struct ar0xxx_reg *ar0220_regs_hdr_mipi_12bit_36fps_rev3[] = {
++	ar0220_rev4_Reset,
++	ar0220_rev4_Recommended_Settings,
++	ar0220_rev4_REV3_Optimized_Sequencer,
++	ar0220_rev4_pll_23_4lane_12b,
++	ar0220_rev4_Readout_Mode_Configuration,
++	ar0220_rev4_Full_Res_FOV,
++	ar0220_rev4_hdr_Timing_and_Exposure,
++	ar0220_rev4_hdr_12bit_output,
++	ar0220_rev4_mipi_12bit_4lane,
++	ar0220_rev4_Recommended_HDR_Settings,
++	NULL,
++};
+diff --git a/drivers/media/i2c/soc_camera/ar0233.c b/drivers/media/i2c/soc_camera/ar0233.c
+index 9294267..500fa75 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.c
++++ b/drivers/media/i2c/soc_camera/ar0233.c
+@@ -1,7 +1,7 @@
+ /*
+- * ON Semiconductor AR0233 sensor camera driver
++ * ON Semiconductor AR0220/233 sensor camera driver
+  *
+- * Copyright (C) 2018 Cogent Embedded, Inc.
++ * Copyright (C) 2018-2019 Cogent Embedded, Inc.
+  *
+  * This program is free software; you can redistribute  it and/or modify it
+  * under  the terms of  the GNU General  Public License as published by the
+@@ -20,15 +20,33 @@
+ #include <media/v4l2-common.h>
+ #include <media/v4l2-ctrls.h>
+ 
++#define AR_DELAY		0xffff
++static int AR_MAX_WIDTH;
++static int AR_MAX_HEIGHT;
++static int AR_X_START;
++static int AR_Y_START;
++static int AR_X_END;
++static int AR_Y_END;
++
++struct ar0xxx_reg {
++	u16	reg;
++	u16	val;
++};
++
++#include "ar0220.h"
+ #include "ar0233.h"
+ 
+ static const int ar0233_i2c_addr[] = {0x10, 0x20};
+ 
+-#define AR0233_PID		0x3000
+-#define AR0233_REV		0x31FE
+-#define AR0233_VERSION_REG	0x0956
++#define AR_PID_REG		0x3000
++#define AR_REV_REG		0x31FE
+ 
+-#define AR0233_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG12_1X12
++enum {
++	AR0220_PID = 0x0C54,
++	AR0233_PID = 0x0956,
++} chipid;
++
++#define AR_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SGRBG12_1X12
+ 
+ struct ar0233_priv {
+ 	struct v4l2_subdev		sd;
+@@ -57,9 +75,9 @@ static inline struct ar0233_priv *to_ar0233(const struct i2c_client *client)
+ 	return container_of(i2c_get_clientdata(client), struct ar0233_priv, sd);
+ }
+ 
+-static int ar0233_set_regs(struct i2c_client *client, const struct ar0233_reg **pregs)
++static int ar0233_set_regs(struct i2c_client *client, const struct ar0xxx_reg **pregs)
+ {
+-	const struct ar0233_reg *regs;
++	const struct ar0xxx_reg *regs;
+ 	int i, j;
+ 
+ 	for (j = 0; ; j++) {
+@@ -72,7 +90,7 @@ static int ar0233_set_regs(struct i2c_client *client, const struct ar0233_reg **
+ 			if (!regs[i].reg && !regs[i].val)
+ 				break;
+ 
+-			if (regs[i].reg == AR0233_DELAY) {
++			if (regs[i].reg == AR_DELAY) {
+ 				mdelay(regs[i].val);
+ 				continue;
+ 			}
+@@ -97,13 +115,13 @@ static int ar0233_set_window(struct v4l2_subdev *sd)
+ 	dev_dbg(&client->dev, "L=%d T=%d %dx%d\n", priv->rect.left, priv->rect.top, priv->rect.width, priv->rect.height);
+ 
+ 	/* horiz crop start */
+-	reg16_write16(client, 0x3004, priv->rect.left + AR0233_X_START);
++	reg16_write16(client, 0x3004, priv->rect.left + AR_X_START);
+ 	/* horiz crop end */
+-	reg16_write16(client, 0x3008, priv->rect.left + priv->rect.width - 1 + AR0233_X_START);
++	reg16_write16(client, 0x3008, priv->rect.left + priv->rect.width - 1 + AR_X_START);
+ 	/* vert crop start */
+-	reg16_write16(client, 0x3002, priv->rect.top + AR0233_Y_START);
++	reg16_write16(client, 0x3002, priv->rect.top + AR_Y_START);
+ 	/* vert crop end */
+-	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR0233_Y_START);
++	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR_Y_START);
+ 
+ 	return 0;
+ };
+@@ -121,7 +139,7 @@ static int ar0233_get_fmt(struct v4l2_subdev *sd,
+ 
+ 	mf->width = priv->rect.width;
+ 	mf->height = priv->rect.height;
+-	mf->code = AR0233_MEDIA_BUS_FMT;
++	mf->code = AR_MEDIA_BUS_FMT;
+ 	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
+ 	mf->field = V4L2_FIELD_NONE;
+ 
+@@ -134,7 +152,7 @@ static int ar0233_set_fmt(struct v4l2_subdev *sd,
+ {
+ 	struct v4l2_mbus_framefmt *mf = &format->format;
+ 
+-	mf->code = AR0233_MEDIA_BUS_FMT;
++	mf->code = AR_MEDIA_BUS_FMT;
+ 	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
+ 	mf->field = V4L2_FIELD_NONE;
+ 
+@@ -151,7 +169,7 @@ static int ar0233_enum_mbus_code(struct v4l2_subdev *sd,
+ 	if (code->pad || code->index > 0)
+ 		return -EINVAL;
+ 
+-	code->code = AR0233_MEDIA_BUS_FMT;
++	code->code = AR_MEDIA_BUS_FMT;
+ 
+ 	return 0;
+ }
+@@ -165,8 +183,8 @@ static int ar0233_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
+ 
+ 	edid->edid[6] = 0xff;
+ 	edid->edid[7] = client->addr;
+-	edid->edid[8] = AR0233_VERSION_REG >> 8;
+-	edid->edid[9] = AR0233_VERSION_REG & 0xff;
++	edid->edid[8] = chipid >> 8;
++	edid->edid[9] = chipid & 0xff;
+ 
+ 	return 0;
+ }
+@@ -188,8 +206,8 @@ static int ar0233_set_selection(struct v4l2_subdev *sd,
+ 	rect->width = ALIGN(rect->width, 2);
+ 	rect->height = ALIGN(rect->height, 2);
+ 
+-	if ((rect->left + rect->width > AR0233_MAX_WIDTH) ||
+-	    (rect->top + rect->height > AR0233_MAX_HEIGHT))
++	if ((rect->left + rect->width > AR_MAX_WIDTH) ||
++	    (rect->top + rect->height > AR_MAX_HEIGHT))
+ 		*rect = priv->rect;
+ 
+ 	priv->rect.left = rect->left;
+@@ -216,14 +234,14 @@ static int ar0233_get_selection(struct v4l2_subdev *sd,
+ 	case V4L2_SEL_TGT_CROP_BOUNDS:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+-		sel->r.width = AR0233_MAX_WIDTH;
+-		sel->r.height = AR0233_MAX_HEIGHT;
++		sel->r.width = AR_MAX_WIDTH;
++		sel->r.height = AR_MAX_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+-		sel->r.width = AR0233_MAX_WIDTH;
+-		sel->r.height = AR0233_MAX_HEIGHT;
++		sel->r.width = AR_MAX_WIDTH;
++		sel->r.height = AR_MAX_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP:
+ 		sel->r = priv->rect;
+@@ -400,6 +418,7 @@ static DEVICE_ATTR(otp_id_ar0233, S_IRUGO, ar0233_otp_id_show, NULL);
+ static int ar0233_initialize(struct i2c_client *client)
+ {
+ 	struct ar0233_priv *priv = to_ar0233(client);
++	char chip_name[10] = "unknown";
+ 	u16 val = 0;
+ 	u16 pid = 0, rev = 0;
+ 	int ret = 0;
+@@ -416,42 +435,85 @@ static int ar0233_initialize(struct i2c_client *client)
+ 		client->addr = tmp_addr;
+ 
+ 		/* check model ID */
+-		reg16_read16(client, AR0233_PID, &pid);
++		reg16_read16(client, AR_PID_REG, &pid);
+ 
+-		if (pid == AR0233_VERSION_REG)
++		if (pid == AR0220_PID || pid == AR0233_PID)
+ 			break;
+ 	}
+ 
+-	if (pid != AR0233_VERSION_REG) {
++	if (pid != AR0220_PID && pid != AR0233_PID) {
+ 		dev_dbg(&client->dev, "Product ID error %x\n", pid);
+ 		ret = -ENODEV;
+ 		goto err;
+ 	}
+ 
+ 	/* check revision  */
+-	reg16_read16(client, AR0233_REV, &rev);
++	reg16_read16(client, AR_REV_REG, &rev);
+ 	/* Read OTP IDs */
+ 	ar0233_otp_id_read(client);
+-	/* Program wizard registers */
+-	switch (rev & 0xf) {
+-	case 0x1:
+-		ar0233_set_regs(client, ar0233_regs_hdr_mipi_12bit_30fps_rev1);
+-		break;
+-	case 0x2:
+-		if (extclk == 27) {
+-			ar0233_regs_hdr_mipi_12bit_30fps_rev2[4] = ar0233_rev2_pll_27_102_4lane_12b;
+-			ar0233_regs_seplus_mipi_12bit_30fps_rev2[2] = ar0233_rev2_pll_27_102_4lane_12b;
+-		}
+ 
+-		if (strcmp(mode, "hdr") == 0)
+-			ar0233_set_regs(client, ar0233_regs_hdr_mipi_12bit_30fps_rev2);
+-		else if (strcmp(mode, "seplus") == 0)
+-			ar0233_set_regs(client, ar0233_regs_seplus_mipi_12bit_30fps_rev2);
+-		else
+-			dev_err(&client->dev, "Unsupported mode %s\n", mode);
+-		break;
+-	default:
+-		dev_err(&client->dev, "Unsupported chip revision\n");
++	switch (pid) {
++		case AR0220_PID:
++			chipid = ID_AR0220;
++			strncpy(chip_name, "AR0220", 10);
++			AR_MAX_WIDTH = AR0220_MAX_WIDTH;
++			AR_MAX_HEIGHT = AR0220_MAX_HEIGHT;
++			AR_X_START = AR0220_X_START;
++			AR_Y_START = AR0220_Y_START;
++			AR_X_END = AR0220_X_END;
++			AR_Y_END = AR0220_Y_END;
++
++			switch (rev & 0xf) {
++			case 0x1:
++			case 0x2:
++			case 0x3:
++				if (extclk == 25) {
++					ar0220_regs_hdr_mipi_12bit_36fps_rev3[3] = ar0220_rev4_pll_25_4lane_12b;
++				}
++				if (extclk == 27) {
++					ar0220_regs_hdr_mipi_12bit_36fps_rev3[3] = ar0220_rev4_pll_27_4lane_12b;
++				}
++				ar0233_set_regs(client, ar0220_regs_hdr_mipi_12bit_36fps_rev3);
++				break;
++			case 0x4:
++				ar0233_set_regs(client, ar0220_regs_hdr_mipi_12bit_36fps_rev4);
++				break;
++			default:
++				dev_err(&client->dev, "Unsupported chip revision\n");
++			}
++			break;
++		case AR0233_PID:
++			chipid = ID_AR0233;
++			strncpy(chip_name, "AR0233", 10);
++			AR_MAX_WIDTH = AR0233_MAX_WIDTH;
++			AR_MAX_HEIGHT = AR0233_MAX_HEIGHT;
++			AR_X_START = AR0233_X_START;
++			AR_Y_START = AR0233_Y_START;
++			AR_X_END = AR0233_X_END;
++			AR_Y_END = AR0233_Y_END;
++
++			/* Program wizard registers */
++			switch (rev & 0xf) {
++			case 0x1:
++				ar0233_set_regs(client, ar0233_regs_hdr_mipi_12bit_30fps_rev1);
++				break;
++			case 0x2:
++				if (extclk == 27) {
++					ar0233_regs_hdr_mipi_12bit_30fps_rev2[4] = ar0233_rev2_pll_27_102_4lane_12b;
++					ar0233_regs_seplus_mipi_12bit_30fps_rev2[2] = ar0233_rev2_pll_27_102_4lane_12b;
++				}
++
++				if (strcmp(mode, "hdr") == 0)
++					ar0233_set_regs(client, ar0233_regs_hdr_mipi_12bit_30fps_rev2);
++				else if (strcmp(mode, "seplus") == 0)
++					ar0233_set_regs(client, ar0233_regs_seplus_mipi_12bit_30fps_rev2);
++				else
++					dev_err(&client->dev, "Unsupported mode %s\n", mode);
++				break;
++			default:
++				dev_err(&client->dev, "Unsupported chip revision\n");
++			}
++			break;
+ 	}
+ 
+ 	/* Enable trigger */
+@@ -468,8 +530,8 @@ static int ar0233_initialize(struct i2c_client *client)
+ 	val |= (1 << 2);			// Set streamOn bit
+ 	reg16_write16(client, 0x301a, val);	// Start Streaming
+ 
+-	dev_info(&client->dev, "ar0233 PID %x (rev%x), res %dx%d, mode=%s, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+-		 pid, rev & 0xf, AR0233_MAX_WIDTH, AR0233_MAX_HEIGHT, mode, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
++	dev_info(&client->dev, "%s PID %x (rev%x), res %dx%d, mode=%s, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n", chip_name,
++		 pid, rev & 0xf, AR_MAX_WIDTH, AR_MAX_HEIGHT, mode, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ err:
+ 	return ret;
+ }
+@@ -586,8 +648,8 @@ static int ar0233_probe(struct i2c_client *client,
+ 
+ 	priv->rect.left = 0;
+ 	priv->rect.top = 0;
+-	priv->rect.width = AR0233_MAX_WIDTH;
+-	priv->rect.height = AR0233_MAX_HEIGHT;
++	priv->rect.width = AR_MAX_WIDTH;
++	priv->rect.height = AR_MAX_HEIGHT;
+ 
+ 	ret = v4l2_async_register_subdev(&priv->sd);
+ 	if (ret)
+diff --git a/drivers/media/i2c/soc_camera/ar0233.h b/drivers/media/i2c/soc_camera/ar0233.h
+index 5f2bada..33b661a 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.h
++++ b/drivers/media/i2c/soc_camera/ar0233.h
+@@ -15,8 +15,6 @@
+ #define AR0233_MAX_WIDTH	2048
+ #define AR0233_MAX_HEIGHT	1280
+ 
+-#define AR0233_DELAY		0xffff
+-
+ #define AR0233_SENSOR_WIDTH	2072
+ #define AR0233_SENSOR_HEIGHT	1296
+ 
+@@ -25,10 +23,5 @@
+ #define AR0233_X_END		(AR0233_X_START + AR0233_MAX_WIDTH - 1)
+ #define AR0233_Y_END		(AR0233_Y_START + AR0233_MAX_HEIGHT - 1)
+ 
+-struct ar0233_reg {
+-	u16	reg;
+-	u16	val;
+-};
+-
+ #include "ar0233_rev1.h"
+ #include "ar0233_rev2.h"
+diff --git a/drivers/media/i2c/soc_camera/ar0233_rev1.h b/drivers/media/i2c/soc_camera/ar0233_rev1.h
+index ddc1612..0389e51 100644
+--- a/drivers/media/i2c/soc_camera/ar0233_rev1.h
++++ b/drivers/media/i2c/soc_camera/ar0233_rev1.h
+@@ -9,9 +9,9 @@
+  * option) any later version.
+  */
+ 
+-static const struct ar0233_reg ar0233_rev1_Reset[] = {
++static const struct ar0xxx_reg ar0233_rev1_Reset[] = {
+ {0x301A, 0x0018},	// Stream off and setup MIPI
+-{AR0233_DELAY, 200},
++{AR_DELAY, 200},
+ {0x3070, 0x0000},	//  1: Solid color test pattern,
+ 			//  2: Full color bar test pattern,
+ 			//  3: Fade to grey color bar test pattern,
+@@ -26,11 +26,11 @@ static const struct ar0233_reg ar0233_rev1_Reset[] = {
+ #ifdef AR0233_DISPLAY_PATTERN_COLOR_BAR
+ {0x3070, 0x0002},
+ #endif
+-{AR0233_DELAY, 100},
++{AR_DELAY, 100},
+ { }
+ }; /* Reset */
+ 
+-static const struct ar0233_reg ar0233_rev1_Sequencer_Settings[] = {
++static const struct ar0xxx_reg ar0233_rev1_Sequencer_Settings[] = {
+ /* Design_recommended_settings_v5 */
+ {0x356C, 0xEA55}, //mte.Sensor.Register("DAC_LD_108_109").Value = 0xEA55& -- ADC write Memory delay 7
+ {0x3566, 0x2407}, //mte.Sensor.Register("DAC_LD_102_103").Value = 0x2407&  -- Enable column amp bypass for 1x
+@@ -1095,12 +1095,12 @@ static const struct ar0233_reg ar0233_rev1_Sequencer_Settings[] = {
+ {0x2510, 0xffff},
+ {0x2510, 0xffff},
+ {0x2510, 0xffff},
+-{AR0233_DELAY, 100},
++{AR_DELAY, 100},
+ /* Sequencer_LFM_HDR_v6 */
+ { }
+ }; /* Sequencer_Settings */
+ 
+-static const struct ar0233_reg ar0233_rev1_HDR_3exp_12bit[] = {
++static const struct ar0xxx_reg ar0233_rev1_HDR_3exp_12bit[] = {
+ {0x3082, 0x8},    //num_exp = 3
+ {0x3110, 0x11},   //Set bypass pix comb for HDR,Pre_hdr_gain_enable_07Jul
+ {0x30BA, 0x1122}, //num_exp_max =3
+@@ -1116,7 +1116,7 @@ static const struct ar0233_reg ar0233_rev1_HDR_3exp_12bit[] = {
+ { }
+ }; /* HDR_3exp_12bit */
+ 
+-static const struct ar0233_reg ar0233_rev1_Serial_12bit_Timing_Setup_103p5[] = {
++static const struct ar0xxx_reg ar0233_rev1_Serial_12bit_Timing_Setup_103p5[] = {
+ /* PCLK=DES_REFCLK /PRE_PLL_CLK_DIV *PLL_MULTIPLIER /P1 /P4 */
+ /* PCLK=23MHz/2 *54/1/6= 103.5Mhz - TI serializers */
+ {0x3030, 54}, //PLL_MULTIPLIER ; 0x3030 [11:0]
+@@ -1129,7 +1129,7 @@ static const struct ar0233_reg ar0233_rev1_Serial_12bit_Timing_Setup_103p5[] = {
+ { }
+ }; /* Serial_12bit_Timing_Setup_103p5 */
+ 
+-static const struct ar0233_reg ar0233_rev1_MIPI_4Lane_12BITS[] = {
++static const struct ar0xxx_reg ar0233_rev1_MIPI_4Lane_12BITS[] = {
+ {0x31AE, 0x204}, //MIPI enable, 4 lanes
+ {0x31B0, 0x4B}, //frame_preamble
+ {0x31B2, 0x33}, //line_preamble
+@@ -1145,7 +1145,7 @@ static const struct ar0233_reg ar0233_rev1_MIPI_4Lane_12BITS[] = {
+ { }
+ }; /* MIPI_4Lane_12BITS */
+ 
+-static const struct ar0233_reg ar0233_rev1_Full_resolution[] = {
++static const struct ar0xxx_reg ar0233_rev1_Full_resolution[] = {
+ {0x3004, AR0233_X_START}, // X_ADDR_START_
+ {0x3008, AR0233_X_END}, // X_ADDR_END_
+ {0x3002, AR0233_Y_START}, // Y_ADDR_START_
+@@ -1155,7 +1155,7 @@ static const struct ar0233_reg ar0233_rev1_Full_resolution[] = {
+ { }
+ }; /* Full_resolution */
+ 
+-static const struct ar0233_reg ar0233_rev1_disable_embed_data_stat[] = {
++static const struct ar0xxx_reg ar0233_rev1_disable_embed_data_stat[] = {
+ {0x3040, 0xC000}, //Embedded stat2 and data2 rows, hflip/vflip=1
+ #ifdef AR0233_EMBEDDED_LINE
+ {0x3064, 0x0180}, //Enable embedded data and stat
+@@ -1165,7 +1165,7 @@ static const struct ar0233_reg ar0233_rev1_disable_embed_data_stat[] = {
+ { }
+ }; /* disable_embed_data_stat */
+ 
+-static const struct ar0233_reg ar0233_rev1_Gain_3p28x[] = {
++static const struct ar0xxx_reg ar0233_rev1_Gain_3p28x[] = {
+ {0x3022, 0x01}, // GROUPED_PARAMETER_HOLD_
+ {0x3362, 0x000F}, // DC_GAIN
+ {0x3366, 0x1111},
+@@ -1174,7 +1174,7 @@ static const struct ar0233_reg ar0233_rev1_Gain_3p28x[] = {
+ { }
+ }; /* Gain_3.28x */
+ 
+-static const struct ar0233_reg ar0233_rev1_MEC_DLO_default[] = {
++static const struct ar0xxx_reg ar0233_rev1_MEC_DLO_default[] = {
+ {0x3D00, 0x6F73}, // control
+ {0x3D02, 0x0033},
+ {0x3364, 0x068C}, // dcg_trim = 13.1
+@@ -1260,7 +1260,7 @@ static const struct ar0233_reg ar0233_rev1_MEC_DLO_default[] = {
+ }; /* MEC_DLO_default */
+ 
+ /* 3Exp HDR, 1280P, MIPI 4-lane 12-bit, 30fps, EXTCLK=23MHz (comes from deser) */
+-static const struct ar0233_reg *ar0233_regs_hdr_mipi_12bit_30fps_rev1[] = {
++static const struct ar0xxx_reg *ar0233_regs_hdr_mipi_12bit_30fps_rev1[] = {
+ 	ar0233_rev1_Reset,
+ 	ar0233_rev1_Sequencer_Settings,
+ 	ar0233_rev1_disable_embed_data_stat,
+diff --git a/drivers/media/i2c/soc_camera/ar0233_rev2.h b/drivers/media/i2c/soc_camera/ar0233_rev2.h
+index 7085fbc..7f71056 100644
+--- a/drivers/media/i2c/soc_camera/ar0233_rev2.h
++++ b/drivers/media/i2c/soc_camera/ar0233_rev2.h
+@@ -9,9 +9,9 @@
+  * option) any later version.
+  */
+ 
+-static const struct ar0233_reg ar0233_rev2_Reset[] = {
++static const struct ar0xxx_reg ar0233_rev2_Reset[] = {
+ {0x301A, 0x0018},	// Stream off and setup MIPI
+-{AR0233_DELAY, 200},
++{AR_DELAY, 200},
+ {0x3070, 0x0000},	//  1: Solid color test pattern,
+ 			//  2: Full color bar test pattern,
+ 			//  3: Fade to grey color bar test pattern,
+@@ -26,11 +26,11 @@ static const struct ar0233_reg ar0233_rev2_Reset[] = {
+ #ifdef AR0233_DISPLAY_PATTERN_COLOR_BAR
+ {0x3070, 0x0002},
+ #endif
+-{AR0233_DELAY, 100},
++{AR_DELAY, 100},
+ { }
+ }; /* Reset */
+ 
+-static const struct ar0233_reg ar0233_rev2_O1_Recommended_Defaults_LFM_HDR[] = {
++static const struct ar0xxx_reg ar0233_rev2_O1_Recommended_Defaults_LFM_HDR[] = {
+ /* Design_recommended_settings_REV2_V9 */
+ {0x3C72, 0x0076},
+ {0x3C74, 0x0031},
+@@ -1106,7 +1106,7 @@ static const struct ar0233_reg ar0233_rev2_O1_Recommended_Defaults_LFM_HDR[] = {
+ {0x2510, 0xffff},
+ {0x2510, 0x3426},
+ {0x2510, 0x3614},
+-{AR0233_DELAY, 100},
++{AR_DELAY, 100},
+ /* Sequence_hidy_ar0233_REV2_V13 */
+ 
+ /* Pre_hdr_gain_enable */
+@@ -1124,7 +1124,7 @@ static const struct ar0233_reg ar0233_rev2_O1_Recommended_Defaults_LFM_HDR[] = {
+ { }
+ }; /* O1_Recommended_Defaults_LFM_HDR */
+ 
+-static const struct ar0233_reg ar0233_rev2_O1_Recommended_Defaults_SE_T1_LIN_T2[] = {
++static const struct ar0xxx_reg ar0233_rev2_O1_Recommended_Defaults_SE_T1_LIN_T2[] = {
+ /* Design_recommended_settings_REV2_seplus */
+ {0x3086, 0x0000},
+ {0x3092, 0x400C},
+@@ -2243,7 +2243,7 @@ static const struct ar0233_reg ar0233_rev2_O1_Recommended_Defaults_SE_T1_LIN_T2[
+ {0x2510, 0xFFFF},
+ {0x2510, 0xFFFF},
+ {0x2510, 0xFFFF},
+-{AR0233_DELAY, 100},
++{AR_DELAY, 100},
+ /* Sequence_hidy_ar0233_REV2_seplus */
+ 
+ {0x3E14, 0x003F},
+@@ -2264,7 +2264,7 @@ static const struct ar0233_reg ar0233_rev2_O1_Recommended_Defaults_SE_T1_LIN_T2[
+ { }
+ }; /* O1_Recommended_Defaults_SE_T1_LIN_T2 */
+ 
+-static const struct ar0233_reg ar0233_rev2_disable_embed_data_stat[] = {
++static const struct ar0xxx_reg ar0233_rev2_disable_embed_data_stat[] = {
+ {0x3040, 0xC000}, //Embedded stat2 and data2 rows, hflip/vflip=1
+ {0x350e, 0x2089}, // bit0 must be set for vflip=1
+ #ifdef AR0233_EMBEDDED_LINE
+@@ -2275,7 +2275,7 @@ static const struct ar0233_reg ar0233_rev2_disable_embed_data_stat[] = {
+ { }
+ }; /* disable_embed_data_stat */
+ 
+-static const struct ar0233_reg ar0233_rev2_HDR_3exp_12bit[] = {
++static const struct ar0xxx_reg ar0233_rev2_HDR_3exp_12bit[] = {
+ {0x3082, 0x8},    //num_exp = 3
+ {0x30BA, 0x1122}, //num_exp_max =3
+ {0x31AC, 0x140C}, //12 bit output
+@@ -2289,7 +2289,7 @@ static const struct ar0233_reg ar0233_rev2_HDR_3exp_12bit[] = {
+ { }
+ }; /* HDR_3exp_12bit */
+ 
+-static const struct ar0233_reg ar0233_rev2_SEPLUS_12bit[] = {
++static const struct ar0xxx_reg ar0233_rev2_SEPLUS_12bit[] = {
+ {0x3082, 0x4},    //num_exp = 2
+ {0x30BA, 0x1121}, //num_exp_max =2
+ {0x31AC, 0x140C}, //12 bit output
+@@ -2305,7 +2305,7 @@ static const struct ar0233_reg ar0233_rev2_SEPLUS_12bit[] = {
+ { }
+ }; /* HDR_3exp_12bit */
+ 
+-static const struct ar0233_reg ar0233_rev2_pll_23_102_4lane_12b[] = {
++static const struct ar0xxx_reg ar0233_rev2_pll_23_102_4lane_12b[] = {
+ // serial_data_rate was *2 in REV1. but not in REV2
+ /* PCLK=DES_REFCLK/PRE_PLL_CLK_DIV *PLL_MULTIPLIER /P1 /P4 */
+ /* PCLK=23Mhz/0x3 *0x50/1/6= 102Mhz - TI serializers */
+@@ -2319,7 +2319,7 @@ static const struct ar0233_reg ar0233_rev2_pll_23_102_4lane_12b[] = {
+ { }
+ }; /* pll_23_102_4lane_12b */
+ 
+-static const struct ar0233_reg ar0233_rev2_pll_27_102_4lane_12b[] = {
++static const struct ar0xxx_reg ar0233_rev2_pll_27_102_4lane_12b[] = {
+ // serial_data_rate was *2 in REV1. but not in REV2
+ /* PCLK=27Mhz/0x3 *0x44/1/6= 102Mhz - TI serializers */
+ {0x3030, 0x44}, //PLL_MULTIPLIER
+@@ -2332,7 +2332,7 @@ static const struct ar0233_reg ar0233_rev2_pll_27_102_4lane_12b[] = {
+ { }
+ }; /* pll_27_102_4lane_12b */
+ 
+-static const struct ar0233_reg ar0233_rev2_mipi_12bit_4lane[] = {
++static const struct ar0xxx_reg ar0233_rev2_mipi_12bit_4lane[] = {
+ {0x31AE, 0x204}, //serial type and lane
+ {0x31B0, 0x67}, //frame_preamble
+ {0x31B2, 0x30}, //line_preamble
+@@ -2348,7 +2348,7 @@ static const struct ar0233_reg ar0233_rev2_mipi_12bit_4lane[] = {
+ { }
+ }; /* mipi_12bit_4lane */
+ 
+-static const struct ar0233_reg ar0233_rev2_LUT_24_to_12[] = {
++static const struct ar0xxx_reg ar0233_rev2_LUT_24_to_12[] = {
+ {0x31AC, 0x180C},
+ {0x31D0, 0x01}, //companding
+ {0x33DA, 0},
+@@ -2371,7 +2371,7 @@ static const struct ar0233_reg ar0233_rev2_LUT_24_to_12[] = {
+ { }
+ }; /* LUT_24_to_12 */
+ 
+-static const struct ar0233_reg ar0233_rev2_Full_resolution[] = {
++static const struct ar0xxx_reg ar0233_rev2_Full_resolution[] = {
+ {0x3004, AR0233_X_START}, // X_ADDR_START_
+ {0x3008, AR0233_X_END}, // X_ADDR_END_
+ {0x3002, AR0233_Y_START}, // Y_ADDR_START_
+@@ -2381,14 +2381,14 @@ static const struct ar0233_reg ar0233_rev2_Full_resolution[] = {
+ { }
+ }; /* Full_resolution */
+ 
+-static const struct ar0233_reg ar0233_rev2_HDR_ratio_gain_default[] = {
++static const struct ar0xxx_reg ar0233_rev2_HDR_ratio_gain_default[] = {
+ {0x3362, 0x000F}, //HCG
+ {0x3366, 0x1111}, //1x
+ {0x3238, 0x0444}, // Ratio 16x, Use retio setting
+ { }
+ }; /* HDR_ratio_gain_default */
+ 
+-static const struct ar0233_reg ar0233_rev2_SEPLUS_ratio_gain_default[] = {
++static const struct ar0xxx_reg ar0233_rev2_SEPLUS_ratio_gain_default[] = {
+ {0x3362, 0x0001}, // DC_GAIN
+ {0x3238, 0x8446}, // EXPOSURE_RATIO
+ {0x562E, 0x0111}, // OCL_T1_GAIN_
+@@ -2401,7 +2401,7 @@ static const struct ar0233_reg ar0233_rev2_SEPLUS_ratio_gain_default[] = {
+ }; /* SEPLUS_ratio_gain_default */
+ 
+ /* 3Exp HDR, 1280P, MIPI 4-lane 12-bit, 30fps, EXTCLK=23MHz (comes from deser) */
+-static const struct ar0233_reg *ar0233_regs_hdr_mipi_12bit_30fps_rev2[] = {
++static const struct ar0xxx_reg *ar0233_regs_hdr_mipi_12bit_30fps_rev2[] = {
+ 	ar0233_rev2_Reset,
+ 	ar0233_rev2_O1_Recommended_Defaults_LFM_HDR,
+ 	ar0233_rev2_disable_embed_data_stat,
+@@ -2415,7 +2415,7 @@ static const struct ar0233_reg *ar0233_regs_hdr_mipi_12bit_30fps_rev2[] = {
+ };
+ 
+ /* SE_T1 + Lin_T2, 1280P, MIPI 750MBPS 4-lane 12-bit, 30fps, EXTCLK=23MHz (comes from deser) */
+-static const struct ar0233_reg *ar0233_regs_seplus_mipi_12bit_30fps_rev2[] = {
++static const struct ar0xxx_reg *ar0233_regs_seplus_mipi_12bit_30fps_rev2[] = {
+ 	ar0233_rev2_Reset,
+ 	ar0233_rev2_Full_resolution,
+ 	ar0233_rev2_pll_23_102_4lane_12b,
+diff --git a/drivers/media/i2c/soc_camera/ov106xx.c b/drivers/media/i2c/soc_camera/ov106xx.c
+index 08d3816..876b3c1 100644
+--- a/drivers/media/i2c/soc_camera/ov106xx.c
++++ b/drivers/media/i2c/soc_camera/ov106xx.c
+@@ -9,28 +9,6 @@
+  * option) any later version.
+  */
+ 
+-#include "ov10635.c"
+-#include "ov10640.c"
+-#include "ov490_ov10640.c"
+-#include "ov495_ov2775.c"
+-#include "ar0132.c"
+-#include "ar0140.c"
+-#include "ar0143.c"
+-#include "ar0220.c"
+-#include "ar0231.c"
+-#include "ar0233.c"
+-#include "ar0323.c"
+-#include "ap0101_ar014x.c"
+-#include "gw4200_ar014x.c"
+-#include "gw5200_imx390.c"
+-#include "ov2775.c"
+-#include "imx390.c"
+-#include "ox03a.c"
+-#include "isx016.c"
+-#include "isx019.c"
+-#include "ov2311.c"
+-#include "ar0147.c"
+-
+ static enum {
+ 	ID_OV10635,
+ 	ID_OV10640,
+@@ -55,6 +33,27 @@ static enum {
+ 	ID_OV2311,
+ } chip_id;
+ 
++#include "ov10635.c"
++#include "ov10640.c"
++#include "ov490_ov10640.c"
++#include "ov495_ov2775.c"
++#include "ar0132.c"
++#include "ar0140.c"
++#include "ar0143.c"
++#include "ar0231.c"
++#include "ar0233.c"
++#include "ar0323.c"
++#include "ap0101_ar014x.c"
++#include "gw4200_ar014x.c"
++#include "gw5200_imx390.c"
++#include "ov2775.c"
++#include "imx390.c"
++#include "ox03a.c"
++#include "isx016.c"
++#include "isx019.c"
++#include "ov2311.c"
++#include "ar0147.c"
++
+ static int ov106xx_probe(struct i2c_client *client,
+ 			 const struct i2c_device_id *did)
+ {
+@@ -145,12 +144,6 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
+-	ret = ar0220_probe(client, did);
+-	if (!ret) {
+-		chip_id = ID_AR0220;
+-		goto out;
+-	}
+-
+ 	ret = gw4200_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_GW4200_AR014X;
+@@ -220,9 +213,6 @@ static int ov106xx_remove(struct i2c_client *client)
+ 	case ID_AR0147:
+ 		ar0147_remove(client);
+ 		break;
+-	case ID_AR0220:
+-		ar0220_remove(client);
+-		break;
+ 	case ID_AR0231:
+ 		ar0231_remove(client);
+ 		break;
+@@ -259,6 +249,8 @@ static int ov106xx_remove(struct i2c_client *client)
+ 	case ID_OV2311:
+ 		ov2311_remove(client);
+ 		break;
++	default:
++		break;
+ 	};
+ 
+ 	return 0;
+-- 
+2.7.4
+

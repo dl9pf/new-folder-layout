@@ -1,0 +1,73 @@
+From d71076d2f04dace4483f184899e365a27a74d07d Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 2 Dec 2019 01:20:34 +0300
+Subject: [PATCH 4/4] net: sh_eth: Fix RX error handling
+
+In case RX error occurs, and the RD_RFE bit is set, the descriptor
+is never returned back to the queue. Make sh_eth_recv_start return
+zero length in this case so that the descriptor can be released
+and pushed back to the list. Also return the more appropriate
+-EAGAIN instead of -EINVAL if the descriptor is not ready yet.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/sh_eth.c | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/net/sh_eth.c b/drivers/net/sh_eth.c
+index 5df078d..eeb1d32 100644
+--- a/drivers/net/sh_eth.c
++++ b/drivers/net/sh_eth.c
+@@ -125,11 +125,11 @@ static int sh_eth_recv_start(struct sh_eth_dev *eth)
+ 	/* Check if the rx descriptor is ready */
+ 	invalidate_cache(port_info->rx_desc_cur, sizeof(struct rx_desc_s));
+ 	if (port_info->rx_desc_cur->rd0 & RD_RACT)
+-		return -EINVAL;
++		return -EAGAIN;
+ 
+ 	/* Check for errors */
+ 	if (port_info->rx_desc_cur->rd0 & RD_RFE)
+-		return -EINVAL;
++		return 0;
+ 
+ 	return port_info->rx_desc_cur->rd1 & 0xffff;
+ }
+@@ -553,9 +553,11 @@ static int sh_eth_recv_common(struct sh_eth_dev *eth)
+ 	uchar *packet = (uchar *)ADDR_TO_P2(port_info->rx_desc_cur->rd2);
+ 
+ 	len = sh_eth_recv_start(eth);
+-	if (len > 0) {
+-		invalidate_cache(packet, len);
+-		net_process_received_packet(packet, len);
++	if (len >= 0) {
++		if (len > 0) {
++			invalidate_cache(packet, len);
++			net_process_received_packet(packet, len);
++		}
+ 		sh_eth_recv_finish(eth);
+ 	} else
+ 		len = 0;
+@@ -710,15 +712,13 @@ static int sh_ether_recv(struct udevice *dev, int flags, uchar **packetp)
+ 		*packetp = packet;
+ 
+ 		return len;
+-	} else {
+-		len = 0;
++	}
+ 
+-		/* Restart the receiver if disabled */
+-		if (!(sh_eth_read(port_info, EDRRR) & EDRRR_R))
+-			sh_eth_write(port_info, EDRRR_R, EDRRR);
++	/* Restart the receiver if disabled */
++	if (!(sh_eth_read(port_info, EDRRR) & EDRRR_R))
++		sh_eth_write(port_info, EDRRR_R, EDRRR);
+ 
+-		return -EAGAIN;
+-	}
++	return len;
+ }
+ 
+ static int sh_ether_free_pkt(struct udevice *dev, uchar *packet, int length)
+-- 
+2.7.4
+

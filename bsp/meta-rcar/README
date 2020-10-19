@@ -1,0 +1,22 @@
+OpenEmbedded/Yocto BSP layer for Renesas Electronics's SoCs on ADAS platforms
+==========
+This layer provides support for Renesas Electronics's ADAS platforms for use
+with OpenEmbedded and/or Yocto.
+
+Layer maintainers: <source@cogentembedded.com>
+
+Supported Boards/Machines
+=========================
+
+    * meta-rcar-gen3-adas
+        - Renesas Electronics Corporation. Salvator-X View (R8A7795/R8A7796)
+        - Renesas Electronics Corporation. ULCB View (R8A7795/R8A7796)
+        - Renesas Electronics Corporation. ULCB HAD (R8A7795)
+        - Renesas Electronics Corporation. ULCB Kingfisher (R8A7795/R8A7796/R8A77970/R8A77980)
+        - Renesas Electronics Corporation. ULCB Videobox (R8A7795)
+        - Renesas Electronics Corporation. ULCB VideoboxMini (R8A77970)
+        - Renesas Electronics Corporation. Eagle (R8A77970)
+        - Renesas Electronics Corporation. V3M Starter Kit (R8A77970)
+        - Renesas Electronics Corporation. Condor (R8A77980)
+        - Renesas Electronics Corporation. V3H Starter Kit (R8A77980)
+        - Renesas Electronics Corporation. R-Car Starter Kit pro(M3NULCB) (R8A77965)

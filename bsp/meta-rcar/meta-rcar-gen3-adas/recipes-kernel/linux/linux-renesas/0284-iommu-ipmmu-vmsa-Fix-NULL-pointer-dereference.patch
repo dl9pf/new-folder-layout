@@ -1,0 +1,29 @@
+From 500bf0198a7cdfc9dc2b854715728ce74944cfec Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 25 Jun 2019 22:43:44 +0300
+Subject: [PATCH 104/211] iommu: ipmmu-vmsa: Fix NULL pointer dereference
+
+This fixes possible NULL pointer dereference
+in case no whitelist is initialized.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/iommu/ipmmu-vmsa.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/iommu/ipmmu-vmsa.c b/drivers/iommu/ipmmu-vmsa.c
+index 4a3055f..cdbfc53 100644
+--- a/drivers/iommu/ipmmu-vmsa.c
++++ b/drivers/iommu/ipmmu-vmsa.c
+@@ -1485,7 +1485,7 @@ static int ipmmu_whitelist_init(struct ipmmu_vmsa_device *mmu)
+ 	else
+ 		mmu->whitelist = NULL;
+ 
+-	if (!mmu->whitelist[0])
++	if (!mmu->whitelist)
+ 		return -1;
+ 
+ 	return ipmmu_bm_init(mmu);
+-- 
+2.7.4
+

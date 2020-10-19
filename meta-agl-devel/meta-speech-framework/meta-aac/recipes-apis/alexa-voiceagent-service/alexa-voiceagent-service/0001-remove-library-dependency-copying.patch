@@ -1,0 +1,39 @@
+Remove copying of library dependencies
+
+Since we are targeting building into an image, the widget build does
+not have to copy host library dependencies into the widget as it would
+when being built standalone with the SDK.  Remove the copying, as
+runtime dependencies will be used to pull the libraries in.
+
+Upstream-Status: Inappropriate [embedded specific]
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/libs/CMakeLists.txt b/libs/CMakeLists.txt
+index 4732e7b..938e5f3 100644
+--- a/libs/CMakeLists.txt
++++ b/libs/CMakeLists.txt
+@@ -70,22 +70,13 @@ add_avs_library(SpeechEncoder ${AAC_HOME}/lib/libSpeechEncoder.so)
+ add_avs_library(OpusEncoderContext ${AAC_HOME}/lib/libOpusEncoderContext.so)
+ add_avs_library(SpeechSynthesizer ${AAC_HOME}/lib/libSpeechSynthesizer.so)
+ add_avs_library(TemplateRuntime ${AAC_HOME}/lib/libTemplateRuntime.so)
+-#add_avs_library(curl ${AAC_HOME}/lib/libcurl.so.4.5.0)
+-add_avs_library(curl ${AAC_HOME}/lib/libcurl.so.4)
+-#add_avs_library(nghttp2 ${AAC_HOME}/lib/libnghttp2.so.14.16)
+-add_avs_library(nghttp2 ${AAC_HOME}/lib/libnghttp2.so.14)
+-#add_avs_library(opus ${AAC_HOME}/lib/libopus.so.0.6.1)
+-add_avs_library(opus ${AAC_HOME}/lib/libopus.so.0)
+-#add_avs_library(sqlite3 ${AAC_HOME}/lib/libsqlite3.so.0.8.6)
+-add_avs_library(sqlite3 ${AAC_HOME}/lib/libsqlite3.so.0)
+ add_avs_library(equalizer ${AAC_HOME}/lib/libEqualizer.so)
+ add_avs_library(EqualizerImplementations ${AAC_HOME}/lib/libEqualizerImplementations.so)
+ 
+-if(EXISTS ${AAC_HOME}/lib/libpryon_lite.so.1.13)
++if(EXISTS ${AAC_HOME}/lib/libAACEAmazonLiteEngine.so)
+     add_aace_library(AACEAmazonLiteEngine)
+     add_avs_library(AMAZONLITE ${AAC_HOME}/lib/libAMAZONLITE.so)
+     add_avs_library(KeywordDetectorProvider ${AAC_HOME}/lib/libKeywordDetectorProvider.so)
+-    add_avs_library(pryon_lite ${AAC_HOME}/lib/libpryon_lite.so.1.13)
+ endif()
+ 
+ if(EXISTS ${AAC_HOME}/lib/libAACEGStreamerEngine.so)

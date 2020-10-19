@@ -1,0 +1,15 @@
+--- pulseaudio-9.0/src/daemon/default.pa.in.orig	2017-08-04 00:07:08.833004893 +0300
++++ pulseaudio-9.0/src/daemon/default.pa.in	2017-08-04 00:09:18.045102067 +0300
+@@ -162,8 +162,10 @@
+ ])dnl
+ 
+ ### Make some devices default
+-#set-default-sink output
+-#set-default-source input
++# DRA7xx-EVM CPU Board Line-Out/Headphone
++set-default-sink alsa_output.platform-sound0.analog-stereo
++# DRA7xx-EVM CPU Board Microphone/Line-In
++set-default-source alsa_input.platform-sound0.analog-stereo
+ 
+ .ifexists module-router.so
+ load-module module-router

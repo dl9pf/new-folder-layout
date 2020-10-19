@@ -1,0 +1,31 @@
+[[streams]]
+name = "Multimedia"
+priority = 25
+
+[[streams]]
+name = "Speech-Low"
+priority = 30
+
+[[streams]]
+name = "Custom-Low"
+priority = 35
+
+[[streams]]
+name = "Navigation"
+priority = 50
+
+[[streams]]
+name = "Speech-High"
+priority = 60
+
+[[streams]]
+name = "Custom-High"
+priority = 65
+
+[[streams]]
+name = "Communication"
+priority = 75
+
+[[streams]]
+name = "Emergency"
+priority = 99

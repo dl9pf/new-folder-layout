@@ -1,0 +1,78 @@
+From 83c415759f5b2ebdd19e0e3e1932bac3a63206f9 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Mon, 12 Nov 2018 15:43:59 +0300
+Subject: [PATCH 114/211] media: soc_camera: Add CONFIG_VIDEO_ADV_DEBUG
+ support.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/soc_camera.c | 30 ++++++++++++++++++++++++++
+ include/media/soc_camera.h                     |  4 ++++
+ 2 files changed, 34 insertions(+)
+
+diff --git a/drivers/media/platform/soc_camera/soc_camera.c b/drivers/media/platform/soc_camera/soc_camera.c
+index 1f840cf..0fa1f52 100644
+--- a/drivers/media/platform/soc_camera/soc_camera.c
++++ b/drivers/media/platform/soc_camera/soc_camera.c
+@@ -1056,6 +1056,32 @@ static int soc_camera_g_edid(struct file *file, void *fh,
+ 	return -ENOIOCTLCMD;
+ }
+ 
++#ifdef CONFIG_VIDEO_ADV_DEBUG
++static int soc_camera_g_register(struct file *file, void *priv,
++				 struct v4l2_dbg_register *reg)
++{
++	struct soc_camera_device *icd = file->private_data;
++	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
++
++	if (ici->ops->get_register)
++		return ici->ops->get_register(icd, reg);
++
++	return -ENOIOCTLCMD;
++}
++
++static int soc_camera_s_register(struct file *file, void *priv,
++				 const struct v4l2_dbg_register *reg)
++{
++	struct soc_camera_device *icd = file->private_data;
++	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
++
++	if (ici->ops->set_register)
++		return ici->ops->set_register(icd, reg);
++
++	return -ENOIOCTLCMD;
++}
++#endif
++
+ static int soc_camera_probe(struct soc_camera_host *ici,
+ 			    struct soc_camera_device *icd);
+ 
+@@ -2026,6 +2052,10 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
+ 	.vidioc_g_parm		 = soc_camera_g_parm,
+ 	.vidioc_s_parm		 = soc_camera_s_parm,
+ 	.vidioc_g_edid		 = soc_camera_g_edid,
++#ifdef CONFIG_VIDEO_ADV_DEBUG
++	.vidioc_g_register	= soc_camera_g_register,
++	.vidioc_s_register	= soc_camera_s_register,
++#endif
+ };
+ 
+ static int video_dev_create(struct soc_camera_device *icd)
+diff --git a/include/media/soc_camera.h b/include/media/soc_camera.h
+index 4381be0..c2a7fc2 100644
+--- a/include/media/soc_camera.h
++++ b/include/media/soc_camera.h
+@@ -119,6 +119,10 @@ struct soc_camera_host_ops {
+ 	int (*enum_framesizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
+ 	unsigned int (*poll)(struct file *, poll_table *);
+ 	int (*get_edid)(struct soc_camera_device *, struct v4l2_edid *);
++#ifdef CONFIG_VIDEO_ADV_DEBUG
++	int (*get_register)(struct soc_camera_device *, struct v4l2_dbg_register *reg);
++	int (*set_register)(struct soc_camera_device *, const struct v4l2_dbg_register *reg);
++#endif
+ };
+ 
+ #define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)
+-- 
+2.7.4
+

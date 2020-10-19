@@ -1,0 +1,1 @@
+SUBSYSTEM=="tty", KERNEL=="tty7", OWNER="@WESTONUSER@", SECLABEL{smack}="*", TAG+="systemd", ENV{SYSTEMD_WANTS}="weston@@WESTONUSER@.service"

@@ -1,0 +1,23 @@
+Enable etnaviv support in i.MX8MQ EVK devicetree
+
+Some further investigation is required into how to manage this upstream
+in meta-freescale, as it is not required for the i.MX6 platforms AFAIK.
+
+Upstream-Status: pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+---
+
+diff --git a/arch/arm64/boot/dts/freescale/imx8mq-evk.dts b/arch/arm64/boot/dts/freescale/imx8mq-evk.dts
+index f2a7e4069a0d..c0b6c5052656 100755
+--- a/arch/arm64/boot/dts/freescale/imx8mq-evk.dts
++++ b/arch/arm64/boot/dts/freescale/imx8mq-evk.dts
+@@ -1074,7 +1074,7 @@
+ 	status = "okay";
+ };
+ 
+-&gpu3d {
++&gpu {
+ 	status = "okay";
+ };
+ 

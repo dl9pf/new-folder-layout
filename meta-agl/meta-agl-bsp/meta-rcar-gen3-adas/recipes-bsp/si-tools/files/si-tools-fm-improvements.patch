@@ -1,0 +1,184 @@
+FM configuration improvements
+
+Changes include:
+- Add command-line option for selecting FM band plan.  The default
+  band plan is US / Canada.
+- Add command-line options for setting FM scanning valid SNR and RSSI
+  thresholds to allow tweaking sensitivity in poor radio environments.
+- Increased seeking scan timeout to 3 seconds, which seems to improve
+  behavior in poor radio environments where powerful stations may be
+  far apart.
+- Removed explicit setting of FM_SOFTMUTE_SNR_LIMITS, as it seemed
+  like it might be resulting in odd muting behavior when scanning.
+- Changed initial FM frequency if not specified to the minimum of the
+  band plan.
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/si46xx.h b/si46xx.h
+index 172ea8b..c32fca4 100644
+--- a/si46xx.h
++++ b/si46xx.h
+@@ -83,6 +83,7 @@
+ #define SI46XX_PIN_CONFIG_ENABLE 0x0800
+ #define SI46XX_FM_SEEK_BAND_BOTTOM 0x3100
+ #define SI46XX_FM_SEEK_BAND_TOP 0x3101
++#define SI46XX_FM_SEEK_FREQUENCY_SPACING 0x3102
+ #define SI46XX_FM_VALID_MAX_TUNE_ERROR 0x3200
+ #define SI46XX_FM_VALID_RSSI_TIME 0x3201
+ #define SI46XX_FM_VALID_RSSI_THRESHOLD 0x3202
+@@ -150,7 +151,7 @@
+ #define MAX_SERVICES 32
+ #define MAX_COMPONENTS 15
+ 
+-#define TIMEOUT_SEEK	2000	/* mS = 2S */
++#define TIMEOUT_SEEK	3000	/* mS = 3S */
+ #define TIMEOUT_TUNE	500	/* mS = .5S */
+ 
+ struct dab_service_t{
+diff --git a/si_ctl.c b/si_ctl.c
+index 59dfaf2..f168218 100644
+--- a/si_ctl.c
++++ b/si_ctl.c
+@@ -101,6 +101,26 @@ uint32_t frequency_list_ch[] = {	CHAN_12A,
+ 					CHAN_9D,
+ 					CHAN_8B};
+ 
++// Structure to describe FM band plans, all values in Hz.
++typedef struct {
++	char *name;
++	uint32_t min;
++	uint32_t max;
++	uint32_t step;
++} fm_band_plan_t;
++
++static fm_band_plan_t known_fm_band_plans[5] = {
++	{ .name = "US", .min = 87900000, .max = 107900000, .step = 200000 },
++	{ .name = "JP", .min = 76000000, .max = 95000000, .step = 100000 },
++	{ .name = "EU", .min = 87500000, .max = 108000000, .step = 50000 },
++	{ .name = "ITU-1", .min = 87500000, .max = 108000000, .step = 50000 },
++	{ .name = "ITU-2", .min = 87900000, .max = 107900000, .step = 50000 }
++};
++
++static unsigned int fm_band_plan;
++static int fm_snr_threshold = 128;
++static int fm_rssi_threshold = 128;
++
+ int init_am(int offset)
+ {
+ 	int ret;
+@@ -160,12 +180,32 @@ int init_fm(int offset)
+ 	 * enable I2S output
+ 	 */
+ 	si46xx_set_property(SI46XX_PIN_CONFIG_ENABLE, 0x0003);
+-	//si46xx_set_property(SI46XX_FM_VALID_RSSI_THRESHOLD,0x0000);
+-	//si46xx_set_property(SI46XX_FM_VALID_SNR_THRESHOLD,0x0000);
+-	si46xx_set_property(SI46XX_FM_SOFTMUTE_SNR_LIMITS, 0x0000); // set the SNR limits for soft mute attenuation
++	//si46xx_set_property(SI46XX_FM_SOFTMUTE_SNR_LIMITS, 0x0000); // set the SNR limits for soft mute attenuation
+ 	si46xx_set_property(SI46XX_FM_TUNE_FE_CFG, 0x0000); // front end switch open
+-	si46xx_set_property(SI46XX_FM_SEEK_BAND_BOTTOM, 88000 / 10);
+-	si46xx_set_property(SI46XX_FM_SEEK_BAND_TOP, 108000 / 10);
++
++	//si46xx_set_property(SI46XX_FM_SEEK_BAND_BOTTOM, 88000 / 10);
++	//si46xx_set_property(SI46XX_FM_SEEK_BAND_TOP, 108000 / 10);
++	if (verbose)
++		fprintf(stderr, "Using FM Bandplan: %s\n", known_fm_band_plans[fm_band_plan].name);
++	si46xx_set_property(SI46XX_FM_SEEK_BAND_BOTTOM, known_fm_band_plans[fm_band_plan].min / 10000);
++	si46xx_set_property(SI46XX_FM_SEEK_BAND_TOP, known_fm_band_plans[fm_band_plan].max / 10000);
++	if (verbose)
++		fprintf(stderr, "Using FM band: %d - %d, %d spacing\n",
++			known_fm_band_plans[fm_band_plan].min / 10000,
++			known_fm_band_plans[fm_band_plan].max / 10000,
++			known_fm_band_plans[fm_band_plan].step / 10000);
++	si46xx_set_property(SI46XX_FM_SEEK_FREQUENCY_SPACING, known_fm_band_plans[fm_band_plan].step / 10000);
++	if (fm_snr_threshold != 128) {
++		if (verbose)
++			fprintf(stderr, "Setting FM valid SNR threshold to %d dB\n", fm_snr_threshold);
++		si46xx_set_property(SI46XX_FM_VALID_SNR_THRESHOLD, fm_snr_threshold);
++	}
++	if (fm_rssi_threshold != 128) {
++		if (verbose)
++			fprintf(stderr, "Setting FM valid RSSI threshold to %d dB\n", fm_rssi_threshold);
++		si46xx_set_property(SI46XX_FM_VALID_RSSI_THRESHOLD, fm_rssi_threshold);
++	}
++
+ 	/*
+ 	 * rate
+ 	 */
+@@ -190,6 +230,7 @@ int init_fm(int offset)
+ 
+ 	return 0;
+ }
++
+ int init_dab(int offset)
+ {
+ 	int ret;
+@@ -245,6 +286,10 @@ int output_help(char *prog_name)
+ 	printf("  -l up|down     FM/AM seek next station\n");
+ 	printf("  -d             FM/AM RSQ status\n");
+ 	printf("  -m             FM rds status\n");
++	printf("Common FM:\n");
++	printf("  -p bandplan    FM bandplan (us, jp, eu, itu-1, itu-2\n");
++	printf("  -t SNR         FM scan valid SNR threshold (-127 to 127 dB)\n");
++	printf("  -u RSSI        FM scan valid RSSI threshold (-127 to 127 dBuV)\n");
+ 	printf("DAB only:\n");
+ 	printf("  -e             dab status\n");
+ 	printf("  -f service     start service of dab service list\n");
+@@ -354,6 +399,7 @@ int main(int argc, char **argv)
+ 	int offset = - 1;
+ 	int mode;
+ 	int tmp;
++	unsigned int i;
+ 	struct dab_digrad_status_t dab_digrad_status;
+ 	bool init = false;
+ 	bool seek_up = false;
+@@ -374,7 +420,7 @@ int main(int argc, char **argv)
+ 
+ 	optind = 0;
+ 	while (optind < argc) {
+-		if ((c = getopt(argc, argv, "a:b:c:def:ghi:j:k:l:mnosv")) != -1) {
++		if ((c = getopt(argc, argv, "a:b:c:def:ghi:j:k:l:mnop:st:u:v")) != -1) {
+ 			switch(c){
+ 			/* init */
+ 			case 'a':
+@@ -422,6 +468,31 @@ int main(int argc, char **argv)
+ 			case 'c':
+ 				frequency = atoi(optarg);
+ 				break;
++			/* FM */
++			case 'p':
++				for(i = 0;
++				    i < sizeof(known_fm_band_plans) / sizeof(fm_band_plan_t);
++				    i++) {
++					if(!strcasecmp(optarg, known_fm_band_plans[i].name)) {
++						fm_band_plan = i;
++						break;
++					}
++				}
++				if(i >= (sizeof(known_fm_band_plans) / sizeof(fm_band_plan_t))) {
++					printf("Invalid mode: %s\n", optarg);
++					return -EINVAL;
++				}
++				break;
++			case 't':
++				fm_snr_threshold = atoi(optarg);
++				if(fm_snr_threshold < -128 || fm_snr_threshold > 127)
++					fm_snr_threshold = 128; // use firmware default
++				break;
++			case 'u':
++				fm_rssi_threshold = atoi(optarg);
++				if(fm_rssi_threshold < -128 || fm_rssi_threshold > 127)
++					fm_rssi_threshold = 128; // use firmware default
++				break;
+ 			/* DAB stuff. TODO: rework */
+ 			case 'e':
+ 				si46xx_dab_digrad_status(&dab_digrad_status);
+@@ -473,7 +544,7 @@ int main(int argc, char **argv)
+ 			case SI46XX_MODE_FM:
+ 				ret = init_fm(offset);
+ 				if (frequency < 0)
+-					frequency = 105500;
++					frequency = known_fm_band_plans[fm_band_plan].min / 1000;
+ 			break;
+ 			case SI46XX_MODE_AM:
+ 				ret = init_am(offset);

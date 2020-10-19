@@ -1,0 +1,37 @@
+From 30f4055ad0dd5f3331def3131405fdc20879b828 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 16 Nov 2018 00:01:22 +0300
+Subject: [PATCH 187/211] mtd: spi-nor: Add s25fs512s and s25fs128s[01] SPI NOR
+ flash support
+
+Add support for the "s25fs512s", "s25fs128s0", and "s25fs128s1"
+SPI NOR flash chips. Update "s25fl512s" device info as well because
+the difference between FS and FL devices is at JEDEC byte 5.
+
+This is based on the original patch by Dmitry Shifrin.
+
+Signed-off-by: Dmitry Shifrin <dmitry.shifrin@cogentembedded.com>
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/mtd/spi-nor/spi-nor.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mtd/spi-nor/spi-nor.c b/drivers/mtd/spi-nor/spi-nor.c
+index d458523..49ffc9a 100644
+--- a/drivers/mtd/spi-nor/spi-nor.c
++++ b/drivers/mtd/spi-nor/spi-nor.c
+@@ -1057,7 +1057,10 @@ static const struct flash_info spi_nor_ids[] = {
+ 	{ "s25sl064p",  INFO(0x010216, 0x4d00,  64 * 1024, 128, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ 	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, USE_CLSR) },
+ 	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
+-	{ "s25fl512s",  INFO(0x010220, 0x4d00, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
++	{ "s25fl512s",  INFO6(0x010220, 0x4d0080, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
++	{ "s25fs512s",  INFO6(0x010220, 0x4d0081, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR | SECT_4K) },
++	{ "s25fs128s0",  INFO6(0x012018, 0x4d0381, 256 * 1024, 64, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR | SECT_4K) },
++	{ "s25fs128s1",  INFO6(0x012018, 0x4d0181, 64 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR | SECT_4K) },
+ 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
+ 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
+ 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
+-- 
+2.7.4
+

@@ -1,0 +1,49 @@
+From 5a618b444e424483c3a9d34dd9b196796cac8e3f Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Mon, 22 Jul 2019 13:29:52 -0700
+Subject: [PATCH] switch from G_BUS_TYPE_SESSION to G_BUS_TYPE_SYSTEM
+
+Signed-off-by: Matt Ranostay <matt.ranostay@konsulko.com>
+---
+ src/bin/lightmediascannerctl.c | 4 ++--
+ src/bin/lightmediascannerd.c   | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/bin/lightmediascannerctl.c b/src/bin/lightmediascannerctl.c
+index 5764bc0..1d4d844 100644
+--- a/src/bin/lightmediascannerctl.c
++++ b/src/bin/lightmediascannerctl.c
+@@ -11,7 +11,7 @@ start_service_by_name(void)
+     GVariant *var;
+     GDBusConnection *conn;
+ 
+-    conn = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
++    conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+     if (error) {
+         fprintf(stderr, "Could not get session bus connection: %s\n",
+                 error->message);
+@@ -526,7 +526,7 @@ main(int argc, char *argv[])
+ 
+     app.timer = NULL;
+     app.loop = g_main_loop_new(NULL, FALSE);
+-    app.proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
++    app.proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SYSTEM,
+                                               G_DBUS_PROXY_FLAGS_NONE,
+                                               NULL,
+                                               "org.lightmediascanner",
+diff --git a/src/bin/lightmediascannerd.c b/src/bin/lightmediascannerd.c
+index 319db42..6db81cc 100644
+--- a/src/bin/lightmediascannerd.c
++++ b/src/bin/lightmediascannerd.c
+@@ -1721,7 +1721,7 @@ main(int argc, char *argv[])
+     introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, NULL);
+     g_assert(introspection_xml != NULL);
+ 
+-    id = g_bus_own_name(G_BUS_TYPE_SESSION, "org.lightmediascanner",
++    id = g_bus_own_name(G_BUS_TYPE_SYSTEM, "org.lightmediascanner",
+                         G_BUS_NAME_OWNER_FLAGS_NONE,
+                         NULL, on_name_acquired, NULL, NULL, NULL);
+ 
+-- 
+2.20.1
+

@@ -1,0 +1,68 @@
+Add option to filter gcov source errors
+
+Add "--gcov-filter-source-errors" to apply filters to the source
+files in the errors from gcov.  If all source files in the errors
+are filtered, then the error is ignored so that the file will be
+processed.  This enables the usecase of running on a target where
+only the source tree for a binary is available, but not all of the
+external source headers are.
+
+Upstream-Status: pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/gcovr/configuration.py b/gcovr/configuration.py
+index 1356097..083532c 100644
+--- a/gcovr/configuration.py
++++ b/gcovr/configuration.py
+@@ -915,6 +915,14 @@ GCOVR_CONFIG_OPTIONS = [
+              "Default: {default!s}.",
+         action="store_true",
+     ),
++    GcovrConfigOption(
++        "gcov_filter_source_errors", ['--gcov-filter-source-errors'],
++        group="gcov_options",
++        help="Apply filters to missing source file errors in GCOV files "
++             "instead of exiting with an error. "
++             "Default: {default!s}.",
++        action="store_true",
++    ),
+     GcovrConfigOption(
+         "objdir", ['--object-directory'],
+         group="gcov_options",
+diff --git a/gcovr/gcov.py b/gcovr/gcov.py
+index de79215..171d68d 100644
+--- a/gcovr/gcov.py
++++ b/gcovr/gcov.py
+@@ -667,11 +667,27 @@ def run_gcov_and_process_files(
+             chdir=chdir,
+             tempdir=tempdir)
+ 
++    skip = False
+     if source_re.search(err):
+-        # gcov tossed errors: try the next potential_wd
+-        error(err)
+-        done = False
+-    else:
++        ignore = False
++        if options.gcov_filter_source_errors:
++            # Check if errors are all from source that is filtered
++            ignore = True
++            for line in err.splitlines():
++                src_fname = line.split()[-1]
++                filtered, excluded = apply_filter_include_exclude(
++                    src_fname, options.filter, options.exclude)
++                if not (filtered or excluded):
++                    ignore = False
++                    break
++
++        if not ignore:
++            # gcov tossed errors: try the next potential_wd
++            error(err)
++            skip = True
++
++    done = False
++    if not skip:
+         # Process *.gcov files
+         for fname in active_gcov_files:
+             process_gcov_data(fname, covdata, abs_filename, options)

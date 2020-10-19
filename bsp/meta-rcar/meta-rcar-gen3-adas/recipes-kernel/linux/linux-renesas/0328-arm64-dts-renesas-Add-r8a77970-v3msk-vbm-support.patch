@@ -1,0 +1,44 @@
+From 7e5d40d35e34010d650be7cb9a4d6aebca14cd73 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:30:38 +0300
+Subject: [PATCH 148/211] arm64: dts: renesas: Add r8a77970-v3msk-vbm support
+
+This adds r8a77970-v3msk-vbm device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile               | 2 ++
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 98d1479..1679e8c 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -38,5 +38,7 @@ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-eagle.dtb r8a77970-es1-eagle-functio
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-v3msk.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-view.dtb r8a77970-es1-v3msk-view.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-kf.dtb r8a77970-es1-v3msk-kf.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm.dtb r8a77970-es1-v3msk-vbm.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm-v2.dtb r8a77970-es1-v3msk-vbm-v2.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
+index a37ccaa..485de2a 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
+@@ -9,9 +9,10 @@
+  */
+ 
+ #include "r8a77970-v3msk.dts"
++#include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+-	model = "Renesas V3MSK Videobox Mini board based on r8a7797";
++	model = "Renesas V3MSK Videobox Mini board based on r8a77970";
+ 
+ 	aliases {
+ 		serial1 = &scif3;
+-- 
+2.7.4
+

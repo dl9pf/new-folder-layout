@@ -1,0 +1,74 @@
+From e5c437ef218ca86640a3c80c5e6a75602748ae5e Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Tue, 5 May 2020 00:35:42 +0300
+Subject: [PATCH 2/3] media: i2c: ap020x: add fsync support
+
+This adds fsync support
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c | 19 +++++++++++++------
+ drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.h | 12 ++++++++++++
+ 2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+index ad18e2e..8dfad4a 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
++++ b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+@@ -421,6 +421,18 @@ static int ap0201_initialize(struct i2c_client *client)
+ 	}
+ 
+ 	reg16_read16(client, AP0201_REV_REG, &rev);
++	/* Program wizard registers */
++	switch (pid) {
++	case AP0200_PID:
++	case AP0201_PID:
++		ap0201_set_regs(client, ap0201_regs_wizard, ARRAY_SIZE(ap0201_regs_wizard));
++		break;
++	case AP0202_PID:
++		ap0201_set_regs(client, ap0202_regs_wizard, ARRAY_SIZE(ap0202_regs_wizard));
++		break;
++	}
++	/* Read OTP IDs */
++	ap0201_otp_id_read(client);
+ #if 1
+ 	/* read resolution used by current firmware */
+ 	reg16_read16(client, 0xcae4, &val);
+@@ -431,12 +443,7 @@ static int ap0201_initialize(struct i2c_client *client)
+ 	priv->max_width = AP0201_MAX_WIDTH;
+ 	priv->max_height = AP0201_MAX_HEIGHT;
+ #endif
+-	/* Program wizard registers */
+-	ap0201_set_regs(client, ap0201_regs_wizard, ARRAY_SIZE(ap0201_regs_wizard));
+-	/* Read OTP IDs */
+-	ap0201_otp_id_read(client);
+-
+-	dev_info(&client->dev, "ap020X PID %x (%x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
++	dev_info(&client->dev, "ap020X PID %x (rev%x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+ 		 pid, rev, priv->max_width, priv->max_height, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ 	return 0;
+ }
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.h b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.h
+index c857edc..daf6bd6 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.h
++++ b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.h
+@@ -21,4 +21,16 @@ struct ap0201_reg {
+ 
+ static const struct ap0201_reg ap0201_regs_wizard[] = {
+ /* enable FSIN */
++{0xc88c, 0x0303},
++{0xfc00, 0x2800},
++{0x0040, 0x8100},
++{AP0201_DELAY, 100},
++};
++
++static const struct ap0201_reg ap0202_regs_wizard[] = {
++/* enable FSIN */
++{0xc890, 0x0303},
++{0xfc00, 0x2800},
++{0x0040, 0x8100},
++{AP0201_DELAY, 100},
+ };
+-- 
+2.7.4
+

@@ -1,0 +1,150 @@
+From 0812102bc301699c607229cb86b2bc8d385aef2f Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 19 Feb 2020 02:26:11 +0300
+Subject: [PATCH] media: soc_camera: rcar_csi2: add interrupts
+
+This enables interrupts from RCAR CSI2 and grab timestamp
+of received frames (EOF)
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/rcar_csi2.c | 58 ++++++++++++++++++++++++++-
+ 1 file changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/soc_camera/rcar_csi2.c b/drivers/media/platform/soc_camera/rcar_csi2.c
+index ffb28c7..ca47ba3 100644
+--- a/drivers/media/platform/soc_camera/rcar_csi2.c
++++ b/drivers/media/platform/soc_camera/rcar_csi2.c
+@@ -200,6 +200,7 @@ struct rcar_csi2_link_config {
+ 	unsigned long vcdt;
+ 	unsigned long vcdt2;
+ 	unsigned int csi_rate;
++	unsigned int use_interrupts;
+ };
+ 
+ #define INIT_RCAR_CSI2_LINK_CONFIG(m) \
+@@ -228,6 +229,8 @@ struct rcar_csi2 {
+ 	unsigned int			csi_rate;
+ 	spinlock_t			lock;
+ 	atomic_t			use_count;
++	unsigned int			use_interrupts;
++	u64				timestamp[4];
+ };
+ 
+ static int dump = 0;
+@@ -434,6 +437,7 @@ static irqreturn_t rcar_csi2_irq(int irq, void *data)
+ 	struct rcar_csi2 *priv = data;
+ 	u32 int_status;
+ 	unsigned int handled = 0;
++	u64 ts;
+ 
+ 	spin_lock(&priv->lock);
+ 
+@@ -441,6 +445,26 @@ static irqreturn_t rcar_csi2_irq(int irq, void *data)
+ 	if (!int_status)
+ 		goto done;
+ 
++	/* update timestamp on EOF for remote */
++	ts = ktime_get_ns();
++
++	if (int_status & RCAR_CSI2_INTSTATE_VD4_END) {
++		priv->timestamp[3] = ts;
++		//printk("eof vc3\n");
++	}
++	if (int_status & RCAR_CSI2_INTSTATE_VD3_END) {
++		priv->timestamp[2] = ts;
++		//printk("eof vc2\n");
++	}
++	if (int_status & RCAR_CSI2_INTSTATE_VD2_END) {
++		priv->timestamp[1] = ts;
++		//printk("eof vc1\n");
++	}
++	if (int_status & RCAR_CSI2_INTSTATE_VD1_END) {
++		priv->timestamp[0] = ts;
++		//printk("eof vc0\n");
++	}
++
+ 	/* ack interrupts */
+ 	iowrite32(int_status, priv->base + RCAR_CSI2_INTSTATE);
+ 	handled = 1;
+@@ -456,6 +480,10 @@ static void rcar_csi2_hwdeinit(struct rcar_csi2 *priv)
+ {
+ 	iowrite32(0, priv->base + RCAR_CSI2_PHYCNT);
+ 
++	/* mask interrupts */
++	iowrite32(~0U, priv->base + RCAR_CSI2_INTCLOSE);
++	/* ack interrupts */
++	iowrite32(~0U, priv->base + RCAR_CSI2_INTSTATE);
+ 	/* reset CSI2 hardware */
+ 	iowrite32(0x00000001, priv->base + RCAR_CSI2_SRST);
+ 	udelay(5);
+@@ -550,6 +578,18 @@ static int rcar_csi2_hwinit(struct rcar_csi2 *priv)
+ 	dev_dbg(&priv->pdev->dev, "CSI2 VCDT2: 0x%x\n",
+ 			 ioread32(priv->base + RCAR_CSI2_VCDT2));
+ 
++	if (priv->use_interrupts) {
++		/* EOF only interrupts */
++		tmp = RCAR_CSI2_INTSTATE_VD1_END | RCAR_CSI2_INTSTATE_VD2_END |
++		      RCAR_CSI2_INTSTATE_VD3_END | RCAR_CSI2_INTSTATE_VD4_END;
++		/* unmask interrupts */
++		iowrite32(~tmp, priv->base + RCAR_CSI2_INTCLOSE);
++		/* ack all interrupts */
++		iowrite32(~0U, priv->base + RCAR_CSI2_INTSTATE);
++		/* enable interrupts */
++		iowrite32(tmp, priv->base + RCAR_CSI2_INTEN);
++	}
++
+ 	/* wait until video decoder power off */
+ 	msleep(10);
+ 	{
+@@ -608,8 +648,21 @@ static int rcar_csi2_s_power(struct v4l2_subdev *sd, int on)
+ 	return ret;
+ }
+ 
++static long rcar_csi2_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
++{
++	struct rcar_csi2 *priv = v4l2_get_subdevdata(sd);
++
++	if (cmd > 4 || !priv->use_interrupts)
++		return -EINVAL;
++
++	*(u64 *)arg = priv->timestamp[cmd];
++
++	return 0;
++}
++
+ static struct v4l2_subdev_core_ops rcar_csi2_subdev_core_ops = {
+ 	.s_power	= rcar_csi2_s_power,
++	.ioctl		= rcar_csi2_ioctl,
+ };
+ 
+ static struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
+@@ -660,6 +713,9 @@ static int rcar_csi2_parse_dt(struct device_node *np,
+ 		printk(KERN_ERR "csi-rate not set\n");
+ 		return ret;
+ 	}
++	config->use_interrupts = 0;
++	if (of_property_read_bool(endpoint, "use-interrupts"))
++		config->use_interrupts = 1;
+ 	of_node_put(endpoint);
+ 
+ 	config->lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
+@@ -730,7 +786,6 @@ static int rcar_csi2_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+-	/* Interrupt unused so far */
+ 	irq = platform_get_irq(pdev, 0);
+ 
+ 	if (!res || (int)irq <= 0) {
+@@ -754,6 +809,7 @@ static int rcar_csi2_probe(struct platform_device *pdev)
+ 	priv->vcdt = link_config.vcdt;
+ 	priv->vcdt2 = link_config.vcdt2;
+ 	priv->csi_rate = link_config.csi_rate;
++	priv->use_interrupts = link_config.use_interrupts;
+ 	atomic_set(&priv->use_count, 0);
+ 
+ 	platform_set_drvdata(pdev, priv);
+-- 
+2.7.4
+

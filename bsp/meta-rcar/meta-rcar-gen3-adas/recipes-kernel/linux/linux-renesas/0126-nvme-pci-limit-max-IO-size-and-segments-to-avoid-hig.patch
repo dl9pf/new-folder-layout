@@ -1,0 +1,164 @@
+From 226592cd140ed5f1b08d2ceb51f1a1b2e629b506 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sun, 24 Feb 2019 01:05:24 +0300
+Subject: [PATCH 075/122] nvme-pci: limit max IO size and segments to avoid
+ high order allocations
+
+nvme requires an sg table allocation for each request. If the request
+is large, then the allocation can become quite large. For instance,
+with our default software settings of 1280KB IO size, we'll need
+10248 bytes of sg table. That turns into a 2nd order allocation,
+which we can't always guarantee. If we fail the allocation, blk-mq
+will retry it later. But there's no guarantee that we'll EVER be
+able to allocate that much contigious memory.
+
+Limit the IO size such that we never need more than a single page
+of memory. That's a lot faster and more reliable. Then back that
+allocation with a mempool, so that we know we'll always be able
+to succeed the allocation at some point.
+
+Signed-off-by: Jens Axboe <axboe@kernel.dk>
+Acked-by: Keith Busch <keith.busch@intel.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+(cherry picked from commit 943e942e6266f22babee5efeb00f8f672fbff5bd
+https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas.git)
+
+Slightly modified the original commit to make it apply with no fuzz.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/nvme/host/core.c |  1 +
+ drivers/nvme/host/nvme.h |  1 +
+ drivers/nvme/host/pci.c  | 42 +++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
+index 3a63d58..adb9196 100644
+--- a/drivers/nvme/host/core.c
++++ b/drivers/nvme/host/core.c
+@@ -1513,6 +1513,7 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
+ 		u32 max_segments =
+ 			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1;
+ 
++		max_segments = min_not_zero(max_segments, ctrl->max_segments);
+ 		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
+ 		blk_queue_max_segments(q, min_t(u32, max_segments, USHRT_MAX));
+ 	}
+diff --git a/drivers/nvme/host/nvme.h b/drivers/nvme/host/nvme.h
+index 7ef0a8e..d207ff1 100644
+--- a/drivers/nvme/host/nvme.h
++++ b/drivers/nvme/host/nvme.h
+@@ -159,6 +159,7 @@ struct nvme_ctrl {
+ 	u64 cap;
+ 	u32 page_size;
+ 	u32 max_hw_sectors;
++	u32 max_segments;
+ 	u16 oncs;
+ 	u16 vid;
+ 	u16 oacs;
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 8f234b5..4c585e7 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -47,6 +47,13 @@
+ 
+ #define SGES_PER_PAGE	(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
+ 
++/*
++ * These can be higher, but we need to ensure that any command doesn't
++ * require an sg allocation that needs more than a page of data.
++ */
++#define NVME_MAX_KB_SZ	4096
++#define NVME_MAX_SEGS	127
++
+ static int use_threaded_interrupts;
+ module_param(use_threaded_interrupts, int, 0);
+ 
+@@ -109,6 +116,8 @@ struct nvme_dev {
+ 	struct nvme_ctrl ctrl;
+ 	struct completion ioq_wait;
+ 
++	mempool_t *iod_mempool;
++
+ 	/* shadow doorbell buffer support: */
+ 	u32 *dbbuf_dbs;
+ 	dma_addr_t dbbuf_dbs_dma_addr;
+@@ -473,10 +482,7 @@ static blk_status_t nvme_init_iod(struct request *rq, struct nvme_dev *dev)
+ 	unsigned int size = blk_rq_payload_bytes(rq);
+ 
+ 	if (nseg > NVME_INT_PAGES || size > NVME_INT_BYTES(dev)) {
+-		size_t alloc_size = nvme_pci_iod_alloc_size(dev, size, nseg,
+-				iod->use_sgl);
+-
+-		iod->sg = kmalloc(alloc_size, GFP_ATOMIC);
++		iod->sg = mempool_alloc(dev->iod_mempool, GFP_ATOMIC);
+ 		if (!iod->sg)
+ 			return BLK_STS_RESOURCE;
+ 	} else {
+@@ -522,7 +528,7 @@ static void nvme_free_iod(struct nvme_dev *dev, struct request *req)
+ 	}
+ 
+ 	if (iod->sg != iod->inline_sg)
+-		kfree(iod->sg);
++		mempool_free(iod->sg, dev->iod_mempool);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INTEGRITY
+@@ -2303,6 +2309,7 @@ static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
+ 		blk_put_queue(dev->ctrl.admin_q);
+ 	kfree(dev->queues);
+ 	free_opal_dev(dev->ctrl.opal_dev);
++	mempool_destroy(dev->iod_mempool);
+ 	kfree(dev);
+ }
+ 
+@@ -2345,6 +2352,13 @@ static void nvme_reset_work(struct work_struct *work)
+ 	if (result)
+ 		goto out;
+ 
++	/*
++	 * Limit the max command size to prevent iod->sg allocations going
++	 * over a single page.
++	 */
++	dev->ctrl.max_hw_sectors = NVME_MAX_KB_SZ << 1;
++	dev->ctrl.max_segments = NVME_MAX_SEGS;
++
+ 	result = nvme_init_identify(&dev->ctrl);
+ 	if (result)
+ 		goto out;
+@@ -2496,6 +2510,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+ 	int node, result = -ENOMEM;
+ 	struct nvme_dev *dev;
+ 	unsigned long quirks = id->driver_data;
++	size_t alloc_size;
+ 
+ 	node = dev_to_node(&pdev->dev);
+ 	if (node == NUMA_NO_NODE)
+@@ -2533,6 +2548,23 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+ 	if (result)
+ 		goto release_pools;
+ 
++	/*
++	 * Double check that our mempool alloc size will cover the biggest
++	 * command we support.
++	 */
++	alloc_size = nvme_pci_iod_alloc_size(dev, NVME_MAX_KB_SZ,
++						NVME_MAX_SEGS, true);
++	WARN_ON_ONCE(alloc_size > PAGE_SIZE);
++
++	dev->iod_mempool = mempool_create_node(1, mempool_kmalloc,
++						mempool_kfree,
++						(void *) alloc_size,
++						GFP_KERNEL, node);
++	if (!dev->iod_mempool) {
++		result = -ENOMEM;
++		goto release_pools;
++	}
++
+ 	dev_info(dev->ctrl.device, "pci function %s\n", dev_name(&pdev->dev));
+ 
+ 	nvme_reset_ctrl(&dev->ctrl);
+-- 
+2.7.4
+

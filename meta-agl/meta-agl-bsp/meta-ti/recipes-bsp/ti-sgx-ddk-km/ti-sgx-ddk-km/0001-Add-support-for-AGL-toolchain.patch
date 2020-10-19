@@ -1,0 +1,30 @@
+From 11131a5e778d19c06eefbcf61447c6efbcee0613 Mon Sep 17 00:00:00 2001
+From: Paul Barker <paul.barker@sancloud.co.uk>
+Date: Mon, 18 Nov 2019 08:47:41 +0000
+Subject: [PATCH] Add support for AGL toolchain
+
+We can use the pre-existing config for arm-linux-gnueabihf, we just need
+to make sure our toolchain is matched against this and not
+arm-linux-gnueabi.
+
+Signed-off-by: Paul Barker <paul.barker@sancloud.co.uk>
+---
+ eurasia_km/eurasiacon/build/linux2/config/compiler.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/eurasia_km/eurasiacon/build/linux2/config/compiler.mk b/eurasia_km/eurasiacon/build/linux2/config/compiler.mk
+index 2ba3e5e..03e86c5 100644
+--- a/eurasia_km/eurasiacon/build/linux2/config/compiler.mk
++++ b/eurasia_km/eurasiacon/build/linux2/config/compiler.mk
+@@ -68,7 +68,7 @@ define calculate-compiler-preferred-target
+   ifneq ($$(filter aarch64-%,$$($(1)_compiler_preferred_target)),)
+    $(1)_compiler_preferred_target := aarch64-linux-gnu
+   endif
+-  ifneq ($$(filter arm-%-gnueabihf arm-oe-linux-gnueabi,$$($(1)_compiler_preferred_target)),)
++  ifneq ($$(filter arm-%-gnueabihf arm-oe-linux-gnueabi arm-agl-linux-gnueabi,$$($(1)_compiler_preferred_target)),)
+    $(1)_compiler_preferred_target := arm-linux-gnueabihf
+   endif
+   ifneq ($$(filter arm-%-gnueabi armv7a-cros-linux-gnueabi armv7hl-redhat-linux-gnueabi,$$($(1)_compiler_preferred_target)),)
+-- 
+2.17.1
+

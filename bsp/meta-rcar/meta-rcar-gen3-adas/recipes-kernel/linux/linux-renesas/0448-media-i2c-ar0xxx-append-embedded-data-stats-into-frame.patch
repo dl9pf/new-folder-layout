@@ -1,0 +1,252 @@
+From 294a1931ebc209c2950120c0f2cf24419dd8a1af Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 13 Dec 2019 23:10:27 +0300
+Subject: [PATCH] media: i2c: ar0xxx: append embedded data/stats into frame
+
+This allows to append embedded data/stats into active frame
+after setup via sysfs of valeu emb_enable
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0220_rev2.h |  8 ++--
+ drivers/media/i2c/soc_camera/ar0231_rev7.h |  8 ++--
+ drivers/media/i2c/soc_camera/ar0233.c      | 60 +++++++++++++++++++++++++-----
+ drivers/media/i2c/soc_camera/ar0233_rev1.h |  8 ++--
+ drivers/media/i2c/soc_camera/ar0233_rev2.h |  8 ++--
+ drivers/media/i2c/soc_camera/ov106xx.c     |  4 +-
+ 6 files changed, 67 insertions(+), 29 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0220_rev2.h b/drivers/media/i2c/soc_camera/ar0220_rev2.h
+index c66872d..12845cd 100644
+--- a/drivers/media/i2c/soc_camera/ar0220_rev2.h
++++ b/drivers/media/i2c/soc_camera/ar0220_rev2.h
+@@ -311,10 +311,10 @@ static const struct ar0xxx_reg ar0220_rev2_hdr_12bit_output[] = {
+ 
+ static const struct ar0xxx_reg ar0220_rev2_mipi_12bit_4lane[] = {
+ {0x31AE, 0x204}, // serial_format: MIPI 4 lanes
+-//{0x3342, 0x122C}, // default, DT=0x12, DT=0x2C
+-//{0x3346, 0x122C}, // default, DT=0x12, DT=0x2C
+-//{0x334A, 0x122C}, // default, DT=0x12, DT=0x2C
+-//{0x334E, 0x122C}, // default, DT=0x12, DT=0x2C
++{0x3342, 0x2c2c}, // default, DT=0x12, DT=0x2C
++{0x3346, 0x2c2c}, // default, DT=0x12, DT=0x2C
++{0x334A, 0x2c2c}, // default, DT=0x12, DT=0x2C
++{0x334E, 0x2c2c}, // default, DT=0x12, DT=0x2C
+ //{0x3344, 0x0011}, // default, VC=0
+ //{0x3348, 0x0111}, // default, VC=1
+ //{0x334C, 0x0211}, // default, VC=2
+diff --git a/drivers/media/i2c/soc_camera/ar0231_rev7.h b/drivers/media/i2c/soc_camera/ar0231_rev7.h
+index 704024a..b4c11c3 100644
+--- a/drivers/media/i2c/soc_camera/ar0231_rev7.h
++++ b/drivers/media/i2c/soc_camera/ar0231_rev7.h
+@@ -367,10 +367,10 @@ static const struct ar0231_reg ar0231_regs_wizard_rev7[] = {
+ 
+ #if 1 /* MIPI 12 bit Settings */
+ {0x31AE, 0x204}, // serial_format: MIPI 4 lanes
+-//{0x3342, 0x122C}, // default, DT=0x12, DT=0x2C
+-//{0x3346, 0x122C}, // default, DT=0x12, DT=0x2C
+-//{0x334A, 0x122C}, // default, DT=0x12, DT=0x2C
+-//{0x334E, 0x122C}, // default, DT=0x12, DT=0x2C
++{0x3342, 0x2c2c}, // default, DT=0x12, DT=0x2C
++{0x3346, 0x2c2c}, // default, DT=0x12, DT=0x2C
++{0x334A, 0x2c2c}, // default, DT=0x12, DT=0x2C
++{0x334E, 0x2c2c}, // default, DT=0x12, DT=0x2C
+ //{0x3344, 0x0011}, // default, VC=0
+ //{0x3348, 0x0111}, // default, VC=1
+ //{0x334C, 0x0211}, // default, VC=2
+diff --git a/drivers/media/i2c/soc_camera/ar0233.c b/drivers/media/i2c/soc_camera/ar0233.c
+index 312b9fe..b62fb77 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.c
++++ b/drivers/media/i2c/soc_camera/ar0233.c
+@@ -23,6 +23,7 @@
+ #define AR_DELAY		0xffff
+ static int AR_MAX_WIDTH;
+ static int AR_MAX_HEIGHT;
++#define AR_MAX_HEIGHT_EMB	(AR_MAX_HEIGHT + priv->emb_enable * 4) /* embedded data (SOF) and stats (EOF) */
+ static int AR_X_START;
+ static int AR_Y_START;
+ static int AR_X_END;
+@@ -55,6 +56,7 @@ struct ar0233_priv {
+ 	struct v4l2_rect		rect;
+ 	int				init_complete;
+ 	u8				id[6];
++	bool				emb_enable;
+ 	/* serializers */
+ 	int				ti9x4_addr;
+ 	int				ti9x3_addr;
+@@ -121,7 +123,8 @@ static int ar0233_set_window(struct v4l2_subdev *sd)
+ 	/* vert crop start */
+ 	reg16_write16(client, 0x3002, priv->rect.top + AR_Y_START);
+ 	/* vert crop end */
+-	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR_Y_START);
++	/* limit window for embedded data/stats */
++	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR_Y_START - priv->emb_enable * 4);
+ 
+ 	return 0;
+ };
+@@ -207,7 +210,7 @@ static int ar0233_set_selection(struct v4l2_subdev *sd,
+ 	rect->height = ALIGN(rect->height, 2);
+ 
+ 	if ((rect->left + rect->width > AR_MAX_WIDTH) ||
+-	    (rect->top + rect->height > AR_MAX_HEIGHT))
++	    (rect->top + rect->height > AR_MAX_HEIGHT_EMB))
+ 		*rect = priv->rect;
+ 
+ 	priv->rect.left = rect->left;
+@@ -235,13 +238,13 @@ static int ar0233_get_selection(struct v4l2_subdev *sd,
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+ 		sel->r.width = AR_MAX_WIDTH;
+-		sel->r.height = AR_MAX_HEIGHT;
++		sel->r.height = AR_MAX_HEIGHT_EMB;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+ 		sel->r.width = AR_MAX_WIDTH;
+-		sel->r.height = AR_MAX_HEIGHT;
++		sel->r.height = AR_MAX_HEIGHT_EMB;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP:
+ 		sel->r = priv->rect;
+@@ -413,7 +416,42 @@ static ssize_t ar0233_otp_id_show(struct device *dev,
+ 			priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ }
+ 
+-static DEVICE_ATTR(otp_id_ar0233, S_IRUGO, ar0233_otp_id_show, NULL);
++static ssize_t ar0233_emb_enable_store(struct device *dev,
++				       struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0233_priv *priv = to_ar0233(client);
++	u32 val;
++
++	if (sscanf(buf, "%u\n", &val) != 1)
++		return -EINVAL;
++	priv->emb_enable = !!val;
++
++	switch (chipid) {
++	case AR0220_PID:
++		reg16_write16(client, 0x3064, priv->emb_enable ? 0x1982 : 0x1802); break;
++	case AR0233_PID:
++		reg16_write16(client, 0x3064, priv->emb_enable ? 0x0180 : 0); break;
++	default:
++		return -EINVAL;
++	}
++
++	return count;
++}
++
++static ssize_t ar0233_emb_enable_show(struct device *dev,
++				      struct device_attribute *attr, char *buf)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0233_priv *priv = to_ar0233(client);
++
++	return snprintf(buf, 4, "%d\n", priv->emb_enable);
++}
++
++static DEVICE_ATTR(otp_id, S_IRUGO, ar0233_otp_id_show, NULL);
++static DEVICE_ATTR(emb_enable, S_IRUGO|S_IWUSR, ar0233_emb_enable_show, ar0233_emb_enable_store);
+ 
+ static int ar0233_initialize(struct i2c_client *client)
+ {
+@@ -454,7 +492,7 @@ static int ar0233_initialize(struct i2c_client *client)
+ 
+ 	switch (pid) {
+ 		case AR0220_PID:
+-			chipid = ID_AR0220;
++			chipid = AR0220_PID;
+ 			strncpy(chip_name, "AR0220", 10);
+ 			AR_MAX_WIDTH = AR0220_MAX_WIDTH;
+ 			AR_MAX_HEIGHT = AR0220_MAX_HEIGHT;
+@@ -490,7 +528,7 @@ static int ar0233_initialize(struct i2c_client *client)
+ 			}
+ 			break;
+ 		case AR0233_PID:
+-			chipid = ID_AR0233;
++			chipid = AR0233_PID;
+ 			strncpy(chip_name, "AR0233", 10);
+ 			AR_MAX_WIDTH = AR0233_MAX_WIDTH;
+ 			AR_MAX_HEIGHT = AR0233_MAX_HEIGHT;
+@@ -662,8 +700,9 @@ static int ar0233_probe(struct i2c_client *client,
+ 	if (ret)
+ 		goto cleanup;
+ 
+-	if (device_create_file(&client->dev, &dev_attr_otp_id_ar0233) != 0) {
+-		dev_err(&client->dev, "sysfs otp_id entry creation failed\n");
++	if (device_create_file(&client->dev, &dev_attr_otp_id) != 0 ||
++	    device_create_file(&client->dev, &dev_attr_emb_enable) != 0) {
++		dev_err(&client->dev, "sysfs entry creation failed\n");
+ 		goto cleanup;
+ 	}
+ 
+@@ -686,7 +725,8 @@ static int ar0233_remove(struct i2c_client *client)
+ {
+ 	struct ar0233_priv *priv = i2c_get_clientdata(client);
+ 
+-	device_remove_file(&client->dev, &dev_attr_otp_id_ar0233);
++	device_remove_file(&client->dev, &dev_attr_otp_id);
++	device_remove_file(&client->dev, &dev_attr_emb_enable);
+ 	v4l2_async_unregister_subdev(&priv->sd);
+ 	media_entity_cleanup(&priv->sd.entity);
+ 	v4l2_ctrl_handler_free(&priv->hdl);
+diff --git a/drivers/media/i2c/soc_camera/ar0233_rev1.h b/drivers/media/i2c/soc_camera/ar0233_rev1.h
+index 0389e51..3ff944f 100644
+--- a/drivers/media/i2c/soc_camera/ar0233_rev1.h
++++ b/drivers/media/i2c/soc_camera/ar0233_rev1.h
+@@ -1138,10 +1138,10 @@ static const struct ar0xxx_reg ar0233_rev1_MIPI_4Lane_12BITS[] = {
+ {0x31B8, 0x4047}, //mipi_timing_2
+ {0x31BA, 0x105}, //mipi_timing_3
+ {0x31BC, 0x704}, //mipi_timing_4
+-{0x3342, 0x122C}, // MIPI_F1_PDT_EDT
+-{0x3346, 0x122C}, // MIPI_F2_PDT_EDT
+-{0x334A, 0x122C}, // MIPI_F3_PDT_EDT
+-{0x334E, 0x122C}, // MIPI_F4_PDT_EDT
++{0x3342, 0x2c2c}, // MIPI_F1_PDT_EDT
++{0x3346, 0x2c2c}, // MIPI_F2_PDT_EDT
++{0x334A, 0x2c2c}, // MIPI_F3_PDT_EDT
++{0x334E, 0x2c2c}, // MIPI_F4_PDT_EDT
+ { }
+ }; /* MIPI_4Lane_12BITS */
+ 
+diff --git a/drivers/media/i2c/soc_camera/ar0233_rev2.h b/drivers/media/i2c/soc_camera/ar0233_rev2.h
+index 7f71056..80572ff 100644
+--- a/drivers/media/i2c/soc_camera/ar0233_rev2.h
++++ b/drivers/media/i2c/soc_camera/ar0233_rev2.h
+@@ -2341,10 +2341,10 @@ static const struct ar0xxx_reg ar0233_rev2_mipi_12bit_4lane[] = {
+ {0x31B8, 0xB04D}, //mipi_timing_2
+ {0x31BA, 0x411}, //mipi_timing_3
+ {0x31BC, 0x940E}, //mipi_timing_4
+-{0x3342, 0x122C}, // MIPI_F1_PDT_EDT
+-{0x3346, 0x122C}, // MIPI_F2_PDT_EDT
+-{0x334A, 0x122C}, // MIPI_F3_PDT_EDT
+-{0x334E, 0x122C}, // MIPI_F4_PDT_EDT
++{0x3342, 0x2c2c}, // MIPI_F1_PDT_EDT
++{0x3346, 0x2c2c}, // MIPI_F2_PDT_EDT
++{0x334A, 0x2c2c}, // MIPI_F3_PDT_EDT
++{0x334E, 0x2c2c}, // MIPI_F4_PDT_EDT
+ { }
+ }; /* mipi_12bit_4lane */
+ 
+diff --git a/drivers/media/i2c/soc_camera/ov106xx.c b/drivers/media/i2c/soc_camera/ov106xx.c
+index 876b3c1..4d5e084 100644
+--- a/drivers/media/i2c/soc_camera/ov106xx.c
++++ b/drivers/media/i2c/soc_camera/ov106xx.c
+@@ -79,10 +79,8 @@ static int ov106xx_probe(struct i2c_client *client,
+ 	}
+ 
+ 	ret = ar0233_probe(client, did);
+-	if (!ret) {
+-		chip_id = ID_AR0233;
++	if (!ret)
+ 		goto out;
+-	}
+ 
+ 	ret = ar0323_probe(client, did);
+ 	if (!ret) {
+-- 
+2.7.4
+

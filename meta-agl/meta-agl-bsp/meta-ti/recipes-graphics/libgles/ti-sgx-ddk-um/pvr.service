@@ -1,0 +1,19 @@
+[Unit]
+Description=PVR service
+SourcePath=/etc/ti-sgx/rc.pvr
+DefaultDependencies=no
+Before=psplash-start.service
+
+[Service]
+Type=forking
+Restart=no
+TimeoutSec=5min
+IgnoreSIGPIPE=no
+KillMode=process
+GuessMainPID=no
+RemainAfterExit=yes
+ExecStart=/etc/ti-sgx/rc.pvr start
+ExecStop=/etc/ti-sgx/rc.pvr stop
+
+[Install]
+WantedBy=sysinit.target

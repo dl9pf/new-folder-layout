@@ -1,0 +1,15 @@
+--- a/bs_main.c
++++ b/bs_main.c
+@@ -165,9 +165,9 @@
+   //pMainData->pRubberband = bs_rubberband_create(2.5f, 3.0f); 
+   pMainData->pEnv = bs_env_create(0.0f, 0.0f, 6.0f, 4.0f); 
+   pMainData->pGravity = bs_vector_create(0.0f, 10.0f); 
+-  pMainData->pCairoSdl = bs_cairo_sdl_create(600, 400); 
+-  pMainData->width = 600.0; 
+-  pMainData->height = 400.0; 
++  pMainData->pCairoSdl = bs_cairo_sdl_create(1600, 1024); 
++  pMainData->width = 1600.0; 
++  pMainData->height = 1024.0; 
+   pMainData->newTimerInterval = 50; 
+   pMainData->fps = 20.0; 
+   pMainData->running = TRUE; 

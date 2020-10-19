@@ -1,0 +1,54 @@
+From 466e494ad2496bc1ec16a56425efef8023d5520d Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 14 Feb 2020 18:28:21 +0300
+Subject: [PATCH] media: i2c: ar0231: fix FSIN pin input
+
+This fixes lost FSIN gpio pin enablement on AR0231.
+Also explicitly enable gpi pins on ar0143/140
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0140.c | 1 +
+ drivers/media/i2c/soc_camera/ar0143.c | 1 +
+ drivers/media/i2c/soc_camera/ar0231.c | 1 +
+ 3 files changed, 3 insertions(+)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0140.c b/drivers/media/i2c/soc_camera/ar0140.c
+index ceb2c31..bb7a3ce 100644
+--- a/drivers/media/i2c/soc_camera/ar0140.c
++++ b/drivers/media/i2c/soc_camera/ar0140.c
+@@ -495,6 +495,7 @@ static int ar0140_initialize(struct i2c_client *client)
+ 	ar0140_set_regs(client, ar0140_regs_wizard, ARRAY_SIZE(ar0140_regs_wizard));
+ 	/* Enable stream */
+ 	reg16_read16(client, 0x301a, &val);	// read inital reset_register value
++	val |= (1 << 8);			/* GPI pins enable */
+ 	val |= (1 << 2);			// Set streamOn bit
+ 	reg16_write16(client, 0x301a, val);	// Start Streaming
+ 
+diff --git a/drivers/media/i2c/soc_camera/ar0143.c b/drivers/media/i2c/soc_camera/ar0143.c
+index 7d55afb..07cc445 100644
+--- a/drivers/media/i2c/soc_camera/ar0143.c
++++ b/drivers/media/i2c/soc_camera/ar0143.c
+@@ -584,6 +584,7 @@ static int ar0143_initialize(struct i2c_client *client)
+ 
+ 	/* Enable stream */
+ 	reg16_read16(client, 0x301a, &val);
++	val |= (1 << 8); /* GPI pins enable */
+ 	val |= (1 << 2);
+ 	reg16_write16(client, 0x301a, val);
+ 
+diff --git a/drivers/media/i2c/soc_camera/ar0231.c b/drivers/media/i2c/soc_camera/ar0231.c
+index c51ae9ad..6c450f7 100644
+--- a/drivers/media/i2c/soc_camera/ar0231.c
++++ b/drivers/media/i2c/soc_camera/ar0231.c
+@@ -455,6 +455,7 @@ static int ar0231_initialize(struct i2c_client *client)
+ 
+ 	/* Enable stream */
+ 	reg16_read16(client, 0x301a, &val);
++	val |= (1 << 8); /* GPI pins enable */
+ 	val |= (1 << 2);
+ 	reg16_write16(client, 0x301a, val);
+ 
+-- 
+2.7.4
+

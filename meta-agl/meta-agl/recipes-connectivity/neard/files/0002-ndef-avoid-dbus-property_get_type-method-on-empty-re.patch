@@ -1,0 +1,33 @@
+From d7ea2a00e00795ad24897e3481b015a27d37d60f Mon Sep 17 00:00:00 2001
+From: Raquel Medina <raquel.medina@konsulko.com>
+Date: Tue, 22 Jan 2019 09:00:05 -0500
+Subject: [PATCH] ndef: avoid dbus property_get_type method  on empty record
+
+Signed-off-by: Raquel Medina <raquel.medina@konsulko.com>
+---
+ src/ndef.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/ndef.c b/src/ndef.c
+index 5656baf..883c6f4 100644
+--- a/src/ndef.c
++++ b/src/ndef.c
+@@ -2832,10 +2832,14 @@ GList *near_ndef_parse_msg(uint8_t *ndef_data, size_t ndef_length,
+ 		case RECORD_TYPE_WKT_ALTERNATIVE_CARRIER:
+ 		case RECORD_TYPE_WKT_COLLISION_RESOLUTION:
+ 		case RECORD_TYPE_WKT_ERROR:
+-		case RECORD_TYPE_UNKNOWN:
+ 		case RECORD_TYPE_ERROR:
+ 			break;
+ 
++		case RECORD_TYPE_UNKNOWN:
++			if (record->header->tnf == RECORD_TNF_EMPTY)
++				goto fail;
++			break;
++
+ 		case RECORD_TYPE_WKT_HANDOVER_REQUEST:
+ 		case RECORD_TYPE_WKT_HANDOVER_SELECT:
+ 			/*
+-- 
+2.17.1
+

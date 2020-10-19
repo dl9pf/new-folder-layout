@@ -1,0 +1,5340 @@
+From e8fd03e53c50c67a2aebf19f39a9f14b583f0e2d Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Sun, 14 May 2017 14:48:08 +0300
+Subject: [PATCH] arm64: renesas: r8a7797: Add Renesas R8A7797 SoC support
+
+This adds Renesas R8A7797 SoC support
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ arch/arm64/Kconfig.platforms                  |    8 +
+ arch/arm64/boot/dts/renesas/r8a7797.dtsi      | 1156 +++++++++++
+ drivers/clk/renesas/Kconfig                   |    1 +
+ drivers/clk/renesas/Makefile                  |    1 +
+ drivers/clk/renesas/r8a7797-cpg-mssr.c        |  232 +++
+ drivers/clk/renesas/rcar-gen3-cpg.c           |   41 +-
+ drivers/clk/renesas/rcar-gen3-cpg.h           |    6 +
+ drivers/clk/renesas/renesas-cpg-mssr.c        |    6 +
+ drivers/clk/renesas/renesas-cpg-mssr.h        |    1 +
+ drivers/cpufreq/cpufreq-dt-platdev.c          |    1 +
+ drivers/gpio/gpio-rcar.c                      |    6 +-
+ drivers/gpu/drm/rcar-du/rcar_du_drv.c         |   25 +
+ drivers/gpu/drm/rcar-du/rcar_du_group.c       |   12 +-
+ drivers/gpu/drm/rcar-du/rcar_du_lvdsenc.c     |   38 +-
+ drivers/i2c/busses/i2c-rcar.c                 |    1 +
+ drivers/iommu/ipmmu-vmsa.c                    |    7 +-
+ drivers/media/platform/soc_camera/Kconfig     |    2 +-
+ drivers/media/platform/soc_camera/rcar_csi2.c |   26 +-
+ drivers/media/platform/soc_camera/rcar_vin.c  |   86 +-
+ drivers/media/platform/vsp1/vsp1_drv.c        |    9 +
+ drivers/media/platform/vsp1/vsp1_lif.c        |   12 +-
+ drivers/media/platform/vsp1/vsp1_regs.h       |    7 +
+ drivers/mmc/host/sh_mobile_sdhi.c             |    1 +
+ drivers/net/ethernet/renesas/ravb_main.c      |    1 +
+ drivers/pinctrl/sh-pfc/Kconfig                |    5 +
+ drivers/pinctrl/sh-pfc/Makefile               |    1 +
+ drivers/pinctrl/sh-pfc/core.c                 |    7 +
+ drivers/pinctrl/sh-pfc/pfc-r8a7797.c          | 2628 +++++++++++++++++++++++++
+ drivers/pinctrl/sh-pfc/sh_pfc.h               |   12 +
+ drivers/soc/renesas/Makefile                  |    4 +
+ drivers/soc/renesas/r8a7797-sysc.c            |   39 +
+ drivers/soc/renesas/rcar-rst.c                |    1 +
+ drivers/soc/renesas/rcar-sysc.c               |    3 +
+ drivers/soc/renesas/rcar-sysc.h               |    1 +
+ drivers/soc/renesas/rcar_ems_ctrl.c           |   10 +
+ drivers/soc/renesas/renesas-soc.c             |    8 +
+ drivers/spi/spi-sh-msiof.c                    |    4 +-
+ drivers/thermal/rcar_gen3_thermal.c           |   29 +
+ include/dt-bindings/clock/r8a7797-cpg-mssr.h  |   48 +
+ include/dt-bindings/power/r8a7797-sysc.h      |   32 +
+ 40 files changed, 4489 insertions(+), 29 deletions(-)
+ create mode 100644 arch/arm64/boot/dts/renesas/r8a7797.dtsi
+ create mode 100644 drivers/clk/renesas/r8a7797-cpg-mssr.c
+ create mode 100644 drivers/pinctrl/sh-pfc/pfc-r8a7797.c
+ create mode 100644 drivers/soc/renesas/r8a7797-sysc.c
+ create mode 100644 include/dt-bindings/clock/r8a7797-cpg-mssr.h
+ create mode 100644 include/dt-bindings/power/r8a7797-sysc.h
+
+diff --git a/arch/arm64/Kconfig.platforms b/arch/arm64/Kconfig.platforms
+index ebe0a37..9cebaad 100644
+--- a/arch/arm64/Kconfig.platforms
++++ b/arch/arm64/Kconfig.platforms
+@@ -166,6 +166,14 @@ config ARCH_R8A77965
+ 	help
+ 	  This enables support for the Renesas R-Car M3N SoC.
+ 
++config ARCH_R8A7797
++	bool "Renesas R-Car V3M SoC Platform"
++	select SYS_SUPPORTS_SH_TMU
++	select SYS_SUPPORTS_SH_CMT
++	depends on ARCH_RENESAS
++	help
++	  This enables support for the Renesas R-Car V3M SoC.
++
+ config ARCH_STRATIX10
+ 	bool "Altera's Stratix 10 SoCFPGA Family"
+ 	help
+diff --git a/arch/arm64/boot/dts/renesas/r8a7797.dtsi b/arch/arm64/boot/dts/renesas/r8a7797.dtsi
+new file mode 100644
+index 0000000..5319b1a
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/r8a7797.dtsi
+@@ -0,0 +1,1156 @@
++/*
++ * Device Tree Source for the r8a7797 SoC
++ *
++ * Copyright (C) 2016 - 2017 Renesas Electronics Corp.
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include <dt-bindings/clock/r8a7797-cpg-mssr.h>
++#include <dt-bindings/interrupt-controller/arm-gic.h>
++#include <dt-bindings/power/r8a7797-sysc.h>
++
++/ {
++	compatible = "renesas,r8a7797";
++	#address-cells = <2>;
++	#size-cells = <2>;
++
++	aliases {
++		csi2_40 = &csi2_40;
++		i2c0 = &i2c0;
++		i2c1 = &i2c1;
++		i2c2 = &i2c2;
++		i2c3 = &i2c3;
++		i2c4 = &i2c4;
++		spi1 = &msiof0;
++		spi2 = &msiof1;
++		spi3 = &msiof2;
++		spi4 = &msiof3;
++		vin0 = &vin0;
++		vin1 = &vin1;
++		vin2 = &vin2;
++		vin3 = &vin3;
++		tsc0 = &tsc1;
++	};
++
++	psci {
++		compatible = "arm,psci-1.0";
++		method = "smc";
++	};
++
++	cpus {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		a53_0: cpu@0 {
++			compatible = "arm,cortex-a53", "arm,armv8";
++			reg = <0x0>;
++			device_type = "cpu";
++			power-domains = <&sysc R8A7797_PD_CA53_CPU0>;
++			next-level-cache = <&L2_CA53>;
++			enable-method = "psci";
++			cpu-idle-states = <&CPU_SLEEP_0>;
++			#cooling-cells = <2>;
++			dynamic-power-coefficient = <277>;
++			cooling-min-level = <0>;
++			cooling-max-level = <2>;
++			clocks =<&cpg CPG_CORE R8A7797_CLK_Z2>;
++			operating-points-v2 = <&cluster0_opp_tb0>;
++			/*cpu-supply = <&vdd_dvfs>;*/
++		};
++
++		a53_1: cpu@1 {
++			compatible = "arm,cortex-a53","arm,armv8";
++			reg = <0x1>;
++			device_type = "cpu";
++			power-domains = <&sysc R8A7797_PD_CA53_CPU1>;
++			next-level-cache = <&L2_CA53>;
++			enable-method = "psci";
++			cpu-idle-states = <&CPU_SLEEP_0>;
++			operating-points-v2 = <&cluster0_opp_tb0>;
++		};
++
++		idle-states {
++			entry-method = "psci";
++
++			CPU_SLEEP_0: cpu-sleep-0 {
++				compatible = "arm,idle-state";
++				arm,psci-suspend-param = <0x0010000>;
++				local-timer-stop;
++				entry-latency-us = <639>;
++				exit-latency-us = <680>;
++				min-residency-us = <1088>;
++				status = "disabled";
++			};
++		};
++	};
++
++	L2_CA53: cache-controller@1 {
++		compatible = "cache";
++		power-domains = <&sysc R8A7797_PD_CA53_SCU>;
++		cache-unified;
++		cache-level = <2>;
++	};
++
++	cluster0_opp_tb0: opp_table0 {
++		compatible = "operating-points-v2";
++		opp-shared;
++
++		opp@800000000 {
++			opp-hz = /bits/ 64 <800000000>;
++			opp-microvolt = <850000>;
++			clock-latency-ns = <300000>;
++		};
++	};
++
++	extal_clk: extal {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		/* This value must be overridden by the board */
++		clock-frequency = <0>;
++	};
++
++	extalr_clk: extalr {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		/* This value must be overridden by the board */
++		clock-frequency = <0>;
++	};
++
++	/* External CAN clock - to be overridden by boards that provide it */
++	can_clk: can {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <0>;
++	};
++
++	/* External SCIF clock - to be overridden by boards that provide it */
++	scif_clk: scif {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <0>;
++	};
++
++	/* DU input dot clock - tob be overriden by boards that probide it */
++	du_dotclkin0: dclkin-0 {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <148500000>;
++	};
++
++	soc {
++		compatible = "simple-bus";
++		interrupt-parent = <&gic>;
++
++		#address-cells = <2>;
++		#size-cells = <2>;
++		ranges;
++
++		gic: interrupt-controller@0xf1010000 {
++			compatible = "arm,gic-400";
++			#interrupt-cells = <3>;
++			#address-cells = <0>;
++			interrupt-controller;
++			reg = <0x0 0xf1010000 0 0x1000>,
++			      <0x0 0xf1020000 0 0x20000>,
++			      <0x0 0xf1040000 0 0x20000>,
++			      <0x0 0xf1060000 0 0x20000>;
++			interrupts = <GIC_PPI 9
++					(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;	/* PPI9:Virtual maintenance interrupt */
++/*			clocks = <&cpg CPG_MOD 408>;
++			clock-names = "clk";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>; */
++		};
++
++		gpio0: gpio@e6050000 {
++			compatible = "renesas,gpio-r8a7797",
++				     "renesas,gpio-rcar";
++			reg = <0 0xe6050000 0 0x50>;
++			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;		/* SPI4:GPIO.ch0 */
++			#gpio-cells = <2>;
++			gpio-controller;
++			gpio-ranges = <&pfc 0 0 22>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			clocks = <&cpg CPG_MOD 912>;				/* RMSTPCR9/bit12:GPIO0 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		gpio1: gpio@e6051000 {
++			compatible = "renesas,gpio-r8a7797",
++				     "renesas,gpio-rcar";
++			reg = <0 0xe6051000 0 0x50>;
++			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;		/* SPI5:GPIO.ch1 */
++			#gpio-cells = <2>;
++			gpio-controller;
++			gpio-ranges = <&pfc 0 32 28>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			clocks = <&cpg CPG_MOD 911>;				/* RMSTPCR9/bit11:GPIO1 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		gpio2: gpio@e6052000 {
++			compatible = "renesas,gpio-r8a7797",
++				     "renesas,gpio-rcar";
++			reg = <0 0xe6052000 0 0x50>;
++			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;		/* SPI6:GPIO.ch2 */
++			#gpio-cells = <2>;
++			gpio-controller;
++			gpio-ranges = <&pfc 0 64 17>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			clocks = <&cpg CPG_MOD 910>;				/* RMSTPCR9/bit10:GPIO2 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		gpio3: gpio@e6053000 {
++			compatible = "renesas,gpio-r8a7797",
++				     "renesas,gpio-rcar";
++			reg = <0 0xe6053000 0 0x50>;
++			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;		/* SPI7:GPIO.ch3 */
++			#gpio-cells = <2>;
++			gpio-controller;
++			gpio-ranges = <&pfc 0 96 17>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			clocks = <&cpg CPG_MOD 909>;				/* RMSTPCR9/bit9:GPIO3 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		gpio4: gpio@e6054000 {
++			compatible = "renesas,gpio-r8a7797",
++				     "renesas,gpio-rcar";
++			reg = <0 0xe6054000 0 0x50>;
++			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;		/* SPI8:GPIO.ch4 */
++			#gpio-cells = <2>;
++			gpio-controller;
++			gpio-ranges = <&pfc 0 128 6>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			clocks = <&cpg CPG_MOD 908>;				/* RMSTPCR9/bit8:GPIO4 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		gpio5: gpio@e6055000 {
++			compatible = "renesas,gpio-r8a7797",
++				     "renesas,gpio-rcar";
++			reg = <0 0xe6055000 0 0x50>;
++			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;		/* SPI9:GPIO.ch5 */
++			#gpio-cells = <2>;
++			gpio-controller;
++			gpio-ranges = <&pfc 0 160 15>;
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			clocks = <&cpg CPG_MOD 907>;				/* RMSTPCR9/bit7:GPIO5 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		pmu_a53 {
++			compatible = "arm,cortex-a53-pmu";
++			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;		/* SPI84:AP-System Core.CA53core0 pmu, SPI85:AP-System Core.CA53core1 pmu */
++			interrupt-affinity = <&a53_0>,
++					     <&a53_1>;
++		};
++
++		timer {
++			compatible = "arm,armv8-timer";
++			interrupts = <GIC_PPI 13
++					(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
++				     <GIC_PPI 14
++					(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
++				     <GIC_PPI 11
++					(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
++				     <GIC_PPI 10
++					(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;	/* PPI13:Secure physical timer, PPI14:Non-secure physical timer,
++																	   PPI11:Virtual timer, PPI10:Hypervisor timer */
++		};
++
++		wdt0: wdt@e6020000 {
++			compatible = "renesas,r8a7797-wdt", "renesas,rcar-gen3-wdt";
++			reg = <0 0xe6020000 0 0x0c>;
++			clocks = <&cpg CPG_MOD 402>;					/* RMSTPCR4/bit2:RWDT */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		cpg: clock-controller@e6150000 {
++			compatible = "renesas,r8a7797-cpg-mssr";
++			reg = <0 0xe6150000 0 0x1000>;
++			clocks = <&extal_clk>, <&extalr_clk>;
++			clock-names = "extal", "extalr";
++			#clock-cells = <2>;
++			#power-domain-cells = <0>;
++		};
++
++		csi2_40: csi2@feaa0000 {
++			compatible = "renesas,r8a7797-csi2";
++			reg = <0 0xfeaa0000 0 0x10000>;
++			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;		/* SPI246:CSI2.ch2 */
++			clocks = <&cpg CPG_MOD 716>;				/* RMSTPCR7/bit16:CSI40 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		prr: chipid@fff00044 {
++			compatible = "renesas,prr";
++			reg = <0 0xfff00044 0 4>;
++		};
++
++		rst: reset-controller@e6160000 {
++			compatible = "renesas,r8a7797-rst";
++			reg = <0 0xe6160000 0 0x0200>;
++		};
++
++		sysc: system-controller@e6180000 {
++			compatible = "renesas,r8a7797-sysc";
++			reg = <0 0xe6180000 0 0x0440>;
++			#power-domain-cells = <1>;
++		};
++
++		pfc: pfc@e6060000 {
++			compatible = "renesas,pfc-r8a7797";
++			reg = <0 0xe6060000 0 0x50c>;
++		};
++
++		intc_ex: interrupt-controller@e61c0000 {
++			compatible = "renesas,intc-ex-r8a7797", "renesas,irqc";
++			#interrupt-cells = <2>;
++			interrupt-controller;
++			reg = <0 0xe61c0000 0 0x200>;
++			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;		/* SPI1:IRQ1, SPI2:IRQ2, SPI3:IRQ3, SPI18:IRQ4, SPI161:IRQ5 */
++			clocks = <&cpg CPG_MOD 407>;				/* RMSTPCR4/bit7:INTC-EX */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		ipmmu_vi: mmu@febd0000 {
++			compatible = "renesas,ipmmu-r8a7797";
++			reg = <0 0xfebd0000 0 0x1000>; /* IPMMU-VI */
++			renesas,ipmmu-main = <&ipmmu_mm 11>;
++			#iommu-cells = <1>;
++			status = "disabled";
++		};
++
++		ipmmu_ir: mmu@ff8b0000 {
++			compatible = "renesas,ipmmu-r8a7797";
++			reg = <0 0xff8b0000 0 0x1000>; /* IPMMU-IR */
++			renesas,ipmmu-main = <&ipmmu_mm 3>;
++			#iommu-cells = <1>;
++			status = "disabled";
++		};
++
++		ipmmu_rt: mmu@ffc80000 {
++			compatible = "renesas,ipmmu-r8a7797";
++			reg = <0 0xffc80000 0 0x1000>; /* IPMMU-RT */
++			renesas,ipmmu-main = <&ipmmu_mm 7>;
++			#iommu-cells = <1>;
++			status = "disabled";
++		};
++
++		ipmmu_ds0: mmu@e6740000 {
++			compatible = "renesas,ipmmu-r8a7797";
++			reg = <0 0xe6740000 0 0x1000>; /* IPMMU-DS0 */
++			renesas,ipmmu-main = <&ipmmu_mm 0>;
++			#iommu-cells = <1>;
++			status = "disabled";
++		};
++
++		ipmmu_mm: mmu@e67b0000 {
++			compatible = "renesas,ipmmu-r8a7797";
++			reg = <0 0xe67b0000 0 0x1000>; /* IPMMU-MM */
++			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;		/* SPI196:IPMMU, SPI197:IPMMU sec */
++			#iommu-cells = <1>;
++			status = "disabled";
++		};
++
++		dmac1: dma-controller@e7300000 {
++			compatible = "renesas,dmac-r8a7797",
++				     "renesas,rcar-dmac";
++			reg = <0 0xe7300000 0 0x10000>;
++			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;		/* SPI220::SYS-DMAC1 err,
++										   SPI216~219:SYS-DMAC1.ch0~SYS-DMAC1.ch3,
++										   SPI308~311:SYS-DMAC1.ch4~SYS-DMAC1.ch7 */
++			interrupt-names = "error",
++					"ch0", "ch1", "ch2", "ch3",
++					"ch4", "ch5", "ch6", "ch7";
++			clocks = <&cpg CPG_MOD 218>;				/* RMSTPCR2/bit18:SYS-DMAC1 */
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#dma-cells = <1>;
++			dma-channels = <8>;
++			iommus = <&ipmmu_ds0 0>, <&ipmmu_ds0 1>,
++			       <&ipmmu_ds0 2>, <&ipmmu_ds0 3>,
++			       <&ipmmu_ds0 4>, <&ipmmu_ds0 5>,
++			       <&ipmmu_ds0 6>, <&ipmmu_ds0 7>;			/* @@ */
++		};
++
++		dmac2: dma-controller@e7310000 {
++			compatible = "renesas,dmac-r8a7797",
++				     "renesas,rcar-dmac";
++			reg = <0 0xe7310000 0 0x10000>;
++			interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH
++				      GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>;		/* SPI307::SYS-DMAC2 err,
++										   SPI312~319:SYS-DMAC2.ch0~SYS-DMAC1.ch7 */
++			interrupt-names = "error",
++					"ch0", "ch1", "ch2", "ch3",
++					"ch4", "ch5", "ch6", "ch7";
++			clocks = <&cpg CPG_MOD 217>;				/* RMSTPCR2/bit17:SYS-DMAC2 */
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#dma-cells = <1>;
++			dma-channels = <8>;
++			iommus = <&ipmmu_ds0 16>, <&ipmmu_ds0 17>,
++			       <&ipmmu_ds0 18>, <&ipmmu_ds0 19>,
++			       <&ipmmu_ds0 20>, <&ipmmu_ds0 21>,
++			       <&ipmmu_ds0 22>, <&ipmmu_ds0 23>;		/* @@ */
++		};
++
++		avb: ethernet@e6800000 {
++			compatible = "renesas,etheravb-r8a7797",
++				     "renesas,etheravb-rcar-gen3";
++			reg = <0 0xe6800000 0 0x800>, <0 0xe6a00000 0 0x10000>;
++			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;		/* SPI39~63:Ethernet AVB.ch0~24 */
++										/* @@ errreq_avb_p[0]~[3] add (T.B.D) */
++			interrupt-names = "ch0", "ch1", "ch2", "ch3",
++					  "ch4", "ch5", "ch6", "ch7",
++					  "ch8", "ch9", "ch10", "ch11",
++					  "ch12", "ch13", "ch14", "ch15",
++					  "ch16", "ch17", "ch18", "ch19",
++					  "ch20", "ch21", "ch22", "ch23",
++					  "ch24";
++			clocks = <&cpg CPG_MOD 812>;				/* RMSTPCR8/bit12:EAVB-IF */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			phy-mode = "rgmii-id";
++			#address-cells = <1>;
++			#size-cells = <0>;
++		};
++
++		canfd: canfd@e66c0000 {
++			compatible = "renesas,r8a7797-canfd",
++				     "renesas,rcar-gen3-canfd";
++			reg = <0 0xe66c0000 0 0x8000>;
++			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
++				   <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 914>,
++			       <&cpg CPG_CORE R8A7797_CLK_CANFD>,
++			       <&can_clk>;
++			clock-names = "fck", "canfd", "can_clk";
++			assigned-clocks = <&cpg CPG_CORE R8A7797_CLK_CANFD>;
++			assigned-clock-rates = <40000000>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++
++			channel0 {
++				status = "disabled";
++			};
++
++			channel1 {
++				status = "disabled";
++			};
++		};
++
++		cmt0: timer@e60f0000 {
++			compatible = "renesas,cmt-48-r8a7797", "renesas,cmt-48-gen2";
++			reg = <0 0xe60f0000 0 0x1004>;
++			interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 303>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++
++			renesas,channels-mask = <0x60>;
++
++			status = "disabled";
++		};
++
++		cmt1: timer@e6130000 {
++			compatible = "renesas,cmt-48-r8a7797", "renesas,cmt-48-gen2";
++			reg = <0 0xe6130000 0 0x1004>;
++			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 302>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++
++			renesas,channels-mask = <0xff>;
++
++			status = "disabled";
++		};
++
++		cmt2: timer@e6140000 {
++			compatible = "renesas,cmt-48-r8a7797", "renesas,cmt-48-gen2";
++			reg = <0 0xe6140000 0 0x1004>;
++			interrupts = <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 301>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++
++			renesas,channels-mask = <0xff>;
++
++			status = "disabled";
++		};
++
++		cmt3: timer@e6148000 {
++			compatible = "renesas,cmt-48-r8a7797", "renesas,cmt-48-gen2";
++			reg = <0 0xe6148000 0 0x1004>;
++			interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 300>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++
++			renesas,channels-mask = <0xff>;
++
++			status = "disabled";
++		};
++
++		tpu: pwm@e6e80000 {
++			compatible = "renesas,tpu-r8a7797", "renesas,tpu";
++			reg = <0 0xe6e80000 0 0x100>;
++			clocks = <&cpg CPG_MOD 304>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++			#pwm-cells = <4>;
++		};
++
++		tmu0: timer@e61e0000 {
++			compatible = "renesas,tmu-r8a7797", "renesas,tmu";
++			reg = <0 0xe61e0000 0 0x30>;
++			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 125>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#renesas,channels = <3>;
++			status = "disabled";
++		};
++
++		tmu1: timer@e6fc0000 {
++			compatible = "renesas,tmu-r8a7797", "renesas,tmu";
++			reg = <0 0xe6fc0000 0 0x30>;
++			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 124>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#renesas,channels = <3>;
++			status = "disabled";
++		};
++
++		tmu2: timer@e6fd0000 {
++			compatible = "renesas,tmu-r8a7797", "renesas,tmu";
++			reg = <0 0xe6fd0000 0 0x30>;
++			interrupts = <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 123>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#renesas,channels = <3>;
++			status = "disabled";
++		};
++
++		tmu3: timer@e6fe0000 {
++			compatible = "renesas,tmu-r8a7797", "renesas,tmu";
++			reg = <0 0xe6fe0000 0 0x30>;
++			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 122>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#renesas,channels = <3>;
++			status = "disabled";
++		};
++
++		tmu4: timer@ffc00000 {
++			compatible = "renesas,tmu-r8a7797", "renesas,tmu";
++			reg = <0 0xffc00000 0 0x30>;
++			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 121>;
++			clock-names = "fck";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#renesas,channels = <3>;
++			status = "disabled";
++		};
++
++		pwm0: pwm@e6e30000 {
++			compatible = "renesas,pwm-r8a7797", "renesas,pwm-rcar";
++			reg = <0 0xe6e30000 0 0x10>;
++			#pwm-cells = <2>;
++			clocks = <&cpg CPG_MOD 523>;				/* RMSTPCR5/bit23:PWM */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		pwm1: pwm@e6e31000 {
++			compatible = "renesas,pwm-r8a7797", "renesas,pwm-rcar";
++			reg = <0 0xe6e31000 0 0x10>;
++			#pwm-cells = <2>;
++			clocks = <&cpg CPG_MOD 523>;				/* RMSTPCR5/bit23:PWM */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		pwm2: pwm@e6e32000 {
++			compatible = "renesas,pwm-r8a7797", "renesas,pwm-rcar";
++			reg = <0 0xe6e32000 0 0x10>;
++			#pwm-cells = <2>;
++			clocks = <&cpg CPG_MOD 523>;				/* RMSTPCR5/bit23:PWM */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		pwm3: pwm@e6e33000 {
++			compatible = "renesas,pwm-r8a7797", "renesas,pwm-rcar";
++			reg = <0 0xe6e33000 0 0x10>;
++			#pwm-cells = <2>;
++			clocks = <&cpg CPG_MOD 523>;				/* RMSTPCR5/bit23:PWM */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		pwm4: pwm@e6e34000 {
++			compatible = "renesas,pwm-r8a7797", "renesas,pwm-rcar";
++			reg = <0 0xe6e34000 0 0x10>;
++			#pwm-cells = <2>;
++			clocks = <&cpg CPG_MOD 523>;				/* RMSTPCR5/bit23:PWM */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		hscif0: serial@e6540000 {
++			compatible = "renesas,hscif-r8a7797",
++				     "renesas,rcar-gen3-hscif",
++				     "renesas,hscif";
++			reg = <0 0xe6540000 0 96>;
++			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;		/* SPI154:HSCIF.ch0 */
++			clocks = <&cpg CPG_MOD 520>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR5/bit20:HSCIF0 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x31>, <&dmac1 0x30>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		hscif1: serial@e6550000 {
++			compatible = "renesas,hscif-r8a7797",
++				     "renesas,rcar-gen3-hscif",
++				     "renesas,hscif";
++			reg = <0 0xe6550000 0 96>;
++			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;		/* SPI155:HSCIF.ch1 */
++			clocks = <&cpg CPG_MOD 519>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR5/bit19:HSCIF1 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x33>, <&dmac1 0x32>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		hscif2: serial@e6560000 {
++			compatible = "renesas,hscif-r8a7797",
++				     "renesas,rcar-gen3-hscif",
++				     "renesas,hscif";
++			reg = <0 0xe6560000 0 96>;
++			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;		/* SPI144:HSCIF.ch2 */
++			clocks = <&cpg CPG_MOD 518>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR5/bit18:HSCIF2 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x35>, <&dmac1 0x34>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		hscif3: serial@e66a0000 {
++			compatible = "renesas,hscif-r8a7797",
++				     "renesas,rcar-gen3-hscif",
++				     "renesas,hscif";
++			reg = <0 0xe66a0000 0 96>;
++			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;		/* SPI145:HSCIF.ch3 */
++			clocks = <&cpg CPG_MOD 517>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR5/bit17:HSCIF3 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x37>, <&dmac1 0x36>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		scif0: serial@e6e60000 {
++			compatible = "renesas,scif-r8a7797",
++				     "renesas,rcar-gen3-scif", "renesas,scif";
++			reg = <0 0xe6e60000 0 64>;
++			interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;		/* SPI152:SCIF.ch0 */
++			clocks = <&cpg CPG_MOD 207>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR2/bit7:SCIF0 */
++			/*clock-names = "fck", "sck", "brg_int", "scif_clk"; */
++			clock-names = "fck";
++			dmas = <&dmac1 0x51>, <&dmac1 0x50>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		scif1: serial@e6e68000 {
++			compatible = "renesas,scif-r8a7797",
++				     "renesas,rcar-gen3-scif", "renesas,scif";
++			reg = <0 0xe6e68000 0 64>;
++			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;		/* SPI153:SCIF.ch1 */
++			clocks = <&cpg CPG_MOD 206>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR2/bit6:SCIF1 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x53>, <&dmac1 0x52>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		scif3: serial@e6c50000 {
++			compatible = "renesas,scif-r8a7797",
++				     "renesas,rcar-gen3-scif", "renesas,scif";
++			reg = <0 0xe6c50000 0 64>;
++			interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;		/* SPI23:SCIF.ch3 */
++			clocks = <&cpg CPG_MOD 204>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR2/bit4:SCIF3 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x57>, <&dmac1 0x56>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		scif4: serial@e6c40000 {
++			compatible = "renesas,scif-r8a7797",
++				     "renesas,rcar-gen3-scif", "renesas,scif";
++			reg = <0 0xe6c40000 0 64>;
++			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;		/* SPI16:SCIF.ch4 */
++			clocks = <&cpg CPG_MOD 203>,
++				 <&cpg CPG_CORE R8A7797_CLK_S2D1>,
++				 <&scif_clk>;					/* RMSTPCR2/bit3:SCIF4 */
++			clock-names = "fck", "brg_int", "scif_clk";
++			dmas = <&dmac1 0x59>, <&dmac1 0x58>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		i2c0: i2c@e6500000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,i2c-r8a7797";
++			reg = <0 0xe6500000 0 0x40>;
++			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH>;		/* SPI287:I2C.ch0 */
++			clocks = <&cpg CPG_MOD 931>;				/* RMSTPCR9/bit31:I2C-IF0 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			dmas = <&dmac1 0x91>, <&dmac1 0x90>;
++			dma-names = "tx", "rx";
++			i2c-scl-internal-delay-ns = <6>;
++			status = "disabled";
++		};
++
++		i2c1: i2c@e6508000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,i2c-r8a7797";
++			reg = <0 0xe6508000 0 0x40>;
++			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;		/* SPI288:I2C.ch1 */
++			clocks = <&cpg CPG_MOD 930>;				/* RMSTPCR9/bit30:I2C-IF1 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			dmas = <&dmac1 0x93>, <&dmac1 0x92>;
++			dma-names = "tx", "rx";
++			i2c-scl-internal-delay-ns = <6>;
++			status = "disabled";
++		};
++
++		i2c2: i2c@e6510000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,i2c-r8a7797";
++			reg = <0 0xe6510000 0 0x40>;
++			interrupts = <GIC_SPI 286 IRQ_TYPE_LEVEL_HIGH>;		/* SPI286:I2C.ch2 */
++			clocks = <&cpg CPG_MOD 929>;				/* RMSTPCR9/bit29:I2C-IF2 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			dmas = <&dmac1 0x95>, <&dmac1 0x94>;
++			dma-names = "tx", "rx";
++			i2c-scl-internal-delay-ns = <6>;
++			status = "disabled";
++		};
++
++		i2c3: i2c@e66d0000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,i2c-r8a7797";
++			reg = <0 0xe66d0000 0 0x40>;
++			interrupts = <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;		/* SPI290:I2C.ch3 */
++			clocks = <&cpg CPG_MOD 928>;				/* RMSTPCR9/bit28:I2C-IF3 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			dmas = <&dmac1 0x97>, <&dmac1 0x96>;
++			dma-names = "tx", "rx";
++			i2c-scl-internal-delay-ns = <6>;
++			status = "disabled";
++		};
++
++		i2c4: i2c@e66d8000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,i2c-r8a7797";
++			reg = <0 0xe66d8000 0 0x40>;
++			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;		/* SPI19:I2C.ch4 */
++			clocks = <&cpg CPG_MOD 927>;				/* RMSTPCR9/bit27:I2C-IF4 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			dmas = <&dmac1 0x99>, <&dmac1 0x98>;
++			dma-names = "tx", "rx";
++			i2c-scl-internal-delay-ns = <6>;
++			status = "disabled";
++		};
++
++		msiof0: spi@e6e90000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,msiof-r8a7797";
++			reg = <0 0xe6e90000 0 0x64>;
++			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;		/* SPI156:MSIOF.ch0 */
++			clocks = <&cpg CPG_MOD 211>, <&msiof_ref_clk>;		/* RMSTPCR2/bit11:MSIOF0, @@ msiof_ref_clk->Eagle.dts */
++			clock-names = "msiof_clk", "msiof_ref_clk";
++			dmas = <&dmac1 0x41>, <&dmac1 0x40>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		msiof1: spi@e6ea0000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,msiof-r8a7797";
++			reg = <0 0xe6ea0000 0 0x0064>;
++			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;		/* SPI157:MSIOF.ch1 */
++			clocks = <&cpg CPG_MOD 210>, <&msiof_ref_clk>;		/* RMSTPCR2/bit10:MSIOF1, @@ msiof_ref_clk->Eagle.dts */
++			clock-names = "msiof_clk", "msiof_ref_clk";
++			dmas = <&dmac1 0x43>, <&dmac1 0x42>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		msiof2: spi@e6c00000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,msiof-r8a7797";
++			reg = <0 0xe6c00000 0 0x0064>;
++			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;		/* SPI158:MSIOF.ch2 */
++			clocks = <&cpg CPG_MOD 209>, <&msiof_ref_clk>;		/* RMSTPCR2/bit9:MSIOF2, @@ msiof_ref_clk->Eagle.dts */
++			clock-names = "msiof_clk", "msiof_ref_clk";
++			dmas = <&dmac1 0x45>, <&dmac1 0x44>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		msiof3: spi@e6c10000 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "renesas,msiof-r8a7797";
++			reg = <0 0xe6c10000 0 0x0064>;
++			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;		/* SPI159:MSIOF.ch3 */
++			clocks = <&cpg CPG_MOD 208>, <&msiof_ref_clk>;		/* RMSTPCR2/bit8:MSIOF3, @@ msiof_ref_clk->Eagle.dts */
++			clock-names = "msiof_clk", "msiof_ref_clk";
++			dmas = <&dmac1 0x47>, <&dmac1 0x46>;
++			dma-names = "tx", "rx";
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		vin0: video@e6ef0000 {
++			compatible = "renesas,vin-r8a7797";
++			reg = <0 0xe6ef0000 0 0x1000>;
++			interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;		/* SPI188:VIN.ch0 */
++			clocks = <&cpg CPG_MOD 811>;				/* RMSTPCR8/bit11:VIN0 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		vin1: video@e6ef1000 {
++			compatible = "renesas,vin-r8a7797";
++			reg = <0 0xe6ef1000 0 0x1000>;
++			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;		/* SPI189:VIN.ch1 */
++			clocks = <&cpg CPG_MOD 810>;				/* RMSTPCR8/bit10:VIN1 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		vin2: video@e6ef2000 {
++			compatible = "renesas,vin-r8a7797";
++			reg = <0 0xe6ef2000 0 0x1000>;
++			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;		/* SPI190:VIN.ch2 */
++			clocks = <&cpg CPG_MOD 809>;				/* RMSTPCR8/bit9:VIN2 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		vin3: video@e6ef3000 {
++			compatible = "renesas,vin-r8a7797";
++			reg = <0 0xe6ef3000 0 0x1000>;
++			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;		/* SPI191:VIN.ch3 */
++			clocks = <&cpg CPG_MOD 808>;				/* RMSTPCR8/bit8:VIN3 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			status = "disabled";
++		};
++
++		sdhi2: sd@ee140000 {
++			compatible = "renesas,sdhi-r8a7797";
++			reg = <0 0xee140000 0 0x2000>;
++			interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 314>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			renesas,clk-rate = <200000000>;
++			status = "disabled";
++		};
++
++		qos@e67e0000 {
++			compatible = "renesas,qos";
++		};
++
++		vspd0: vsp@fea20000 {
++			compatible = "renesas,vsp2";
++			reg = <0 0xfea20000 0 0x4000>;
++
++			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 623>;				/* RMSTPCR6/bit23:VSP(VSPD0) */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++
++			renesas,fcp = <&fcpvd0>;
++		};
++
++		fcpvd0: fcp@fea27000 {
++			compatible = "renesas,r8a7797-fcpv", "renesas,fcpv";
++			reg = <0 0xfea27000 0 0x200>;
++			clocks = <&cpg CPG_MOD 603>;				/* RMSTPCR6/bit3:FCPVD0 */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		du: display@feb00000 {
++			compatible = "renesas,du-r8a7797";
++			reg = <0 0xfeb00000 0 0x80000>,
++			      <0 0xfeb90000 0 0x14>;				/* LDVS */
++			reg-names = "du", "lvds.0";
++			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;		/* SPI256:DU.ch0 */
++			clocks = <&cpg CPG_MOD 724>,
++				 <&cpg CPG_MOD 727>,
++				 <&dclkin_p0>;
++			clock-names = "du.0", "lvds.0", "dclkin.0";
++			status = "disabled";
++
++			vsps = <&vspd0>;
++
++			interlaced = <1>;
++
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				port@0 {
++					reg = <0>;
++					du_out_lvds0: endpoint {
++					};
++				};
++			};
++		};
++
++		tsc1: thermal@0xe6190000 {
++			compatible = "renesas,rcar-thermal";
++			reg =  <0 0xe6190000 0 0x14
++				0 0xe6190100 0 0x38>;
++
++			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;		/* SPI67~69:Thermal Sensor.ch0~2 */
++			clocks = <&cpg CPG_MOD 522>;				/* RMSTPCR5/bit22:THS/TSC */
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++			#thermal-sensor-cells = <0>;
++			status = "okay";
++		};
++
++		thermal-zones {
++			emergency {
++				polling-delay = <1000>;
++				on-temperature = <110000>;
++				off-temperature = <95000>;
++				target_cpus = <&a53_1>;
++				status = "disabled";
++			};
++
++			sensor_thermal1: sensor-thermal1 {
++				polling-delay-passive = <250>;
++				polling-delay = <0>;
++				sustainable-power = <6313>;
++
++				/* sensor ID */
++				thermal-sensors = <&tsc1>;
++
++				trips {
++					threshold: trip-point@0 {
++						/* miliCelsius  */
++						temperature = <90000>;
++						hysteresis = <2000>;
++						type = "passive";
++					};
++
++					target: trip-point@1 {
++						/* miliCelsius  */
++						temperature = <100000>;
++						hysteresis = <2000>;
++						type = "passive";
++					};
++
++					sensor1_crit: sensor1-crit {
++						temperature = <120000>;
++						hysteresis = <2000>;
++						type = "critical";
++					};
++				};
++
++				cooling-maps {
++					map0 {
++						trip = <&target>;
++						cooling-device = <&a53_0 0 2>;
++						contribution = <1024>;
++					};
++				};
++			};
++		};
++
++		mfis: mfis@e6260000 {
++			compatible = "renesas,mfis-r8a7797", "renesas,mfis";
++			reg = <0 0xe6260000 0 0x0200>;
++			clocks = <&cpg CPG_MOD 213>;
++			clock-names = "mfis";
++			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-names = "eicr0";
++			status = "okay";
++		};
++
++		mfis_lock: mfis-lock@e62600c0 {
++			compatible =    "renesas,mfis-lock-r8a7797",
++					"renesas,mfis-lock";
++			reg = <0 0xe62600c0 0 0x0020>;
++			status = "okay";
++		};
++
++		imrlx4_ch0: imr-lx4@fe860000 {
++			compatible = "renesas,imr-lx4";
++			reg = <0 0xfe860000 0 0x2000>;
++			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 823>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		imrlx4_ch1: imr-lx4@fe870000 {
++			compatible = "renesas,imr-lx4";
++			reg = <0 0xfe870000 0 0x2000>;
++			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 822>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		imrlx4_ch2: imr-lx4@fe880000 {
++			compatible = "renesas,imr-lx4";
++			reg = <0 0xfe880000 0 0x2000>;
++			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 821>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++
++		imrlx4_ch3: imr-lx4@fe890000 {
++			compatible = "renesas,imr-lx4";
++			reg = <0 0xfe890000 0 0x2000>;
++			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 820>;
++			power-domains = <&sysc R8A7797_PD_ALWAYS_ON>;
++		};
++	};
++};
+diff --git a/drivers/clk/renesas/Kconfig b/drivers/clk/renesas/Kconfig
+index bbd9701..b52e907 100644
+--- a/drivers/clk/renesas/Kconfig
++++ b/drivers/clk/renesas/Kconfig
+@@ -5,6 +5,7 @@ config CLK_RENESAS_CPG_MSSR
+ 	default y if ARCH_R8A7795
+ 	default y if ARCH_R8A7796
+ 	default y if ARCH_R8A77965
++	default y if ARCH_R8A7797
+ 
+ config CLK_RENESAS_CPG_MSTP
+ 	bool
+diff --git a/drivers/clk/renesas/Makefile b/drivers/clk/renesas/Makefile
+index 2c224e9..c2ef11e 100644
+--- a/drivers/clk/renesas/Makefile
++++ b/drivers/clk/renesas/Makefile
+@@ -14,6 +14,7 @@ obj-$(CONFIG_ARCH_R8A7794)		+= clk-rcar-gen2.o clk-div6.o
+ obj-$(CONFIG_ARCH_R8A7795)		+= r8a7795-cpg-mssr.o rcar-gen3-cpg.o
+ obj-$(CONFIG_ARCH_R8A7796)		+= r8a7796-cpg-mssr.o rcar-gen3-cpg.o
+ obj-$(CONFIG_ARCH_R8A77965)		+= r8a77965-cpg-mssr.o rcar-gen3-cpg.o
++obj-$(CONFIG_ARCH_R8A7797)		+= r8a7797-cpg-mssr.o rcar-gen3-cpg.o
+ obj-$(CONFIG_ARCH_SH73A0)		+= clk-sh73a0.o clk-div6.o
+ 
+ obj-$(CONFIG_CLK_RENESAS_CPG_MSSR)	+= renesas-cpg-mssr.o clk-div6.o
+diff --git a/drivers/clk/renesas/r8a7797-cpg-mssr.c b/drivers/clk/renesas/r8a7797-cpg-mssr.c
+new file mode 100644
+index 0000000..0460ed4
+--- /dev/null
++++ b/drivers/clk/renesas/r8a7797-cpg-mssr.c
+@@ -0,0 +1,232 @@
++/*
++ * r8a7797 Clock Pulse Generator / Module Standby and Software Reset
++ *
++ * Copyright (C) 2016 Glider bvba
++ *
++ * Based on r8a7795-cpg-mssr.c
++ *
++ * Copyright (C) 2016 Renesas Electronics Corp.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ */
++
++#include <linux/device.h>
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/soc/renesas/rcar-rst.h>
++#include <linux/sys_soc.h>
++
++#include <dt-bindings/clock/r8a7797-cpg-mssr.h>
++
++#include "renesas-cpg-mssr.h"
++#include "rcar-gen3-cpg.h"
++
++enum clk_ids {
++	/* Core Clock Outputs exported to DT */
++	LAST_DT_CORE_CLK = R8A7797_CLK_OSC,
++
++	/* External Input Clocks */
++	CLK_EXTAL,
++	CLK_EXTALR,
++
++	/* Internal Core Clocks */
++	CLK_MAIN,
++	CLK_PLL0,
++	CLK_PLL1,
++	CLK_PLL3,
++	CLK_PLL1_DIV2,
++	CLK_PLL1_DIV4,
++	CLK_S1,
++	CLK_S2,
++	CLK_RINT,
++
++	/* Module Clocks */
++	MOD_CLK_BASE
++};
++
++static const struct cpg_core_clk r8a7797_core_clks[] __initconst = {
++	/* External Clock Inputs */
++	DEF_INPUT("extal",  CLK_EXTAL),
++	DEF_INPUT("extalr", CLK_EXTALR),
++
++	/* Internal Core Clocks */
++	DEF_BASE(".main",       CLK_MAIN, CLK_TYPE_GEN3_MAIN, CLK_EXTAL),
++	DEF_BASE(".pll0",       CLK_PLL0, CLK_TYPE_GEN3_PLL0, CLK_MAIN),
++	DEF_BASE(".pll1",       CLK_PLL1, CLK_TYPE_GEN3_PLL1, CLK_MAIN),
++	DEF_BASE(".pll3",       CLK_PLL3, CLK_TYPE_GEN3_PLL3, CLK_MAIN),
++
++	DEF_FIXED(".pll1_div2", CLK_PLL1_DIV2,     CLK_PLL1,       2, 1),
++	DEF_FIXED(".pll1_div4", CLK_PLL1_DIV4,     CLK_PLL1_DIV2,  2, 1),
++	DEF_FIXED(".s1",        CLK_S1,            CLK_PLL1_DIV2,  4, 1),
++	DEF_FIXED(".s2",        CLK_S2,            CLK_PLL1_DIV2,  6, 1),
++
++	/* Core Clock Outputs */
++	DEF_BASE("z2",          R8A7797_CLK_Z2,    CLK_TYPE_GEN3_Z2, CLK_PLL1_DIV4),
++	DEF_FIXED("ztr",        R8A7797_CLK_ZTR,   CLK_PLL1_DIV2,  6, 1),
++	DEF_FIXED("ztrd2",      R8A7797_CLK_ZTRD2, CLK_PLL1_DIV2, 12, 1),
++	DEF_FIXED("zt",         R8A7797_CLK_ZT,    CLK_PLL1_DIV2,  4, 1),
++	DEF_FIXED("zx",         R8A7797_CLK_ZX,    CLK_PLL1_DIV2,  3, 1),
++	DEF_FIXED("s1d1",       R8A7797_CLK_S1D1,  CLK_S1,         1, 1),
++	DEF_FIXED("s1d2",       R8A7797_CLK_S1D2,  CLK_S1,         2, 1),
++	DEF_FIXED("s1d4",       R8A7797_CLK_S1D4,  CLK_S1,         4, 1),
++	DEF_FIXED("s2d1",       R8A7797_CLK_S2D1,  CLK_S2,         1, 1),
++	DEF_FIXED("s2d2",       R8A7797_CLK_S2D2,  CLK_S2,         2, 1),
++	DEF_FIXED("s2d4",       R8A7797_CLK_S2D4,  CLK_S2,         4, 1),
++
++	DEF_GEN3_SD0H("sd0h",   R8A7797_CLK_SD0H,  CLK_PLL1_DIV4, 0x0074),
++	DEF_GEN3_SD0("sd0",     R8A7797_CLK_SD0,   CLK_PLL1_DIV4, 0x0074),
++
++	DEF_FIXED("cl",         R8A7797_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
++	DEF_FIXED("cp",         R8A7797_CLK_CP,    CLK_EXTAL,      2, 1),
++
++	DEF_DIV6P1("mso",       R8A7797_CLK_MSO,   CLK_PLL1_DIV4, 0x014),
++	DEF_DIV6P1("canfd",     R8A7797_CLK_CANFD, CLK_PLL1_DIV4, 0x244),
++	DEF_DIV6P1("csi0",      R8A7797_CLK_CSI0,  CLK_PLL1_DIV4, 0x00c),
++
++	DEF_FIXED("osc",        R8A7797_CLK_OSC,   CLK_PLL1_DIV2, (12*1024), 1),
++	DEF_BASE("r_int",       CLK_RINT,          CLK_TYPE_GEN3_RINT, CLK_EXTAL),
++
++	DEF_BASE("r",           R8A7797_CLK_R, CLK_TYPE_GEN3_R, CLK_RINT),
++};
++
++static const struct mssr_mod_clk r8a7797_mod_clks[] __initconst = {
++	DEF_MOD("tmu4",			 121,	R8A7797_CLK_S2D2),
++	DEF_MOD("tmu3",			 122,	R8A7797_CLK_S2D2),
++	DEF_MOD("tmu2",			 123,	R8A7797_CLK_S2D2),
++	DEF_MOD("tmu1",			 124,	R8A7797_CLK_S2D2),
++	DEF_MOD("tmu0",			 125,	R8A7797_CLK_CP),
++	DEF_MOD("ivcp1e",		 127,	R8A7797_CLK_S2D1),
++	DEF_MOD("scif4",		 203,	R8A7797_CLK_S2D4),	/* @@ H3=S3D4 */
++	DEF_MOD("scif3",		 204,	R8A7797_CLK_S2D4),	/* @@ H3=S3D4 */
++	DEF_MOD("scif1",		 206,	R8A7797_CLK_S2D4),	/* @@ H3=S3D4 */
++	DEF_MOD("scif0",		 207,	R8A7797_CLK_S2D4),	/* @@ H3=S3D4 */
++	DEF_MOD("msiof3",		 208,	R8A7797_CLK_MSO),
++	DEF_MOD("msiof2",		 209,	R8A7797_CLK_MSO),
++	DEF_MOD("msiof1",		 210,	R8A7797_CLK_MSO),
++	DEF_MOD("msiof0",		 211,	R8A7797_CLK_MSO),
++	DEF_MOD("mfis",			 213,	R8A7797_CLK_S2D2),	/* @@ H3=S3D2 */
++	DEF_MOD("sys-dmac2",	 217,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("sys-dmac1",	 218,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("cmt3",			 300,	R8A7797_CLK_R),
++	DEF_MOD("cmt2",			 301,	R8A7797_CLK_R),
++	DEF_MOD("cmt1",			 302,	R8A7797_CLK_R),
++	DEF_MOD("cmt0",			 303,	R8A7797_CLK_R),
++	DEF_MOD("tpu",			 304,	R8A7797_CLK_S2D4),
++	DEF_MOD("sdif",			 314,	R8A7797_CLK_SD0),
++	DEF_MOD("rwdt0",		 402,	R8A7797_CLK_R),
++	DEF_MOD("intc-ex",		 407,	R8A7797_CLK_CP),
++	DEF_MOD("intc-ap",		 408,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("hscif3",		 517,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("hscif2",		 518,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("hscif1",		 519,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("hscif0",		 520,	R8A7797_CLK_S2D1),	/* @@ H3=S3D1 */
++	DEF_MOD("thermal",		 522,	R8A7797_CLK_CP),
++	DEF_MOD("pwm",			 523,	R8A7797_CLK_S2D4),
++	DEF_MOD("fcpvd0",		 603,	R8A7797_CLK_S2D1),
++	DEF_MOD("vspd0",		 623,	R8A7797_CLK_S2D1),
++	DEF_MOD("csi40",		 716,	R8A7797_CLK_CSI0),
++	DEF_MOD("du0",			 724,	R8A7797_CLK_S2D1),
++	DEF_MOD("lvds",			 727,	R8A7797_CLK_S2D1),
++	DEF_MOD("vin3",			 808,	R8A7797_CLK_S2D1),
++	DEF_MOD("vin2",			 809,	R8A7797_CLK_S2D1),
++	DEF_MOD("vin1",			 810,	R8A7797_CLK_S2D1),
++	DEF_MOD("vin0",			 811,	R8A7797_CLK_S2D1),
++	DEF_MOD("etheravb",		 812,	R8A7797_CLK_S2D2),
++	DEF_MOD("isp",			 817,	R8A7797_CLK_S2D1),	/* @@ Unknown Module Clock */
++	DEF_MOD("imr3",			 820,	R8A7797_CLK_S2D1),
++	DEF_MOD("imr2",			 821,	R8A7797_CLK_S2D1),
++	DEF_MOD("imr1",			 822,	R8A7797_CLK_S2D1),
++	DEF_MOD("imr0",			 823,	R8A7797_CLK_S2D1),
++	DEF_MOD("gpio5",		 907,	R8A7797_CLK_CP),
++	DEF_MOD("gpio4",		 908,	R8A7797_CLK_CP),
++	DEF_MOD("gpio3",		 909,	R8A7797_CLK_CP),
++	DEF_MOD("gpio2",		 910,	R8A7797_CLK_CP),
++	DEF_MOD("gpio1",		 911,	R8A7797_CLK_CP),
++	DEF_MOD("gpio0",		 912,	R8A7797_CLK_CP),
++	DEF_MOD("can-fd",		 914,	R8A7797_CLK_S2D2),	/* @@ H3=S3D2 */
++	DEF_MOD("i2c4",			 927,	R8A7797_CLK_S2D2),
++	DEF_MOD("i2c3",			 928,	R8A7797_CLK_S2D2),
++	DEF_MOD("i2c2",			 929,	R8A7797_CLK_S2D2),
++	DEF_MOD("i2c1",			 930,	R8A7797_CLK_S2D2),
++	DEF_MOD("i2c0",			 931,	R8A7797_CLK_S2D2),
++};
++
++static const unsigned int r8a7797_crit_mod_clks[] __initconst = {
++	MOD_CLK_ID(408),	/* INTC-AP (GIC) */
++};
++
++
++/*
++ * CPG Clock Data
++ */
++
++/*
++ *   MD		EXTAL		PLL0	PLL1	PLL3
++ * 14 13 19	(MHz)
++ *-------------------------------------------------
++ * 0  0  0 	16.66 x 1	x192	x192	x96
++ * 0  0  1 	16.66 x 1	x192	x192	x80
++ * 0  1  0 	20    x 1	x160	x160	x80
++ * 0  1  1 	20    x 1	x160	x160	x66
++ * 1  0  0 	27    / 2	x236	x236	x118
++ * 1  0  1 	27    / 2	x236	x236	x98
++ * 1  1  0 	33.33 / 2	x192	x192	x96
++ * 1  1  1 	33.33 / 2	x192	x192	x80
++ */
++#define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
++					 (((md) & BIT(13)) >> 12) | \
++					 (((md) & BIT(19)) >> 19))
++
++static const struct rcar_gen3_cpg_pll_config cpg_pll_configs[8] __initconst = {
++	/* EXTAL div	PLL1 mult	PLL3 mult */
++	{ 1,		192,		96,	},
++	{ 1,		192,		80,	},
++	{ 1,		160,		80,	},
++	{ 1,		160,		66,	},
++	{ 2,		236,		118,	},
++	{ 2,		236,		98,	},
++	{ 2,		192,		96,	},
++	{ 2,		192,		80,	},
++};
++
++static int __init r8a7797_cpg_mssr_init(struct device *dev)
++{
++	const struct rcar_gen3_cpg_pll_config *cpg_pll_config;
++	u32 cpg_mode;
++	int error;
++
++	error = rcar_rst_read_mode_pins(&cpg_mode);
++	if (error)
++		return error;
++
++	cpg_pll_config = &cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
++	if (!cpg_pll_config->extal_div) {
++		dev_err(dev, "Prohibited setting (cpg_mode=0x%x)\n", cpg_mode);
++		return -EINVAL;
++	}
++
++	return rcar_gen3_cpg_init(cpg_pll_config, CLK_EXTALR, cpg_mode);
++}
++
++const struct cpg_mssr_info r8a7797_cpg_mssr_info __initconst = {
++	/* Core Clocks */
++	.core_clks = r8a7797_core_clks,
++	.num_core_clks = ARRAY_SIZE(r8a7797_core_clks),
++	.last_dt_core_clk = LAST_DT_CORE_CLK,
++	.num_total_core_clks = MOD_CLK_BASE,
++
++	/* Module Clocks */
++	.mod_clks = r8a7797_mod_clks,
++	.num_mod_clks = ARRAY_SIZE(r8a7797_mod_clks),
++	.num_hw_mod_clks = 12 * 32,
++
++	/* Critical Module Clocks */
++	.crit_mod_clks = r8a7797_crit_mod_clks,
++	.num_crit_mod_clks = ARRAY_SIZE(r8a7797_crit_mod_clks),
++
++	/* Callbacks */
++	.init = r8a7797_cpg_mssr_init,
++	.cpg_clk_register = rcar_gen3_cpg_clk_register,
++};
+diff --git a/drivers/clk/renesas/rcar-gen3-cpg.c b/drivers/clk/renesas/rcar-gen3-cpg.c
+index 1cd2c05..b145f14 100644
+--- a/drivers/clk/renesas/rcar-gen3-cpg.c
++++ b/drivers/clk/renesas/rcar-gen3-cpg.c
+@@ -26,6 +26,13 @@
+ #include "renesas-cpg-mssr.h"
+ #include "rcar-gen3-cpg.h"
+ 
++static spinlock_t cpg_lock;
++
++static const struct soc_device_attribute r8a7797[] = {
++	{ .soc_id = "r8a7797" },
++	{ /* sentinel */ }
++};
++
+ #define CPG_PLL0CR		0x00d8
+ #define CPG_PLL2CR		0x002c
+ #define CPG_PLL4CR		0x01f4
+@@ -228,7 +235,10 @@ static unsigned long cpg_z2_clk_recalc_rate(struct clk_hw *hw,
+ 	unsigned int val;
+ 	unsigned long rate;
+ 
+-	val = (clk_readl(zclk->reg) & CPG_FRQCRC_Z2FC_MASK);
++	if (!soc_device_match(r8a7797))
++		val = (clk_readl(zclk->reg) & CPG_FRQCRC_Z2FC_MASK);
++	else
++		val = 0;
+ 	mult = 32 - val;
+ 
+ 	rate = div_u64((u64)parent_rate * mult + 16, 32);
+@@ -372,6 +382,11 @@ static int cpg_z2_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+ 	u32 val, kick;
+ 	unsigned int i;
+ 
++	if (soc_device_match(r8a7797)){
++		pr_info("Do not support V3M's Z2 clock changing\n");
++		return 0;
++	}
++
+ 	mult = div_u64((u64)rate * 32 + parent_rate/2, parent_rate);
+ 	mult = clamp(mult, 1U, 32U);
+ 
+@@ -566,6 +581,19 @@ static struct clk * __init cpg_zg_clk_register(const char *name,
+ /*
+  * SDn Clock
+  */
++/* SDHI divisors */
++static const struct clk_div_table cpg_sdh_div_table[] = {
++	{  0,  2 }, {  1,  3 }, {  2,  4 }, {  3,  6 },
++	{  4,  8 }, {  5, 12 }, {  6, 16 }, {  7, 18 },
++	{  8, 24 }, { 10, 36 }, { 11, 48 }, {  0,  0 },
++};
++
++static const struct clk_div_table cpg_sd01_div_table[] = {
++	{  4,  8 },
++	{  5, 12 }, {  6, 16 }, {  7, 18 }, {  8, 24 },
++	{ 10, 36 }, { 11, 48 }, { 12, 10 }, {  0,  0 },
++};
++
+ #define CPG_SD_STP_HCK		BIT(9)
+ #define CPG_SD_STP_CK		BIT(8)
+ 
+@@ -864,6 +892,14 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
+ 	case CLK_TYPE_GEN3_SD:
+ 		return cpg_sd_clk_register(core, base, __clk_get_name(parent));
+ 
++	case CLK_TYPE_GEN3_SD0:
++		return clk_register_divider_table(NULL, core->name, __clk_get_name(parent), 0, base + 0x0074,
++						4, 4,0, cpg_sd01_div_table, &cpg_lock);
++
++	case CLK_TYPE_GEN3_SD0H:
++		return clk_register_divider_table(NULL, core->name, __clk_get_name(parent), 0, base + 0x0074,
++						8, 4,0, cpg_sdh_div_table, &cpg_lock);
++
+ 	case CLK_TYPE_GEN3_RINT:
+ 		div = cpg_pll_config->rint;
+ 		break;
+@@ -917,5 +953,8 @@ int __init rcar_gen3_cpg_init(const struct rcar_gen3_cpg_pll_config *config,
+ 	if (attr)
+ 		cpg_quirks = (uintptr_t)attr->data;
+ 	pr_debug("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
++
++	spin_lock_init(&cpg_lock);
++
+ 	return 0;
+ }
+diff --git a/drivers/clk/renesas/rcar-gen3-cpg.h b/drivers/clk/renesas/rcar-gen3-cpg.h
+index 51ae7b8..694bedc 100644
+--- a/drivers/clk/renesas/rcar-gen3-cpg.h
++++ b/drivers/clk/renesas/rcar-gen3-cpg.h
+@@ -19,6 +19,8 @@ enum rcar_gen3_clk_types {
+ 	CLK_TYPE_GEN3_PLL3,
+ 	CLK_TYPE_GEN3_PLL4,
+ 	CLK_TYPE_GEN3_SD,
++	CLK_TYPE_GEN3_SD0,
++	CLK_TYPE_GEN3_SD0H,
+ 	CLK_TYPE_GEN3_R,
+ 	CLK_TYPE_GEN3_Z,
+ 	CLK_TYPE_GEN3_Z2,
+@@ -29,6 +31,10 @@ enum rcar_gen3_clk_types {
+ 
+ #define DEF_GEN3_SD(_name, _id, _parent, _offset)	\
+ 	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SD, _parent, .offset = _offset)
++#define DEF_GEN3_SD0(_name, _id, _parent, _offset)	\
++	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SD0, _parent, .offset = _offset)
++#define DEF_GEN3_SD0H(_name, _id, _parent, _offset)	\
++	DEF_BASE(_name, _id, CLK_TYPE_GEN3_SD0H, _parent, .offset = _offset)
+ 
+ struct rcar_gen3_cpg_pll_config {
+ 	unsigned int extal_div;
+diff --git a/drivers/clk/renesas/renesas-cpg-mssr.c b/drivers/clk/renesas/renesas-cpg-mssr.c
+index 8c261e1..bd901a6 100644
+--- a/drivers/clk/renesas/renesas-cpg-mssr.c
++++ b/drivers/clk/renesas/renesas-cpg-mssr.c
+@@ -594,6 +594,12 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
+ 		.data = &r8a77965_cpg_mssr_info,
+ 	},
+ #endif
++#ifdef CONFIG_ARCH_R8A7797
++	{
++		.compatible = "renesas,r8a7797-cpg-mssr",
++		.data = &r8a7797_cpg_mssr_info,
++	},
++#endif
+ 	{ /* sentinel */ }
+ };
+ 
+diff --git a/drivers/clk/renesas/renesas-cpg-mssr.h b/drivers/clk/renesas/renesas-cpg-mssr.h
+index 145b738..ce3546a 100644
+--- a/drivers/clk/renesas/renesas-cpg-mssr.h
++++ b/drivers/clk/renesas/renesas-cpg-mssr.h
+@@ -135,6 +135,7 @@ struct cpg_mssr_info {
+ extern const struct cpg_mssr_info r8a7795_cpg_mssr_info;
+ extern const struct cpg_mssr_info r8a7796_cpg_mssr_info;
+ extern const struct cpg_mssr_info r8a77965_cpg_mssr_info;
++extern const struct cpg_mssr_info r8a7797_cpg_mssr_info;
+ 
+ 
+     /*
+diff --git a/drivers/cpufreq/cpufreq-dt-platdev.c b/drivers/cpufreq/cpufreq-dt-platdev.c
+index 515d0e7..5a2ec23 100644
+--- a/drivers/cpufreq/cpufreq-dt-platdev.c
++++ b/drivers/cpufreq/cpufreq-dt-platdev.c
+@@ -60,6 +60,7 @@
+ 	{ .compatible = "renesas,r8a7795", },
+ 	{ .compatible = "renesas,r8a7796", },
+ 	{ .compatible = "renesas,r8a77965", },
++	{ .compatible = "renesas,r8a7797", },
+ 	{ .compatible = "renesas,sh73a0", },
+ 
+ 	{ .compatible = "rockchip,rk2928", },
+diff --git a/drivers/gpio/gpio-rcar.c b/drivers/gpio/gpio-rcar.c
+index 6917932..fd15649 100644
+--- a/drivers/gpio/gpio-rcar.c
++++ b/drivers/gpio/gpio-rcar.c
+@@ -1,7 +1,7 @@
+ /*
+  * Renesas R-Car GPIO Support
+  *
+- *  Copyright (C) 2014 Renesas Electronics Corporation
++ *  Copyright (C) 2014-2016 Renesas Electronics Corporation
+  *  Copyright (C) 2013 Magnus Damm
+  *
+  * This program is free software; you can redistribute it and/or modify
+@@ -367,6 +367,10 @@ struct gpio_rcar_info {
+ 		/* Gen3 GPIO is identical to Gen2. */
+ 		.data = &gpio_rcar_info_gen2,
+ 	}, {
++		.compatible = "renesas,gpio-r8a7797",
++		/* Gen3 GPIO is identical to Gen2. */
++		.data = &gpio_rcar_info_gen2,
++	}, {
+ 		.compatible = "renesas,gpio-rcar",
+ 		.data = &gpio_rcar_info_gen1,
+ 	}, {
+diff --git a/drivers/gpu/drm/rcar-du/rcar_du_drv.c b/drivers/gpu/drm/rcar-du/rcar_du_drv.c
+index b234918..f74f264 100644
+--- a/drivers/gpu/drm/rcar-du/rcar_du_drv.c
++++ b/drivers/gpu/drm/rcar-du/rcar_du_drv.c
+@@ -312,6 +312,30 @@
+ 	.skip_ch = BIT(2),
+ };
+ 
++static const struct rcar_du_device_info rcar_du_r8a7797_info = {
++	.gen = 3,
++	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK
++		  | RCAR_DU_FEATURE_EXT_CTRL_REGS
++		  | RCAR_DU_FEATURE_VSP1_SOURCE
++		  | RCAR_DU_FEATURE_GEN3_REGS,
++	.num_crtcs = 1,
++	.routes = {
++		/* R8A7797 has one RGB output, one LVDS output. */
++		[RCAR_DU_OUTPUT_DPAD0] = {
++			.possible_crtcs = BIT(0),
++			.encoder_type = DRM_MODE_ENCODER_NONE,
++			.port = 1,
++		},
++		[RCAR_DU_OUTPUT_LVDS0] = {
++			.possible_crtcs = BIT(0),
++			.encoder_type = DRM_MODE_ENCODER_LVDS,
++			.port = 0,
++		},
++	},
++	.num_lvds = 1,
++	.dpll_ch = BIT(1),
++};
++
+ static const struct soc_device_attribute ths_quirks_match[]  = {
+ 	{ .soc_id = "r8a7795", .revision = "ES1.*",
+ 	  .data = (void *)(RCAR_DU_DPLL_DUTY_RATE_WA
+@@ -335,6 +359,7 @@
+ 	{ .compatible = "renesas,du-r8a7795", .data = &rcar_du_r8a7795_info },
+ 	{ .compatible = "renesas,du-r8a7796", .data = &rcar_du_r8a7796_info },
+ 	{ .compatible = "renesas,du-r8a77965", .data = &rcar_du_r8a77965_info },
++	{ .compatible = "renesas,du-r8a7797", .data = &rcar_du_r8a7797_info },
+ 	{ }
+ };
+ 
+diff --git a/drivers/gpu/drm/rcar-du/rcar_du_group.c b/drivers/gpu/drm/rcar-du/rcar_du_group.c
+index 1af5eb7..3916b63 100644
+--- a/drivers/gpu/drm/rcar-du/rcar_du_group.c
++++ b/drivers/gpu/drm/rcar-du/rcar_du_group.c
+@@ -29,11 +29,17 @@
+ 
+ #include <linux/clk.h>
+ #include <linux/io.h>
++#include <linux/sys_soc.h>
+ 
+ #include "rcar_du_drv.h"
+ #include "rcar_du_group.h"
+ #include "rcar_du_regs.h"
+ 
++static const struct soc_device_attribute r8a7797[] = {
++	{ .soc_id = "r8a7797" },
++	{ }
++};
++
+ u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg)
+ {
+ 	return rcar_du_read(rgrp->dev, rgrp->mmio_offset + reg);
+@@ -155,8 +161,10 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
+ 
+ 	/* Apply planes to CRTCs association. */
+ 	mutex_lock(&rgrp->lock);
+-	rcar_du_group_write(rgrp, DPTSR, (rgrp->dptsr_planes << 16) |
+-			    rgrp->dptsr_planes);
++	if (!soc_device_match(r8a7797))
++		rcar_du_group_write(rgrp, DPTSR, (rgrp->dptsr_planes << 16) |
++				    rgrp->dptsr_planes);
++
+ 	mutex_unlock(&rgrp->lock);
+ }
+ 
+diff --git a/drivers/gpu/drm/rcar-du/rcar_du_lvdsenc.c b/drivers/gpu/drm/rcar-du/rcar_du_lvdsenc.c
+index ecae864..d5fa06c 100644
+--- a/drivers/gpu/drm/rcar-du/rcar_du_lvdsenc.c
++++ b/drivers/gpu/drm/rcar-du/rcar_du_lvdsenc.c
+@@ -17,12 +17,18 @@
+ #include <linux/of_gpio.h>
+ #include <linux/platform_device.h>
+ #include <linux/slab.h>
++#include <linux/sys_soc.h>
+ 
+ #include "rcar_du_drv.h"
+ #include "rcar_du_encoder.h"
+ #include "rcar_du_lvdsenc.h"
+ #include "rcar_lvds_regs.h"
+ 
++static const struct soc_device_attribute r8a7797[] = {
++	{ .soc_id = "r8a7797" },
++	{ }
++};
++
+ struct rcar_du_lvdsenc {
+ 	struct rcar_du_device *dev;
+ 
+@@ -96,14 +102,25 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
+ 	u32 pllcr;
+ 
+ 	/* PLL clock configuration */
+-	if (freq < 42000)
+-		pllcr = LVDPLLCR_PLLDIVCNT_42M;
+-	else if (freq < 85000)
+-		pllcr = LVDPLLCR_PLLDIVCNT_85M;
+-	else if (freq < 128000)
+-		pllcr = LVDPLLCR_PLLDIVCNT_128M;
+-	else
+-		pllcr = LVDPLLCR_PLLDIVCNT_148M;
++	if (soc_device_match(r8a7797)) {
++		if (freq < 39000)
++			pllcr = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_38M;
++		else if (freq < 61000)
++			pllcr = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_60M;
++		else if (freq < 121000)
++			pllcr = LVDPLLCR_CEEN | LVDPLLCR_COSEL | LVDPLLCR_PLLDLYCNT_121M;
++		else
++			pllcr = LVDPLLCR_PLLDLYCNT_150M;
++	} else {
++		if (freq < 42000)
++			pllcr = LVDPLLCR_PLLDIVCNT_42M;
++		else if (freq < 85000)
++			pllcr = LVDPLLCR_PLLDIVCNT_85M;
++		else if (freq < 128000)
++			pllcr = LVDPLLCR_PLLDIVCNT_128M;
++		else
++			pllcr = LVDPLLCR_PLLDIVCNT_148M;
++	}
+ 
+ 	rcar_lvds_write(lvds, LVDPLLCR, pllcr);
+ 
+@@ -123,6 +140,11 @@ static void rcar_du_lvdsenc_start_gen3(struct rcar_du_lvdsenc *lvds,
+ 	lvdcr0 |= LVDCR0_PWD;
+ 	rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+ 
++	if (soc_device_match(r8a7797)) {
++		lvdcr0 |= LVDCR0_LVEN;
++		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
++	}
++
+ 	usleep_range(100, 150);
+ 
+ 	lvdcr0 |= LVDCR0_LVRES;
+diff --git a/drivers/i2c/busses/i2c-rcar.c b/drivers/i2c/busses/i2c-rcar.c
+index 74c17d8..149c107 100644
+--- a/drivers/i2c/busses/i2c-rcar.c
++++ b/drivers/i2c/busses/i2c-rcar.c
+@@ -807,6 +807,7 @@ static u32 rcar_i2c_func(struct i2c_adapter *adap)
+ 	{ .compatible = "renesas,i2c-r8a7795", .data = (void *)I2C_RCAR_GEN3 },
+ 	{ .compatible = "renesas,i2c-r8a7796", .data = (void *)I2C_RCAR_GEN3 },
+ 	{ .compatible = "renesas,i2c-r8a77965", .data = (void *)I2C_RCAR_GEN3 },
++	{ .compatible = "renesas,i2c-r8a7797", .data = (void *)I2C_RCAR_GEN3 },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
+diff --git a/drivers/iommu/ipmmu-vmsa.c b/drivers/iommu/ipmmu-vmsa.c
+index e2baed1..1ae9174 100644
+--- a/drivers/iommu/ipmmu-vmsa.c
++++ b/drivers/iommu/ipmmu-vmsa.c
+@@ -1,7 +1,7 @@
+ /*
+  * IPMMU VMSA
+  *
+- * Copyright (C) 2014 Renesas Electronics Corporation
++ * Copyright (C) 2014-2016 Renesas Electronics Corporation
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+@@ -1277,6 +1277,9 @@ static void ipmmu_device_reset(struct ipmmu_vmsa_device *mmu)
+ 		.compatible = "renesas,ipmmu-r8a7796",
+ 		.data = &ipmmu_features_rcar_gen3,
+ 	}, {
++		.compatible = "renesas,ipmmu-r8a7797",
++		.data = &ipmmu_features_rcar_gen3,
++	}, {
+ 		/* Terminator */
+ 	},
+ };
+@@ -1648,6 +1651,8 @@ static int __init ipmmu_vmsa_iommu_of_setup(struct device_node *np)
+ 		 ipmmu_vmsa_iommu_of_setup);
+ IOMMU_OF_DECLARE(ipmmu_r8a7796_iommu_of, "renesas,ipmmu-r8a7796",
+ 		 ipmmu_vmsa_iommu_of_setup);
++IOMMU_OF_DECLARE(ipmmu_r8a7797_iommu_of, "renesas,ipmmu-r8a7797",
++		 ipmmu_vmsa_iommu_of_setup);
+ #endif
+ 
+ MODULE_DESCRIPTION("IOMMU API for Renesas VMSA-compatible IPMMU");
+diff --git a/drivers/media/platform/soc_camera/Kconfig b/drivers/media/platform/soc_camera/Kconfig
+index 17178ad..5539c5d 100644
+--- a/drivers/media/platform/soc_camera/Kconfig
++++ b/drivers/media/platform/soc_camera/Kconfig
+@@ -39,7 +39,7 @@ config VIDEO_RCAR_VIN_LEGACY_DEBUG
+ config VIDEO_RCAR_CSI2_LEGACY
+ 	tristate "R-Car MIPI CSI-2 Interface driver"
+ 	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
+-	depends on ARCH_R8A7795 || ARCH_R8A7796 || COMPILE_TEST
++	depends on ARCH_R8A7795 || ARCH_R8A7796 || ARCH_R8A7797 || COMPILE_TEST
+ 	---help---
+ 	  This is a v4l2 driver for the R-Car CSI-2 Interface
+ 
+diff --git a/drivers/media/platform/soc_camera/rcar_csi2.c b/drivers/media/platform/soc_camera/rcar_csi2.c
+index 05f623468..4d95da6 100644
+--- a/drivers/media/platform/soc_camera/rcar_csi2.c
++++ b/drivers/media/platform/soc_camera/rcar_csi2.c
+@@ -25,6 +25,7 @@
+ #include <linux/slab.h>
+ #include <linux/videodev2.h>
+ #include <linux/module.h>
++#include <linux/sys_soc.h>
+ 
+ #include <media/rcar_csi2.h>
+ #include <media/soc_camera.h>
+@@ -153,6 +154,11 @@
+ #define RCAR_CSI2_INTSTATE_ERRSYNCESC		(1 << 1)
+ #define RCAR_CSI2_INTSTATE_ERRCONTROL		(1 << 0)
+ 
++static const struct soc_device_attribute r8a7797[] = {
++	{ .soc_id = "r8a7797" },
++	{ }
++};
++
+ enum chip_id {
+ 	RCAR_GEN3,
+ 	RCAR_GEN2,
+@@ -248,6 +254,17 @@ struct rcar_csi2 {
+ 
+ static int rcar_csi2_set_phy_freq(struct rcar_csi2 *priv)
+ {
++	const uint32_t const hs_freq_range_v3m[43] = {
++		0x00, 0x00, 0x20, 0x40, 0x02,	/* 80M, 90M, 100M, 110M, 120M */
++		0x02, 0x22, 0x42, 0x04, 0x04,	/* 130M, 140M, 150M, 160M, 170M */
++		0x24, 0x44, 0x44, 0x06, 0x26,	/* 180M, 190M, 205M, 220M, 235M */
++		0x46, 0x08, 0x28, 0x0a, 0x2a,	/* 250M, 270M, 300M, 325M, 350M */
++		0x4a, 0x4a, 0x4a, 0x4a, 0x4a,	/* 400M, 450M, 500M, 550M, 600M */
++		0x10, 0x30, 0x12, 0x32, 0x52,	/* 650M, 700M, 750M, 800M, 950M */
++		0x72, 0x14, 0x34, 0x52, 0x74,	/* 900M, 950M, 1000M, 1050M, 1100M */
++		0x16, 0x36, 0x56, 0x76, 0x18,	/* 1150M, 1200M, 1250M, 1300M, 1350M */
++		0x38, 0x58, 0x78		/* 1400M, 1450M, 1500M */
++	};
+ 	const uint32_t const hs_freq_range[43] = {
+ 		0x00, 0x10, 0x20, 0x30, 0x01,  /* 0-4   */
+ 		0x11, 0x21, 0x31, 0x02, 0x12,  /* 5-9   */
+@@ -304,7 +321,12 @@ static int rcar_csi2_set_phy_freq(struct rcar_csi2 *priv)
+ 
+ 	dev_dbg(&priv->pdev->dev, "bps_per_lane (%d)\n", bps_per_lane);
+ 
+-	iowrite32((hs_freq_range[bps_per_lane] << 16),
++	if (soc_device_match(r8a7797))
++		iowrite32((hs_freq_range_v3m[bps_per_lane] << 16) |
++				RCAR_CSI2_PHTW_DWEN | RCAR_CSI2_PHTW_CWEN | 0x44,
++				priv->base + RCAR_CSI2_PHTW);
++	else
++		iowrite32(hs_freq_range[bps_per_lane] << 16,
+ 				priv->base + RCAR_CSI2_PHYPLL);
+ 	return 0;
+ 
+@@ -488,6 +510,7 @@ static int rcar_csi2_s_power(struct v4l2_subdev *sd, int on)
+ 
+ #ifdef CONFIG_OF
+ static const struct of_device_id rcar_csi2_of_table[] = {
++	{ .compatible = "renesas,r8a7797-csi2", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,r8a7796-csi2", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,r8a7795-csi2", .data = (void *)RCAR_GEN3 },
+ 	{ },
+@@ -496,6 +519,7 @@ static int rcar_csi2_s_power(struct v4l2_subdev *sd, int on)
+ #endif
+ 
+ static struct platform_device_id rcar_csi2_id_table[] = {
++	{ "r8a7797-csi2",  RCAR_GEN3 },
+ 	{ "r8a7796-csi2",  RCAR_GEN3 },
+ 	{ "r8a7795-csi2",  RCAR_GEN3 },
+ 	{},
+diff --git a/drivers/media/platform/soc_camera/rcar_vin.c b/drivers/media/platform/soc_camera/rcar_vin.c
+index 400958b..74fb005 100644
+--- a/drivers/media/platform/soc_camera/rcar_vin.c
++++ b/drivers/media/platform/soc_camera/rcar_vin.c
+@@ -154,7 +154,7 @@
+ #define VNCSI_IFMD_REG	0x20	/* Video n CSI2 Interface Mode Register */
+ 
+ #define VNCSI_IFMD_DES1		(1 << 26) /* CSI20 */
+-#define VNCSI_IFMD_DES0		(1 << 25) /* H3:CSI40/41, M3:CSI40 */
++#define VNCSI_IFMD_DES0		(1 << 25) /* H3:CSI40/41, M3:CSI40, V3M:CSI40 */
+ 
+ #define VNCSI_IFMD_CSI_CHSEL(n)	(n << 0)
+ #define VNCSI_IFMD_SEL_NUMBER	5
+@@ -185,6 +185,7 @@
+ 
+ enum chip_id {
+ 	RCAR_GEN3,
++	RCAR_V3M,
+ 	RCAR_M3,
+ 	RCAR_H3,
+ 	RCAR_GEN2,
+@@ -360,6 +361,49 @@ struct vin_gen3_ifmd {
+ 	},
+ };
+ 
++static const struct vin_gen3_ifmd vin_v3_vc_ifmd[] = {
++	{ 0x0000,
++		{
++			{RCAR_CSI40, RCAR_VIRTUAL_CH0},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI40, RCAR_VIRTUAL_CH1},
++		}
++	},
++	{ 0x0001,
++		{
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI40, RCAR_VIRTUAL_CH0},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++		}
++	},
++	{ 0x0002,
++		{
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI40, RCAR_VIRTUAL_CH0},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++		}
++	},
++	{ 0x0003,
++		{
++			{RCAR_CSI40, RCAR_VIRTUAL_CH0},
++			{RCAR_CSI40, RCAR_VIRTUAL_CH1},
++			{RCAR_CSI40, RCAR_VIRTUAL_CH2},
++			{RCAR_CSI40, RCAR_VIRTUAL_CH3},
++		}
++	},
++	{ 0x0004,
++		{
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++			{RCAR_CSI_CH_NONE, RCAR_VIN_CH_NONE},
++		}
++	},
++};
++
+ enum csi2_fmt {
+ 	RCAR_CSI_FMT_NONE = -1,
+ 	RCAR_CSI_RGB888,
+@@ -849,7 +893,8 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
+ 	struct rcar_vin_priv *priv = ici->priv;
+ 	struct rcar_vin_cam *cam = icd->host_priv;
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		if ((priv->ratio_h > 0x10000) || (priv->ratio_v > 0x10000)) {
+ 			dev_err(icd->parent, "Scaling rate parameter error\n");
+ 			return -EINVAL;
+@@ -951,7 +996,8 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
+ 	/* output format */
+ 	switch (icd->current_fmt->host_fmt->fourcc) {
+ 	case V4L2_PIX_FMT_NV12:
+-		if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++		if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++			priv->chip == RCAR_V3M) {
+ 			iowrite32(ALIGN((cam->out_width * cam->out_height),
+ 					 0x80), priv->base + VNUVAOF_REG);
+ 			dmr = VNDMR_DTMD_YCSEP_YCBCR420;
+@@ -983,6 +1029,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
+ 		break;
+ 	case V4L2_PIX_FMT_XBGR32:
+ 		if (priv->chip != RCAR_H3 && priv->chip != RCAR_M3 &&
++			priv->chip != RCAR_V3M &&
+ 		    priv->chip != RCAR_GEN2 && priv->chip != RCAR_H1 &&
+ 		    priv->chip != RCAR_E1)
+ 			goto e_format;
+@@ -990,7 +1037,8 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
+ 		dmr = VNDMR_EXRGB;
+ 		break;
+ 	case V4L2_PIX_FMT_ABGR32:
+-		if (priv->chip != RCAR_H3 && priv->chip != RCAR_M3)
++		if (priv->chip != RCAR_H3 && priv->chip != RCAR_M3 &&
++			priv->chip != RCAR_V3M)
+ 			goto e_format;
+ 
+ 		dmr = VNDMR_EXRGB | VNDMR_DTMD_ARGB;
+@@ -1006,7 +1054,8 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
+ 	if (input_is_yuv == output_is_yuv)
+ 		vnmc |= VNMC_BPS;
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		if (priv->pdata_flags & RCAR_VIN_CSI2)
+ 			vnmc &= ~VNMC_DPINE;
+ 		else
+@@ -1323,7 +1372,8 @@ static int rcar_vin_add_device(struct soc_camera_device *icd)
+ 
+ 	pm_runtime_get_sync(ici->v4l2_dev.dev);
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		struct v4l2_subdev *csi2_sd = find_csi2(priv);
+ 		int ret;
+ 
+@@ -1569,7 +1619,8 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
+ 		break;
+ 	}
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		if ((icd->current_fmt->host_fmt->fourcc != V4L2_PIX_FMT_NV12)
+ 			&& is_scaling(cam)) {
+ 			ret = rcar_vin_uds_set(priv, cam);
+@@ -1720,14 +1771,16 @@ static int rcar_vin_set_bus_param(struct soc_camera_device *icd)
+ 	if (ret < 0 && ret != -ENOIOCTLCMD)
+ 		return ret;
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		if (cfg.type == V4L2_MBUS_CSI2)
+ 			vnmc &= ~VNMC_DPINE;
+ 		else
+ 			vnmc |= VNMC_DPINE;
+ 	}
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3)
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M)
+ 		val = VNDMR2_FTEV;
+ 	else
+ 		val = VNDMR2_FTEV | VNDMR2_VLV(1);
+@@ -2289,7 +2342,8 @@ static int rcar_vin_try_fmt(struct soc_camera_device *icd,
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		/* Adjust max scaling size for Gen3 */
+ 		if (pix->width > 4096)
+ 			pix->width = priv->max_width;
+@@ -2454,6 +2508,7 @@ static int rcar_vin_cropcap(struct soc_camera_device *icd,
+ 
+ #ifdef CONFIG_OF
+ static const struct of_device_id rcar_vin_of_table[] = {
++	{ .compatible = "renesas,vin-r8a7797", .data = (void *)RCAR_V3M },
+ 	{ .compatible = "renesas,vin-r8a7796", .data = (void *)RCAR_M3 },
+ 	{ .compatible = "renesas,vin-r8a7795", .data = (void *)RCAR_H3 },
+ 	{ .compatible = "renesas,vin-r8a7794", .data = (void *)RCAR_GEN2 },
+@@ -2754,7 +2809,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
+ 		priv->chip = (enum chip_id)match->data;
+ 	}
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		priv->max_width = 4096;
+ 		priv->max_height = 4096;
+ 	} else {
+@@ -2762,7 +2818,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
+ 		priv->max_height = 2048;
+ 	}
+ 
+-	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3) {
++	if (priv->chip == RCAR_H3 || priv->chip == RCAR_M3 ||
++		priv->chip == RCAR_V3M) {
+ 		u32 ifmd = 0;
+ 		bool match_flag = false;
+ 		const struct vin_gen3_ifmd *gen3_ifmd_table = NULL;
+@@ -2841,6 +2898,8 @@ static int rcar_vin_probe(struct platform_device *pdev)
+ 			gen3_ifmd_table = vin_h3_vc_ifmd;
+ 		else if (priv->chip == RCAR_M3)
+ 			gen3_ifmd_table = vin_m3_vc_ifmd;
++		else if (priv->chip == RCAR_V3M)
++			gen3_ifmd_table = vin_v3_vc_ifmd;
+ 
+ 		for (i = 0; i < num; i++) {
+ 			if ((gen3_ifmd_table[i].v_sel[priv->index].csi2_ch
+@@ -2983,6 +3042,9 @@ static int rcar_vin_resume(struct device *dev)
+ 	} else if (priv->chip == RCAR_M3) {
+ 		ifmd = VNCSI_IFMD_DES1;
+ 		gen3_ifmd_table = vin_m3_vc_ifmd;
++	} else if (priv->chip == RCAR_V3M) {
++		ifmd = VNCSI_IFMD_DES1;
++		gen3_ifmd_table = vin_v3_vc_ifmd;
+ 	}
+ 
+ 	for (i = 0; i < num; i++) {
+diff --git a/drivers/media/platform/vsp1/vsp1_drv.c b/drivers/media/platform/vsp1/vsp1_drv.c
+index cdaa097..6daeab4 100644
+--- a/drivers/media/platform/vsp1/vsp1_drv.c
++++ b/drivers/media/platform/vsp1/vsp1_drv.c
+@@ -893,6 +893,15 @@ void vsp1_device_put(struct vsp1_device *vsp1)
+ 		.wpf_count = 2,
+ 		.num_bru_inputs = 5,
+ 		.header_mode = true,
++	}, { 
++		.version = VI6_IP_VERSION_MODEL_VSPD_V3M,
++		.model = "VSP2-D",
++		.gen = 3,
++		.features = VSP1_HAS_BRU | VSP1_HAS_LIF,
++		.rpf_count = 5,
++		.wpf_count = 1,
++		.num_bru_inputs = 5,
++		.header_mode = true,
+ 	},
+ };
+ 
+diff --git a/drivers/media/platform/vsp1/vsp1_lif.c b/drivers/media/platform/vsp1/vsp1_lif.c
+index b442d14..e79f9e6 100644
+--- a/drivers/media/platform/vsp1/vsp1_lif.c
++++ b/drivers/media/platform/vsp1/vsp1_lif.c
+@@ -13,6 +13,7 @@
+ 
+ #include <linux/device.h>
+ #include <linux/gfp.h>
++#include <linux/sys_soc.h>
+ 
+ #include <media/v4l2-subdev.h>
+ 
+@@ -23,6 +24,11 @@
+ #define LIF_MIN_SIZE				2U
+ #define LIF_MAX_SIZE				8190U
+ 
++static const struct soc_device_attribute r8a7797[] = {
++	{ .soc_id = "r8a7797" },
++	{ }
++};
++
+ /* -----------------------------------------------------------------------------
+  * Device Access
+  */
+@@ -145,7 +151,7 @@ static void lif_configure(struct vsp1_entity *entity,
+ 	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.config,
+ 					    LIF_PAD_SOURCE);
+ 
+-	if (vsp1_gen3_vspdl_check(vsp1))
++	if (vsp1_gen3_vspdl_check(vsp1) || soc_device_match(r8a7797))
+ 		obth = 1500;
+ 	else
+ 		obth = 3000;
+@@ -158,6 +164,10 @@ static void lif_configure(struct vsp1_entity *entity,
+ 			(obth << VI6_LIF_CTRL_OBTH_SHIFT) |
+ 			(format->code == 0 ? VI6_LIF_CTRL_CFMT : 0) |
+ 			VI6_LIF_CTRL_REQSEL | VI6_LIF_CTRL_LIF_EN);
++
++	if (soc_device_match(r8a7797))
++		vsp1_lif_write(lif, dl, VI6_LIF_LBA, VI6_LIF_LBA_LBA0 |
++						     VI6_LIF_LBA_LBA1);
+ }
+ 
+ static const struct vsp1_entity_operations lif_entity_ops = {
+diff --git a/drivers/media/platform/vsp1/vsp1_regs.h b/drivers/media/platform/vsp1/vsp1_regs.h
+index 9134dbd..6c971f7 100644
+--- a/drivers/media/platform/vsp1/vsp1_regs.h
++++ b/drivers/media/platform/vsp1/vsp1_regs.h
+@@ -789,6 +789,12 @@
+ #define VI6_LIF_CSBTH_LBTH_MASK		(0x7ff << 0)
+ #define VI6_LIF_CSBTH_LBTH_SHIFT	0
+ 
++
++#define VI6_LIF_LBA			0x3b0c
++#define VI6_LIF_LBA_LBA0		(1 << 31)
++#define VI6_LIF_LBA_LBA1		(0x600 << 16)
++
++
+ /* -----------------------------------------------------------------------------
+  * Security Control Registers
+  */
+@@ -812,6 +818,7 @@
+ #define VI6_IP_VERSION_MODEL_VSPBD_GEN3	(0x15 << 8)
+ #define VI6_IP_VERSION_MODEL_VSPBC_GEN3	(0x16 << 8)
+ #define VI6_IP_VERSION_MODEL_VSPD_GEN3	(0x17 << 8)
++#define VI6_IP_VERSION_MODEL_VSPD_V3M	(0x18 << 8)
+ #define VI6_IP_VERSION_MODEL_VSPDL_GEN3	(0x19 << 8)
+ 
+ #define VI6_IP_VERSION_SOC_MASK		(0xff << 0)
+diff --git a/drivers/mmc/host/sh_mobile_sdhi.c b/drivers/mmc/host/sh_mobile_sdhi.c
+index a7fb054..040f474 100644
+--- a/drivers/mmc/host/sh_mobile_sdhi.c
++++ b/drivers/mmc/host/sh_mobile_sdhi.c
+@@ -140,6 +140,7 @@ struct sh_mobile_sdhi_of_data {
+ 	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_gen3_compatible, },
+ 	{ .compatible = "renesas,sdhi-r8a77965",
+ 					.data = &of_rcar_gen3_compatible, },
++	{ .compatible = "renesas,sdhi-r8a7797", .data = &of_rcar_gen3_compatible, },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
+diff --git a/drivers/net/ethernet/renesas/ravb_main.c b/drivers/net/ethernet/renesas/ravb_main.c
+index 5ad4d13..73fa286 100644
+--- a/drivers/net/ethernet/renesas/ravb_main.c
++++ b/drivers/net/ethernet/renesas/ravb_main.c
+@@ -1920,6 +1920,7 @@ static int ravb_mdio_release(struct ravb_private *priv)
+ 	{ .compatible = "renesas,etheravb-r8a7795", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,etheravb-r8a7796", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,etheravb-r8a77965", .data = (void *)RCAR_GEN3 },
++	{ .compatible = "renesas,etheravb-r8a7797", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,etheravb-rcar-gen3", .data = (void *)RCAR_GEN3 },
+ 	{ }
+ };
+diff --git a/drivers/pinctrl/sh-pfc/Kconfig b/drivers/pinctrl/sh-pfc/Kconfig
+index 6d2cdf8..4aaf0be 100644
+--- a/drivers/pinctrl/sh-pfc/Kconfig
++++ b/drivers/pinctrl/sh-pfc/Kconfig
+@@ -84,6 +84,11 @@ config PINCTRL_PFC_R8A77965
+ 	depends on ARCH_R8A77965
+ 	select PINCTRL_SH_PFC
+ 
++config PINCTRL_PFC_R8A7797
++	def_bool y
++	depends on ARCH_R8A7797
++	select PINCTRL_SH_PFC
++
+ config PINCTRL_PFC_SH7203
+ 	def_bool y
+ 	depends on CPU_SUBTYPE_SH7203
+diff --git a/drivers/pinctrl/sh-pfc/Makefile b/drivers/pinctrl/sh-pfc/Makefile
+index f12017b..e263c14 100644
+--- a/drivers/pinctrl/sh-pfc/Makefile
++++ b/drivers/pinctrl/sh-pfc/Makefile
+@@ -14,6 +14,7 @@ obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795.o
+ obj-$(CONFIG_PINCTRL_PFC_R8A7795)	+= pfc-r8a7795-es1.o
+ obj-$(CONFIG_PINCTRL_PFC_R8A7796)	+= pfc-r8a7796.o
+ obj-$(CONFIG_PINCTRL_PFC_R8A77965)	+= pfc-r8a77965.o
++obj-$(CONFIG_PINCTRL_PFC_R8A7797)	+= pfc-r8a7797.o
+ obj-$(CONFIG_PINCTRL_PFC_SH7203)	+= pfc-sh7203.o
+ obj-$(CONFIG_PINCTRL_PFC_SH7264)	+= pfc-sh7264.o
+ obj-$(CONFIG_PINCTRL_PFC_SH7269)	+= pfc-sh7269.o
+diff --git a/drivers/pinctrl/sh-pfc/core.c b/drivers/pinctrl/sh-pfc/core.c
+index a6a8f65..9aba933 100644
+--- a/drivers/pinctrl/sh-pfc/core.c
++++ b/drivers/pinctrl/sh-pfc/core.c
+@@ -5,6 +5,7 @@
+  *
+  * Copyright (C) 2008 Magnus Damm
+  * Copyright (C) 2009 - 2012 Paul Mundt
++ * Copyright (C) 2016 Renesas Electronics Corp.
+  *
+  * This file is subject to the terms and conditions of the GNU General Public
+  * License.  See the file "COPYING" in the main directory of this archive
+@@ -545,6 +546,12 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
+ 		.data = &r8a77965_pinmux_info,
+ 	},
+ #endif
++#ifdef CONFIG_PINCTRL_PFC_R8A7797
++	{
++		.compatible = "renesas,pfc-r8a7797",
++		.data = &r8a7797_pinmux_info,
++	},
++#endif
+ #ifdef CONFIG_PINCTRL_PFC_SH73A0
+ 	{
+ 		.compatible = "renesas,pfc-sh73a0",
+diff --git a/drivers/pinctrl/sh-pfc/pfc-r8a7797.c b/drivers/pinctrl/sh-pfc/pfc-r8a7797.c
+new file mode 100644
+index 0000000..6b83f44
+--- /dev/null
++++ b/drivers/pinctrl/sh-pfc/pfc-r8a7797.c
+@@ -0,0 +1,2628 @@
++/*
++ * R8A7797 processor support - PFC hardware block.
++ *
++ * Copyright (C) 2016 Renesas Electronics Corp.
++ *
++ * This file is based on the drivers/pinctrl/sh-pfc/pfc-r8a7795.c
++ *
++ * R-Car Gen3 processor support - PFC hardware block.
++ *
++ * Copyright (C) 2015  Renesas Electronics Corporation
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ */
++
++#include <linux/io.h>
++#include <linux/kernel.h>
++#include <linux/sys_soc.h>
++
++#include "core.h"
++#include "sh_pfc.h"
++
++#define CPU_ALL_PORT(fn, sfx)						\
++	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
++	PORT_GP_CFG_28(1, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
++	PORT_GP_CFG_17(2, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
++	PORT_GP_CFG_17(3, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH |	\
++				   SH_PFC_PIN_CFG_IO_VOLTAGE),		\
++	PORT_GP_CFG_6(4, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH),	\
++	PORT_GP_CFG_15(5, fn, sfx, SH_PFC_PIN_CFG_DRIVE_STRENGTH)
++/*
++ * F_() : just information
++ * FM() : macro for FN_xxx / xxx_MARK
++ */
++
++/* GPSR0 */
++#define GPSR0_21	F_(DU_EXODDF_DU_ODDF_DISP_CDE,	IP2_23_20)
++#define GPSR0_20	F_(DU_EXVSYNC_DU_VSYNC,		IP2_19_16)
++#define GPSR0_19	F_(DU_EXHSYNC_DU_HSYNC,		IP2_15_12)
++#define GPSR0_18	F_(DU_DOTCLKOUT,		IP2_11_8)
++#define GPSR0_17	F_(DU_DB7,			IP2_7_4)
++#define GPSR0_16	F_(DU_DB6,			IP2_3_0)
++#define GPSR0_15	F_(DU_DB5,			IP1_31_28)
++#define GPSR0_14	F_(DU_DB4,			IP1_27_24)
++#define GPSR0_13	F_(DU_DB3,			IP1_23_20)
++#define GPSR0_12	F_(DU_DB2,			IP1_19_16)
++#define GPSR0_11	F_(DU_DG7,			IP1_15_12)
++#define GPSR0_10	F_(DU_DG6,			IP1_11_8)
++#define GPSR0_9		F_(DU_DG5,			IP1_7_4)
++#define GPSR0_8		F_(DU_DG4,			IP1_3_0)
++#define GPSR0_7		F_(DU_DG3,			IP0_31_28)
++#define GPSR0_6		F_(DU_DG2,			IP0_27_24)
++#define GPSR0_5		F_(DU_DR7,			IP0_23_20)
++#define GPSR0_4		F_(DU_DR6,			IP0_19_16)
++#define GPSR0_3		F_(DU_DR5,			IP0_15_12)
++#define GPSR0_2		F_(DU_DR4,			IP0_11_8)
++#define GPSR0_1		F_(DU_DR3,			IP0_7_4)
++#define GPSR0_0		F_(DU_DR2,			IP0_3_0)
++
++/* GPSR1 */
++#define GPSR1_27	F_(DIGRF_CLKOUT,	IP8_27_24)
++#define GPSR1_26	F_(DIGRF_CLKIN,		IP8_23_20)
++#define GPSR1_25	F_(CANFD_CLK_A,		IP8_19_16)
++#define GPSR1_24	F_(CANFD1_RX,		IP8_15_12)
++#define GPSR1_23	F_(CANFD1_TX,		IP8_11_8)
++#define GPSR1_22	F_(CANFD0_RX_A,		IP8_7_4)
++#define GPSR1_21	F_(CANFD0_TX_A,		IP8_3_0)
++#define GPSR1_20	F_(AVB0_AVTP_CAPTURE,	IP7_31_28)
++#define GPSR1_19	FM(AVB0_AVTP_MATCH)
++#define GPSR1_18	FM(AVB0_LINK)
++#define GPSR1_17	FM(AVB0_PHY_INT)
++#define GPSR1_16	FM(AVB0_MAGIC)
++#define GPSR1_15	FM(AVB0_MDC)
++#define GPSR1_14	FM(AVB0_MDIO)
++#define GPSR1_13	FM(AVB0_TXCREFCLK)
++#define GPSR1_12	FM(AVB0_TD3)
++#define GPSR1_11	FM(AVB0_TD2)
++#define GPSR1_10	FM(AVB0_TD1)
++#define GPSR1_9		FM(AVB0_TD0)
++#define GPSR1_8		FM(AVB0_TXC)
++#define GPSR1_7		FM(AVB0_TX_CTL)
++#define GPSR1_6		FM(AVB0_RD3)
++#define GPSR1_5		FM(AVB0_RD2)
++#define GPSR1_4		FM(AVB0_RD1)
++#define GPSR1_3		FM(AVB0_RD0)
++#define GPSR1_2		FM(AVB0_RXC)
++#define GPSR1_1		FM(AVB0_RX_CTL)
++#define GPSR1_0		F_(IRQ0,		IP2_27_24)
++
++/* GPSR2 */
++#define GPSR2_16	F_(VI0_FIELD,		IP4_31_28)
++#define GPSR2_15	F_(VI0_DATA11,		IP4_27_24)
++#define GPSR2_14	F_(VI0_DATA10,		IP4_23_20)
++#define GPSR2_13	F_(VI0_DATA9,		IP4_19_16)
++#define GPSR2_12	F_(VI0_DATA8,		IP4_15_12)
++#define GPSR2_11	F_(VI0_DATA7,		IP4_11_8)
++#define GPSR2_10	F_(VI0_DATA6,		IP4_7_4)
++#define GPSR2_9		F_(VI0_DATA5,		IP4_3_0)
++#define GPSR2_8		F_(VI0_DATA4,		IP3_31_28)
++#define GPSR2_7		F_(VI0_DATA3,		IP3_27_24)
++#define GPSR2_6		F_(VI0_DATA2,		IP3_23_20)
++#define GPSR2_5		F_(VI0_DATA1,		IP3_19_16)
++#define GPSR2_4		F_(VI0_DATA0,		IP3_15_12)
++#define GPSR2_3		F_(VI0_VSYNC_N,		IP3_11_8)
++#define GPSR2_2		F_(VI0_HSYNC_N,		IP3_7_4)
++#define GPSR2_1		F_(VI0_CLKENB,		IP3_3_0)
++#define GPSR2_0		F_(VI0_CLK,		IP2_31_28)
++
++/* GPSR3 */
++#define GPSR3_16	F_(VI1_FIELD,		IP7_3_0)
++#define GPSR3_15	F_(VI1_DATA11,		IP6_31_28)
++#define GPSR3_14	F_(VI1_DATA10,		IP6_27_24)
++#define GPSR3_13	F_(VI1_DATA9,		IP6_23_20)
++#define GPSR3_12	F_(VI1_DATA8,		IP6_19_16)
++#define GPSR3_11	F_(VI1_DATA7,		IP6_15_12)
++#define GPSR3_10	F_(VI1_DATA6,		IP6_11_8)
++#define GPSR3_9		F_(VI1_DATA5,		IP6_7_4)
++#define GPSR3_8		F_(VI1_DATA4,		IP6_3_0)
++#define GPSR3_7		F_(VI1_DATA3,		IP5_31_28)
++#define GPSR3_6		F_(VI1_DATA2,		IP5_27_24)
++#define GPSR3_5		F_(VI1_DATA1,		IP5_23_20)
++#define GPSR3_4		F_(VI1_DATA0,		IP5_19_16)
++#define GPSR3_3		F_(VI1_VSYNC_N,		IP5_15_12)
++#define GPSR3_2		F_(VI1_HSYNC_N,		IP5_11_8)
++#define GPSR3_1		F_(VI1_CLKENB,		IP5_7_4)
++#define GPSR3_0		F_(VI1_CLK,		IP5_3_0)
++
++/* GPSR4 */
++#define GPSR4_5		F_(SDA2,		IP7_27_24)
++#define GPSR4_4		F_(SCL2,		IP7_23_20)
++#define GPSR4_3		F_(SDA1,		IP7_19_16)
++#define GPSR4_2		F_(SCL1,		IP7_15_12)
++#define GPSR4_1		F_(SDA0,		IP7_11_8)
++#define GPSR4_0		F_(SCL0,		IP7_7_4)
++
++/* GPSR5 */
++#define GPSR5_14	FM(RPC_INT_N)
++#define GPSR5_13	FM(RPC_WP_N)
++#define GPSR5_12	FM(RPC_RESET_N)
++#define GPSR5_11	FM(QSPI1_SSL)
++#define GPSR5_10	FM(QSPI1_IO3)
++#define GPSR5_9		FM(QSPI1_IO2)
++#define GPSR5_8		FM(QSPI1_MISO_IO1)
++#define GPSR5_7		FM(QSPI1_MOSI_IO0)
++#define GPSR5_6		FM(QSPI1_SPCLK)
++#define GPSR5_5		FM(QSPI0_SSL)
++#define GPSR5_4		FM(QSPI0_IO3)
++#define GPSR5_3		FM(QSPI0_IO2)
++#define GPSR5_2		FM(QSPI0_MISO_IO1)
++#define GPSR5_1		FM(QSPI0_MOSI_IO0)
++#define GPSR5_0		FM(QSPI0_SPCLK)
++
++
++/* IPSRx */		/* 0 */				/* 1 */			/* 2 */		/* 3 */		/* 4 */			/* 5 */		/* 6 */		/* 7 */		/* 8 */		/* 9 */		/* A */		/* B */		/* C */		/* D */		/* E */		/* F */
++#define IP0_3_0		FM(DU_DR2)			FM(HSCK0)		F_(0, 0)	FM(A0)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_7_4		FM(DU_DR3)			FM(HRTS0_N)		F_(0, 0)	FM(A1)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_11_8	FM(DU_DR4)			FM(HCTS0_N)		F_(0, 0)	FM(A2)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_15_12	FM(DU_DR5)			FM(HTX0)		F_(0, 0)	FM(A3)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_19_16	FM(DU_DR6)			FM(MSIOF3_RXD)		F_(0, 0)	FM(A4)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_23_20	FM(DU_DR7)			FM(MSIOF3_TXD)		F_(0, 0)	FM(A5)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_27_24	FM(DU_DG2)			FM(MSIOF3_SS1)		F_(0, 0)	FM(A6)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP0_31_28	FM(DU_DG3)			FM(MSIOF3_SS2)		F_(0, 0)	FM(A7)		FM(PWMFSW0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_3_0		FM(DU_DG4)			F_(0, 0)		F_(0, 0)	FM(A8)		FM(FSO_CFE_0_N_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_7_4		FM(DU_DG5)			F_(0, 0)		F_(0, 0)	FM(A9)		FM(FSO_CFE_1_N_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_11_8	FM(DU_DG6)			F_(0, 0)		F_(0, 0)	FM(A10)		FM(FSO_TOE_N_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_15_12	FM(DU_DG7)			F_(0, 0)		F_(0, 0)	FM(A11)		FM(IRQ1)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_19_16	FM(DU_DB2)			F_(0, 0)		F_(0, 0)	FM(A12)		FM(IRQ2)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_23_20	FM(DU_DB3)			F_(0, 0)		F_(0, 0)	FM(A13)		FM(FXR_CLKOUT1)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_27_24	FM(DU_DB4)			F_(0, 0)		F_(0, 0)	FM(A14)		FM(FXR_CLKOUT2)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP1_31_28	FM(DU_DB5)			F_(0, 0)		F_(0, 0)	FM(A15)		FM(FXR_TXENA_N)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_3_0		FM(DU_DB6)			F_(0, 0)		F_(0, 0)	FM(A16)		FM(FXR_TXENB_N)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_7_4		FM(DU_DB7)			F_(0, 0)		F_(0, 0)	FM(A17)		FM(STPWT_EXTFXR)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_11_8	FM(DU_DOTCLKOUT)		FM(SCIF_CLK_A)		F_(0, 0)	FM(A18)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_15_12	FM(DU_EXHSYNC_DU_HSYNC)		FM(HRX0)		F_(0, 0)	FM(A19)		FM(IRQ3)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_19_16	FM(DU_EXVSYNC_DU_VSYNC)		FM(MSIOF3_SCK)		F_(0, 0)	FM(A20)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_23_20	FM(DU_EXODDF_DU_ODDF_DISP_CDE)	FM(MSIOF3_SYNC)		F_(0, 0)	FM(A21)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_27_24	FM(IRQ0)			FM(CC5_OSCOUT)		F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP2_31_28	FM(VI0_CLK)			FM(MSIOF2_SCK)		FM(SCK3)	F_(0, 0)	FM(HSCK3)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_3_0		FM(VI0_CLKENB)			FM(MSIOF2_RXD)		FM(RX3)		FM(RD_WR_N)	FM(HCTS3_N)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_7_4		FM(VI0_HSYNC_N)			FM(MSIOF2_TXD)		FM(TX3)		F_(0, 0)	FM(HRTS3_N)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_11_8	FM(VI0_VSYNC_N)			FM(MSIOF2_SYNC)		FM(CTS3_N)	F_(0, 0)	FM(HTX3)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_15_12	FM(VI0_DATA0)			FM(MSIOF2_SS1)		FM(RTS3_N_TANS)	F_(0, 0)	FM(HRX3)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_19_16	FM(VI0_DATA1)			FM(MSIOF2_SS2)		FM(SCK1)	F_(0, 0)	FM(SPEEDIN_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_23_20	FM(VI0_DATA2)			FM(AVB0_AVTP_PPS)	FM(SDA3_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_27_24	FM(VI0_DATA3)			FM(HSCK1)		FM(SCL3_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP3_31_28	FM(VI0_DATA4)			FM(HRTS1_N)		FM(RX1_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_3_0		FM(VI0_DATA5)			FM(HCTS1_N)		FM(TX1_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_7_4		FM(VI0_DATA6)			FM(HTX1)		FM(CTS1_N)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_11_8	FM(VI0_DATA7)			FM(HRX1)		FM(RTS1_N_TANS)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_15_12	FM(VI0_DATA8)			FM(HSCK2)		FM(PWM0_A)	FM(A22)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_19_16	FM(VI0_DATA9)			FM(HCTS2_N)		FM(PWM1_A)	FM(A23)		FM(FSO_CFE_0_N_B)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_23_20	FM(VI0_DATA10)			FM(HRTS2_N)		FM(PWM2_A)	FM(A24)		FM(FSO_CFE_1_N_B)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_27_24	FM(VI0_DATA11)			FM(HTX2)		FM(PWM3_A)	FM(A25)		FM(FSO_TOE_N_B)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP4_31_28	FM(VI0_FIELD)			FM(HRX2)		FM(PWM4_A)	FM(CS1_N_A26)	FM(FSCLKST2_N_A)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_3_0		FM(VI1_CLK)			FM(MSIOF1_RXD)		F_(0, 0)	FM(CS0_N)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_7_4		FM(VI1_CLKENB)			FM(MSIOF1_TXD)		F_(0, 0)	FM(D0)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_11_8	FM(VI1_HSYNC_N)			FM(MSIOF1_SCK)		F_(0, 0)	FM(D1)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_15_12	FM(VI1_VSYNC_N)			FM(MSIOF1_SYNC)		F_(0, 0)	FM(D2)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_19_16	FM(VI1_DATA0)			FM(MSIOF1_SS1)		F_(0, 0)	FM(D3)		F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_23_20	FM(VI1_DATA1)			FM(MSIOF1_SS2)		F_(0, 0)	FM(D4)		FM(MMC_CMD)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_27_24	FM(VI1_DATA2)			FM(CANFD0_TX_B)		F_(0, 0)	FM(D5)		FM(MMC_D0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP5_31_28	FM(VI1_DATA3)			FM(CANFD0_RX_B)		F_(0, 0)	FM(D6)		FM(MMC_D1)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_3_0		FM(VI1_DATA4)			FM(CANFD_CLK_B)		F_(0, 0)	FM(D7)		FM(MMC_D2)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_7_4		FM(VI1_DATA5)			F_(0,0)			FM(SCK4)	FM(D8)		FM(MMC_D3)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_11_8	FM(VI1_DATA6)			F_(0,0)			FM(RX4)		FM(D9)		FM(MMC_CLK)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_15_12	FM(VI1_DATA7)			F_(0,0)			FM(TX4)		FM(D10)		FM(MMC_D4)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_19_16	FM(VI1_DATA8)			F_(0,0)			FM(CTS4_N)	FM(D11)		FM(MMC_D5)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_23_20	FM(VI1_DATA9)			F_(0,0)			FM(RTS4_N_TANS)	FM(D12)		FM(MMC_D6)		FM(SCL3_B)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_27_24	FM(VI1_DATA10)			F_(0,0)			F_(0, 0)	FM(D13)		FM(MMC_D7)		FM(SDA3_B)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP6_31_28	FM(VI1_DATA11)			FM(SCL4)		FM(IRQ4)	FM(D14)		FM(MMC_WP)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_3_0		FM(VI1_FIELD)			FM(SDA4)		FM(IRQ5)	FM(D15)		FM(MMC_CD)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_7_4		FM(SCL0)			FM(DU_DR0)		FM(TPU0TO0)	FM(CLKOUT)	F_(0, 0)		FM(MSIOF0_RXD)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_11_8	FM(SDA0)			FM(DU_DR1)		FM(TPU0TO1)	FM(BS_N)	FM(SCK0)		FM(MSIOF0_TXD)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_15_12	FM(SCL1)			FM(DU_DG0)		FM(TPU0TO2)	FM(RD_N)	FM(CTS0_N)		FM(MSIOF0_SCK)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_19_16	FM(SDA1)			FM(DU_DG1)		FM(TPU0TO3)	FM(WE0_N)	FM(RTS0_N_TANS)		FM(MSIOF0_SYNC)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_23_20	FM(SCL2)			FM(DU_DB0)		FM(TCLK1_A)	FM(WE1_N)	FM(RX0)			FM(MSIOF0_SS1)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_27_24	FM(SDA2)			FM(DU_DB1)		FM(TCLK2_A)	FM(EX_WAIT0)	FM(TX0)			FM(MSIOF0_SS2)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP7_31_28	FM(AVB0_AVTP_CAPTURE)		F_(0, 0)		F_(0, 0)	F_(0, 0)	FM(FSCLKST2_N_B)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_3_0		FM(CANFD0_TX_A)			FM(FXR_TXDA)		FM(PWM0_B)	FM(DU_DISP)	FM(FSCLKST2_N_C)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_7_4		FM(CANFD0_RX_A)			FM(RXDA_EXTFXR)		FM(PWM1_B)	FM(DU_CDE)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_11_8	FM(CANFD1_TX)			FM(FXR_TXDB)		FM(PWM2_B)	FM(TCLK1_B)	FM(TX1_B)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_15_12	FM(CANFD1_RX)			FM(RXDB_EXTFXR)		FM(PWM3_B)	FM(TCLK2_B)	FM(RX1_B)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_19_16	FM(CANFD_CLK_A)			FM(CLK_EXTFXR)		FM(PWM4_B)	FM(SPEEDIN_B)	FM(SCIF_CLK_B)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_23_20	FM(DIGRF_CLKIN)			FM(DIGRF_CLKEN_IN)	F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_27_24	FM(DIGRF_CLKOUT)		FM(DIGRF_CLKEN_OUT)	F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++#define IP8_31_28	F_(0, 0)			F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0)
++
++#define PINMUX_GPSR	\
++\
++		GPSR1_27 \
++		GPSR1_26 \
++		GPSR1_25 \
++		GPSR1_24 \
++		GPSR1_23 \
++		GPSR1_22 \
++GPSR0_21	GPSR1_21 \
++GPSR0_20	GPSR1_20 \
++GPSR0_19	GPSR1_19 \
++GPSR0_18	GPSR1_18 \
++GPSR0_17	GPSR1_17 \
++GPSR0_16	GPSR1_16	GPSR2_16	GPSR3_16 \
++GPSR0_15	GPSR1_15	GPSR2_15	GPSR3_15 \
++GPSR0_14	GPSR1_14	GPSR2_14	GPSR3_14			GPSR5_14 \
++GPSR0_13	GPSR1_13	GPSR2_13	GPSR3_13			GPSR5_13 \
++GPSR0_12	GPSR1_12	GPSR2_12	GPSR3_12			GPSR5_12 \
++GPSR0_11	GPSR1_11	GPSR2_11	GPSR3_11			GPSR5_11 \
++GPSR0_10	GPSR1_10	GPSR2_10	GPSR3_10			GPSR5_10 \
++GPSR0_9		GPSR1_9		GPSR2_9		GPSR3_9				GPSR5_9 \
++GPSR0_8		GPSR1_8		GPSR2_8		GPSR3_8				GPSR5_8 \
++GPSR0_7		GPSR1_7		GPSR2_7		GPSR3_7				GPSR5_7 \
++GPSR0_6		GPSR1_6		GPSR2_6		GPSR3_6				GPSR5_6 \
++GPSR0_5		GPSR1_5		GPSR2_5		GPSR3_5		GPSR4_5		GPSR5_5 \
++GPSR0_4		GPSR1_4		GPSR2_4		GPSR3_4		GPSR4_4		GPSR5_4 \
++GPSR0_3		GPSR1_3		GPSR2_3		GPSR3_3		GPSR4_3		GPSR5_3 \
++GPSR0_2		GPSR1_2		GPSR2_2		GPSR3_2		GPSR4_2		GPSR5_2 \
++GPSR0_1		GPSR1_1		GPSR2_1		GPSR3_1		GPSR4_1		GPSR5_1 \
++GPSR0_0		GPSR1_0		GPSR2_0		GPSR3_0		GPSR4_0		GPSR5_0
++
++#define PINMUX_IPSR	\
++\
++FM(IP0_3_0)	IP0_3_0		FM(IP1_3_0)	IP1_3_0		FM(IP2_3_0)	IP2_3_0		FM(IP3_3_0)	IP3_3_0 \
++FM(IP0_7_4)	IP0_7_4		FM(IP1_7_4)	IP1_7_4		FM(IP2_7_4)	IP2_7_4		FM(IP3_7_4)	IP3_7_4 \
++FM(IP0_11_8)	IP0_11_8	FM(IP1_11_8)	IP1_11_8	FM(IP2_11_8)	IP2_11_8	FM(IP3_11_8)	IP3_11_8 \
++FM(IP0_15_12)	IP0_15_12	FM(IP1_15_12)	IP1_15_12	FM(IP2_15_12)	IP2_15_12	FM(IP3_15_12)	IP3_15_12 \
++FM(IP0_19_16)	IP0_19_16	FM(IP1_19_16)	IP1_19_16	FM(IP2_19_16)	IP2_19_16	FM(IP3_19_16)	IP3_19_16 \
++FM(IP0_23_20)	IP0_23_20	FM(IP1_23_20)	IP1_23_20	FM(IP2_23_20)	IP2_23_20	FM(IP3_23_20)	IP3_23_20 \
++FM(IP0_27_24)	IP0_27_24	FM(IP1_27_24)	IP1_27_24	FM(IP2_27_24)	IP2_27_24	FM(IP3_27_24)	IP3_27_24 \
++FM(IP0_31_28)	IP0_31_28	FM(IP1_31_28)	IP1_31_28	FM(IP2_31_28)	IP2_31_28	FM(IP3_31_28)	IP3_31_28 \
++\
++FM(IP4_3_0)	IP4_3_0		FM(IP5_3_0)	IP5_3_0		FM(IP6_3_0)	IP6_3_0		FM(IP7_3_0)	IP7_3_0 \
++FM(IP4_7_4)	IP4_7_4		FM(IP5_7_4)	IP5_7_4		FM(IP6_7_4)	IP6_7_4		FM(IP7_7_4)	IP7_7_4 \
++FM(IP4_11_8)	IP4_11_8	FM(IP5_11_8)	IP5_11_8	FM(IP6_11_8)	IP6_11_8	FM(IP7_11_8)	IP7_11_8 \
++FM(IP4_15_12)	IP4_15_12	FM(IP5_15_12)	IP5_15_12	FM(IP6_15_12)	IP6_15_12	FM(IP7_15_12)	IP7_15_12 \
++FM(IP4_19_16)	IP4_19_16	FM(IP5_19_16)	IP5_19_16	FM(IP6_19_16)	IP6_19_16	FM(IP7_19_16)	IP7_19_16 \
++FM(IP4_23_20)	IP4_23_20	FM(IP5_23_20)	IP5_23_20	FM(IP6_23_20)	IP6_23_20	FM(IP7_23_20)	IP7_23_20 \
++FM(IP4_27_24)	IP4_27_24	FM(IP5_27_24)	IP5_27_24	FM(IP6_27_24)	IP6_27_24	FM(IP7_27_24)	IP7_27_24 \
++FM(IP4_31_28)	IP4_31_28	FM(IP5_31_28)	IP5_31_28	FM(IP6_31_28)	IP6_31_28	FM(IP7_31_28)	IP7_31_28 \
++\
++FM(IP8_3_0)	IP8_3_0 \
++FM(IP8_7_4)	IP8_7_4 \
++FM(IP8_11_8)	IP8_11_8 \
++FM(IP8_15_12)	IP8_15_12 \
++FM(IP8_19_16)	IP8_19_16 \
++FM(IP8_23_20)	IP8_23_20 \
++FM(IP8_27_24)	IP8_27_24 \
++FM(IP8_31_28)	IP8_31_28
++
++/*
++			Set Value = H'0			Set Value = H'1
++Register	Function	Pin			Function	Pin
++------------------------------------------------------------
++sel_i2c3	SDA3_A		VI0_DATA2	SDA3_B		VI1_DATA10
++		SCL3_A		VI0_DATA3	SCL3_B		VI1_DATA9
++sel_hscif0	HSCIF0_A	SCIF_CLK	HSCIF0_B	SCIF_CLK
++sel_scif1	SCIF1_A		RX1		SCIF1_B		TX1
++		SCIF1_A		TX1		SCIF1_B		RX1
++sel_canfd0	CANFD0_A	CANFD0_TX	CANFD0_B	CANFD0_TX
++		CANFD0_A	CANFD0_RX	CANFD0_B	CANFD0_RX
++		CANFD0_A	CANFD_CLK	CANFD0_B	CANFD_CLK
++sel_pwm4	PWM4_A		PWM4		PWM4_B		PWM4
++sel_pwm3	PWM3_A		PWM3		PWM3_B		PWM3
++sel_pwm2	PWM2_A		PWM2		PWM2_B		PWM2
++sel_pwm1	PWM1_A		PWM1		PWM1_B		PWM1
++sel_pwm0	PWM0_A		PWM0		PWM0_B		PWM0
++sel_rfso	RFSO_A		FSO_CFE_0_N	RFSO_B		FSO_CFE_0_N
++		RFSO_A		FSO_CFE_1_N	RFSO_B		FSO_CFE_1_N
++		RFSO_A		FSO_TOE_N	RFSO_B		FSO_TOE_N
++sel_rsp		RSP_A		SPEEDIN		RSP_B		SPEEDIN
++sel_tmu		TMU_A		TCLK1		TMU_B		TCLK1
++		TMU_A		TCLK2		TMU_B		TCLK2
++*/
++/* MOD_SEL0 */		/* 0 */			/* 1 */			/* 2 */	/* 3 */	/* 4 */	/* 5 */	/* 6 */	/* 7 */
++#define MOD_SEL0_11	FM(SEL_I2C3_0)		FM(SEL_I2C3_1)
++#define MOD_SEL0_10	FM(SEL_HSCIF0_0)	FM(SEL_HSCIF0_1)
++#define MOD_SEL0_9	FM(SEL_SCIF1_0)		FM(SEL_SCIF1_1)
++#define MOD_SEL0_8	FM(SEL_CANFD0_0)	FM(SEL_CANFD0_1)
++#define MOD_SEL0_7	FM(SEL_PWM4_0)		FM(SEL_PWM4_1)
++#define MOD_SEL0_6	FM(SEL_PWM3_0)		FM(SEL_PWM3_1)
++#define MOD_SEL0_5	FM(SEL_PWM2_0)		FM(SEL_PWM2_1)
++#define MOD_SEL0_4	FM(SEL_PWM1_0)		FM(SEL_PWM1_1)
++#define MOD_SEL0_3	FM(SEL_PWM0_0)		FM(SEL_PWM0_1)
++#define MOD_SEL0_2	FM(SEL_RFSO_0)		FM(SEL_RFSO_1)
++#define MOD_SEL0_1	FM(SEL_RSP_0)		FM(SEL_RSP_1)
++#define MOD_SEL0_0	FM(SEL_TMU_0)		FM(SEL_TMU_1)
++
++#define PINMUX_MOD_SELS \
++\
++MOD_SEL0_11 \
++MOD_SEL0_10 \
++MOD_SEL0_9 \
++MOD_SEL0_8 \
++MOD_SEL0_7 \
++MOD_SEL0_6 \
++MOD_SEL0_5 \
++MOD_SEL0_4 \
++MOD_SEL0_3 \
++MOD_SEL0_2 \
++MOD_SEL0_1 \
++MOD_SEL0_0
++
++enum {
++	PINMUX_RESERVED = 0,
++
++	PINMUX_DATA_BEGIN,
++	GP_ALL(DATA),
++	PINMUX_DATA_END,
++
++#define F_(x, y)
++#define FM(x)   FN_##x,
++	PINMUX_FUNCTION_BEGIN,
++	GP_ALL(FN),
++	PINMUX_GPSR
++	PINMUX_IPSR
++	PINMUX_MOD_SELS
++	PINMUX_FUNCTION_END,
++#undef F_
++#undef FM
++
++#define F_(x, y)
++#define FM(x)	x##_MARK,
++	PINMUX_MARK_BEGIN,
++	PINMUX_GPSR
++	PINMUX_IPSR
++	PINMUX_MOD_SELS
++	PINMUX_MARK_END,
++#undef F_
++#undef FM
++};
++
++static const u16 pinmux_data[] = {
++	PINMUX_DATA_GP_ALL(),
++
++	PINMUX_SINGLE(AVB0_RX_CTL),
++	PINMUX_SINGLE(AVB0_RXC),
++	PINMUX_SINGLE(AVB0_RD0),
++	PINMUX_SINGLE(AVB0_RD1),
++	PINMUX_SINGLE(AVB0_RD2),
++	PINMUX_SINGLE(AVB0_RD3),
++	PINMUX_SINGLE(AVB0_TX_CTL),
++	PINMUX_SINGLE(AVB0_TXC),
++	PINMUX_SINGLE(AVB0_TD0),
++	PINMUX_SINGLE(AVB0_TD1),
++	PINMUX_SINGLE(AVB0_TD2),
++	PINMUX_SINGLE(AVB0_TD3),
++	PINMUX_SINGLE(AVB0_TXCREFCLK),
++	PINMUX_SINGLE(AVB0_MDIO),
++	PINMUX_SINGLE(AVB0_MDC),
++	PINMUX_SINGLE(AVB0_MAGIC),
++	PINMUX_SINGLE(AVB0_PHY_INT),
++	PINMUX_SINGLE(AVB0_LINK),
++	PINMUX_SINGLE(AVB0_AVTP_MATCH),
++
++	PINMUX_SINGLE(QSPI0_SPCLK),
++	PINMUX_SINGLE(QSPI0_MOSI_IO0),
++	PINMUX_SINGLE(QSPI0_MISO_IO1),
++	PINMUX_SINGLE(QSPI0_IO2),
++	PINMUX_SINGLE(QSPI0_IO3),
++	PINMUX_SINGLE(QSPI0_SSL),
++	PINMUX_SINGLE(QSPI1_SPCLK),
++	PINMUX_SINGLE(QSPI1_MOSI_IO0),
++	PINMUX_SINGLE(QSPI1_MISO_IO1),
++	PINMUX_SINGLE(QSPI1_IO2),
++	PINMUX_SINGLE(QSPI1_IO3),
++	PINMUX_SINGLE(QSPI1_SSL),
++	PINMUX_SINGLE(RPC_RESET_N),
++	PINMUX_SINGLE(RPC_WP_N),
++	PINMUX_SINGLE(RPC_INT_N),
++
++	/* IPSR0 */
++	PINMUX_IPSR_GPSR(IP0_3_0,	DU_DR2),
++	PINMUX_IPSR_GPSR(IP0_3_0,	HSCK0),
++	PINMUX_IPSR_GPSR(IP0_3_0,	A0),
++
++	PINMUX_IPSR_GPSR(IP0_7_4,	DU_DR3),
++	PINMUX_IPSR_GPSR(IP0_7_4,	HRTS0_N),
++	PINMUX_IPSR_GPSR(IP0_7_4,	A1),
++
++	PINMUX_IPSR_GPSR(IP0_11_8,	DU_DR4),
++	PINMUX_IPSR_GPSR(IP0_11_8,	HCTS0_N),
++	PINMUX_IPSR_GPSR(IP0_11_8,	A2),
++
++	PINMUX_IPSR_GPSR(IP0_15_12,	DU_DR5),
++	PINMUX_IPSR_GPSR(IP0_15_12,	HTX0),
++	PINMUX_IPSR_GPSR(IP0_15_12,	A3),
++
++	PINMUX_IPSR_GPSR(IP0_19_16,	DU_DR6),
++	PINMUX_IPSR_GPSR(IP0_19_16,	MSIOF3_RXD),
++	PINMUX_IPSR_GPSR(IP0_19_16,	A4),
++
++	PINMUX_IPSR_GPSR(IP0_23_20,	DU_DR7),
++	PINMUX_IPSR_GPSR(IP0_23_20,	MSIOF3_TXD),
++	PINMUX_IPSR_GPSR(IP0_23_20,	A5),
++
++	PINMUX_IPSR_GPSR(IP0_27_24,	DU_DG2),
++	PINMUX_IPSR_GPSR(IP0_27_24,	MSIOF3_SS1),
++	PINMUX_IPSR_GPSR(IP0_27_24,	A6),
++
++	PINMUX_IPSR_GPSR(IP0_31_28,	DU_DG3),
++	PINMUX_IPSR_GPSR(IP0_31_28,	MSIOF3_SS2),
++	PINMUX_IPSR_GPSR(IP0_31_28,	A7),
++	PINMUX_IPSR_GPSR(IP0_31_28,	PWMFSW0),
++
++	/* IPSR1 */
++	PINMUX_IPSR_GPSR(IP1_3_0,	DU_DG4),
++	PINMUX_IPSR_GPSR(IP1_3_0,	A8),
++	PINMUX_IPSR_MSEL(IP1_3_0,	FSO_CFE_0_N_A,	SEL_RFSO_0),
++
++	PINMUX_IPSR_GPSR(IP1_7_4,	DU_DG5),
++	PINMUX_IPSR_GPSR(IP1_7_4,	A9),
++	PINMUX_IPSR_MSEL(IP1_7_4,	FSO_CFE_1_N_A,	SEL_RFSO_0),
++
++	PINMUX_IPSR_GPSR(IP1_11_8,	DU_DG6),
++	PINMUX_IPSR_GPSR(IP1_11_8,	A10),
++	PINMUX_IPSR_MSEL(IP1_11_8,	FSO_TOE_N_A,	SEL_RFSO_0),
++
++	PINMUX_IPSR_GPSR(IP1_15_12,	DU_DG7),
++	PINMUX_IPSR_GPSR(IP1_15_12,	A11),
++	PINMUX_IPSR_GPSR(IP1_15_12,	IRQ1),
++
++	PINMUX_IPSR_GPSR(IP1_19_16,	DU_DB2),
++	PINMUX_IPSR_GPSR(IP1_19_16,	A12),
++	PINMUX_IPSR_GPSR(IP1_19_16,	IRQ2),
++
++	PINMUX_IPSR_GPSR(IP1_23_20,	DU_DB3),
++	PINMUX_IPSR_GPSR(IP1_23_20,	A13),
++	PINMUX_IPSR_GPSR(IP1_23_20,	FXR_CLKOUT1),
++
++	PINMUX_IPSR_GPSR(IP1_27_24,	DU_DB4),
++	PINMUX_IPSR_GPSR(IP1_27_24,	A14),
++	PINMUX_IPSR_GPSR(IP1_27_24,	FXR_CLKOUT2),
++
++	PINMUX_IPSR_GPSR(IP1_31_28,	DU_DB5),
++	PINMUX_IPSR_GPSR(IP1_31_28,	A15),
++	PINMUX_IPSR_GPSR(IP1_31_28,	FXR_TXENA_N),
++
++	/* IPSR2 */
++	PINMUX_IPSR_GPSR(IP2_3_0,	DU_DB6),
++	PINMUX_IPSR_GPSR(IP2_3_0,	A16),
++	PINMUX_IPSR_GPSR(IP2_3_0,	FXR_TXENB_N),
++
++	PINMUX_IPSR_GPSR(IP2_7_4,	DU_DB7),
++	PINMUX_IPSR_GPSR(IP2_7_4,	A17),
++	PINMUX_IPSR_GPSR(IP2_7_4,	STPWT_EXTFXR),
++
++	PINMUX_IPSR_GPSR(IP2_11_8,	DU_DOTCLKOUT),
++	PINMUX_IPSR_MSEL(IP2_11_8,	SCIF_CLK_A,	SEL_HSCIF0_0),
++	PINMUX_IPSR_GPSR(IP2_11_8,	A18),
++
++	PINMUX_IPSR_GPSR(IP2_15_12,	DU_EXHSYNC_DU_HSYNC),
++	PINMUX_IPSR_GPSR(IP2_15_12,	HRX0),
++	PINMUX_IPSR_GPSR(IP2_15_12,	A19),
++	PINMUX_IPSR_GPSR(IP2_15_12,	IRQ3),
++
++	PINMUX_IPSR_GPSR(IP2_19_16,	DU_EXVSYNC_DU_VSYNC),
++	PINMUX_IPSR_GPSR(IP2_19_16,	MSIOF3_SCK),
++	PINMUX_IPSR_GPSR(IP2_19_16,	A20),
++
++	PINMUX_IPSR_GPSR(IP2_23_20,	DU_EXODDF_DU_ODDF_DISP_CDE),
++	PINMUX_IPSR_GPSR(IP2_23_20,	MSIOF3_SYNC),
++	PINMUX_IPSR_GPSR(IP2_23_20,	A21),
++
++	PINMUX_IPSR_GPSR(IP2_27_24,	IRQ0),
++	PINMUX_IPSR_GPSR(IP2_27_24,	CC5_OSCOUT),
++
++	PINMUX_IPSR_GPSR(IP2_31_28,	VI0_CLK),
++	PINMUX_IPSR_GPSR(IP2_31_28,	MSIOF2_SCK),
++	PINMUX_IPSR_GPSR(IP2_31_28,	SCK3),
++	PINMUX_IPSR_GPSR(IP2_31_28,	HSCK3),
++
++	/* IPSR3 */
++	PINMUX_IPSR_GPSR(IP3_3_0,	VI0_CLKENB),
++	PINMUX_IPSR_GPSR(IP3_3_0,	MSIOF2_RXD),
++	PINMUX_IPSR_GPSR(IP3_3_0,	RX3),
++	PINMUX_IPSR_GPSR(IP3_3_0,	RD_WR_N),
++	PINMUX_IPSR_GPSR(IP3_3_0,	HCTS3_N),
++
++	PINMUX_IPSR_GPSR(IP3_7_4,	VI0_HSYNC_N),
++	PINMUX_IPSR_GPSR(IP3_7_4,	MSIOF2_TXD),
++	PINMUX_IPSR_GPSR(IP3_7_4,	TX3),
++	PINMUX_IPSR_GPSR(IP3_7_4,	HRTS3_N),
++
++	PINMUX_IPSR_GPSR(IP3_11_8,	VI0_VSYNC_N),
++	PINMUX_IPSR_GPSR(IP3_11_8,	MSIOF2_SYNC),
++	PINMUX_IPSR_GPSR(IP3_11_8,	CTS3_N),
++	PINMUX_IPSR_GPSR(IP3_11_8,	HTX3),
++
++	PINMUX_IPSR_GPSR(IP3_15_12,	VI0_DATA0),
++	PINMUX_IPSR_GPSR(IP3_15_12,	MSIOF2_SS1),
++	PINMUX_IPSR_GPSR(IP3_15_12,	RTS3_N_TANS),
++	PINMUX_IPSR_GPSR(IP3_15_12,	HRX3),
++
++	PINMUX_IPSR_GPSR(IP3_19_16,	VI0_DATA1),
++	PINMUX_IPSR_GPSR(IP3_19_16,	MSIOF2_SS2),
++	PINMUX_IPSR_GPSR(IP3_19_16,	SCK1),
++	PINMUX_IPSR_MSEL(IP3_19_16,	SPEEDIN_A,	SEL_RSP_1),
++
++	PINMUX_IPSR_GPSR(IP3_23_20,	VI0_DATA2),
++	PINMUX_IPSR_GPSR(IP3_23_20,	AVB0_AVTP_PPS),
++	PINMUX_IPSR_GPSR(IP3_23_20,	SDA3_A),
++
++	PINMUX_IPSR_GPSR(IP3_27_24,	VI0_DATA3),
++	PINMUX_IPSR_GPSR(IP3_27_24,	HSCK1),
++	PINMUX_IPSR_GPSR(IP3_27_24,	SCL3_A),
++
++	PINMUX_IPSR_GPSR(IP3_31_28,	VI0_DATA4),
++	PINMUX_IPSR_GPSR(IP3_31_28,	HRTS1_N),
++	PINMUX_IPSR_MSEL(IP3_31_28,	RX1_A,	SEL_SCIF1_0),
++
++	/* IPSR4 */
++	PINMUX_IPSR_GPSR(IP4_3_0,	VI0_DATA5),
++	PINMUX_IPSR_GPSR(IP4_3_0,	HCTS1_N),
++	PINMUX_IPSR_MSEL(IP4_3_0,	TX1_A,	SEL_SCIF1_0),
++
++	PINMUX_IPSR_GPSR(IP4_7_4,	VI0_DATA6),
++	PINMUX_IPSR_GPSR(IP4_7_4,	HTX1),
++	PINMUX_IPSR_GPSR(IP4_7_4,	CTS1_N),
++
++	PINMUX_IPSR_GPSR(IP4_11_8,	VI0_DATA7),
++	PINMUX_IPSR_GPSR(IP4_11_8,	HRX1),
++	PINMUX_IPSR_GPSR(IP4_11_8,	RTS1_N_TANS),
++
++	PINMUX_IPSR_GPSR(IP4_15_12,	VI0_DATA8),
++	PINMUX_IPSR_GPSR(IP4_15_12,	HSCK2),
++	PINMUX_IPSR_MSEL(IP4_15_12,	PWM0_A,	SEL_PWM0_0),
++	PINMUX_IPSR_GPSR(IP4_15_12,	A22),
++
++	PINMUX_IPSR_GPSR(IP4_19_16,	VI0_DATA9),
++	PINMUX_IPSR_GPSR(IP4_19_16,	HCTS2_N),
++	PINMUX_IPSR_MSEL(IP4_19_16,	PWM1_A,	SEL_PWM1_0),
++	PINMUX_IPSR_GPSR(IP4_19_16,	A23),
++	PINMUX_IPSR_MSEL(IP4_19_16,	FSO_CFE_0_N_B,	SEL_RFSO_1),
++
++	PINMUX_IPSR_GPSR(IP4_23_20,	VI0_DATA10),
++	PINMUX_IPSR_GPSR(IP4_23_20,	HRTS2_N),
++	PINMUX_IPSR_MSEL(IP4_23_20,	PWM2_A,	SEL_PWM2_0),
++	PINMUX_IPSR_GPSR(IP4_23_20,	A24),
++	PINMUX_IPSR_MSEL(IP4_23_20,	FSO_CFE_1_N_B,	SEL_RFSO_1),
++
++	PINMUX_IPSR_GPSR(IP4_27_24,	VI0_DATA11),
++	PINMUX_IPSR_GPSR(IP4_27_24,	HTX2),
++	PINMUX_IPSR_MSEL(IP4_27_24,	PWM3_A,	SEL_PWM3_0),
++	PINMUX_IPSR_GPSR(IP4_27_24,	A25),
++	PINMUX_IPSR_MSEL(IP4_27_24,	FSO_TOE_N_B,	SEL_RFSO_1),
++
++	PINMUX_IPSR_GPSR(IP4_31_28,	VI0_FIELD),
++	PINMUX_IPSR_GPSR(IP4_31_28,	HRX2),
++	PINMUX_IPSR_MSEL(IP4_31_28,	PWM4_A,	SEL_PWM4_0),
++	PINMUX_IPSR_GPSR(IP4_31_28,	CS1_N_A26),
++	PINMUX_IPSR_GPSR(IP4_31_28,	FSCLKST2_N_A),
++
++	/* IPSR5 */
++	PINMUX_IPSR_GPSR(IP5_3_0,	VI1_CLK),
++	PINMUX_IPSR_GPSR(IP5_3_0,	MSIOF1_RXD),
++	PINMUX_IPSR_GPSR(IP5_3_0,	CS0_N),
++
++	PINMUX_IPSR_GPSR(IP5_7_4,	VI1_CLKENB),
++	PINMUX_IPSR_GPSR(IP5_7_4,	MSIOF1_TXD),
++	PINMUX_IPSR_GPSR(IP5_7_4,	D0),
++
++	PINMUX_IPSR_GPSR(IP5_11_8,	VI1_HSYNC_N),
++	PINMUX_IPSR_GPSR(IP5_11_8,	MSIOF1_SCK),
++	PINMUX_IPSR_GPSR(IP5_11_8,	D1),
++
++	PINMUX_IPSR_GPSR(IP5_15_12,	VI1_VSYNC_N),
++	PINMUX_IPSR_GPSR(IP5_15_12,	MSIOF1_SYNC),
++	PINMUX_IPSR_GPSR(IP5_15_12,	D2),
++
++	PINMUX_IPSR_GPSR(IP5_19_16,	VI1_DATA0),
++	PINMUX_IPSR_GPSR(IP5_19_16,	MSIOF1_SS1),
++	PINMUX_IPSR_GPSR(IP5_19_16,	D3),
++
++	PINMUX_IPSR_GPSR(IP5_23_20,	VI1_DATA1),
++	PINMUX_IPSR_GPSR(IP5_23_20,	MSIOF1_SS2),
++	PINMUX_IPSR_GPSR(IP5_23_20,	D4),
++	PINMUX_IPSR_GPSR(IP5_23_20,	MMC_CMD),
++
++	PINMUX_IPSR_GPSR(IP5_27_24,	VI1_DATA2),
++	PINMUX_IPSR_MSEL(IP5_27_24,	CANFD0_TX_B,	SEL_CANFD0_1),
++	PINMUX_IPSR_GPSR(IP5_27_24,	D5),
++	PINMUX_IPSR_GPSR(IP5_27_24,	MMC_D0),
++
++	PINMUX_IPSR_GPSR(IP5_31_28,	VI1_DATA3),
++	PINMUX_IPSR_MSEL(IP5_31_28,	CANFD0_RX_B,	SEL_CANFD0_1),
++	PINMUX_IPSR_GPSR(IP5_31_28,	D6),
++	PINMUX_IPSR_GPSR(IP5_31_28,	MMC_D1),
++
++	/* IPSR6 */
++	PINMUX_IPSR_GPSR(IP6_3_0,	VI1_DATA4),
++	PINMUX_IPSR_MSEL(IP6_3_0,	CANFD_CLK_B,	SEL_CANFD0_1),
++	PINMUX_IPSR_GPSR(IP6_3_0,	D7),
++	PINMUX_IPSR_GPSR(IP6_3_0,	MMC_D2),
++
++	PINMUX_IPSR_GPSR(IP6_7_4,	VI1_DATA5),
++	PINMUX_IPSR_GPSR(IP6_7_4,	SCK4),
++	PINMUX_IPSR_GPSR(IP6_7_4,	D8),
++	PINMUX_IPSR_GPSR(IP6_7_4,	MMC_D3),
++
++	PINMUX_IPSR_GPSR(IP6_11_8,	VI1_DATA6),
++	PINMUX_IPSR_GPSR(IP6_11_8,	RX4),
++	PINMUX_IPSR_GPSR(IP6_11_8,	D9),
++	PINMUX_IPSR_GPSR(IP6_11_8,	MMC_CLK),
++
++	PINMUX_IPSR_GPSR(IP6_15_12,	VI1_DATA7),
++	PINMUX_IPSR_GPSR(IP6_15_12,	TX4),
++	PINMUX_IPSR_GPSR(IP6_15_12,	D10),
++	PINMUX_IPSR_GPSR(IP6_15_12,	MMC_D4),
++
++	PINMUX_IPSR_GPSR(IP6_19_16,	VI1_DATA8),
++	PINMUX_IPSR_GPSR(IP6_19_16,	CTS4_N),
++	PINMUX_IPSR_GPSR(IP6_19_16,	D11),
++	PINMUX_IPSR_GPSR(IP6_19_16,	MMC_D5),
++
++	PINMUX_IPSR_GPSR(IP6_23_20,	VI1_DATA9),
++	PINMUX_IPSR_GPSR(IP6_23_20,	RTS4_N_TANS),
++	PINMUX_IPSR_GPSR(IP6_23_20,	D12),
++	PINMUX_IPSR_GPSR(IP6_23_20,	MMC_D6),
++	PINMUX_IPSR_GPSR(IP6_23_20,	SCL3_B),
++
++	PINMUX_IPSR_GPSR(IP6_27_24,	VI1_DATA10),
++	PINMUX_IPSR_GPSR(IP6_27_24,	D13),
++	PINMUX_IPSR_GPSR(IP6_27_24,	MMC_D7),
++	PINMUX_IPSR_GPSR(IP6_27_24,	SDA3_B),
++
++	PINMUX_IPSR_GPSR(IP6_31_28,	VI1_DATA11),
++	PINMUX_IPSR_GPSR(IP6_31_28,	SCL4),
++	PINMUX_IPSR_GPSR(IP6_31_28,	IRQ4),
++	PINMUX_IPSR_GPSR(IP6_31_28,	D14),
++	PINMUX_IPSR_GPSR(IP6_31_28,	MMC_WP),
++
++	/* IPSR7 */
++	PINMUX_IPSR_GPSR(IP7_3_0,	VI1_FIELD),
++	PINMUX_IPSR_GPSR(IP7_3_0,	SDA4),
++	PINMUX_IPSR_GPSR(IP7_3_0,	IRQ5),
++	PINMUX_IPSR_GPSR(IP7_3_0,	D15),
++	PINMUX_IPSR_GPSR(IP7_3_0,	MMC_CD),
++
++	PINMUX_IPSR_GPSR(IP7_7_4,	SCL0),
++	PINMUX_IPSR_GPSR(IP7_7_4,	DU_DR0),
++	PINMUX_IPSR_GPSR(IP7_7_4,	TPU0TO0),
++	PINMUX_IPSR_GPSR(IP7_7_4,	CLKOUT),
++	PINMUX_IPSR_GPSR(IP7_7_4,	MSIOF0_RXD),
++
++	PINMUX_IPSR_GPSR(IP7_11_8,	SDA0),
++	PINMUX_IPSR_GPSR(IP7_11_8,	DU_DR1),
++	PINMUX_IPSR_GPSR(IP7_11_8,	TPU0TO1),
++	PINMUX_IPSR_GPSR(IP7_11_8,	BS_N),
++	PINMUX_IPSR_GPSR(IP7_11_8,	SCK0),
++	PINMUX_IPSR_GPSR(IP7_11_8,	MSIOF0_TXD),
++
++	PINMUX_IPSR_GPSR(IP7_15_12,	SCL1),
++	PINMUX_IPSR_GPSR(IP7_15_12,	DU_DG0),
++	PINMUX_IPSR_GPSR(IP7_15_12,	TPU0TO2),
++	PINMUX_IPSR_GPSR(IP7_15_12,	RD_N),
++	PINMUX_IPSR_GPSR(IP7_15_12,	CTS0_N),
++	PINMUX_IPSR_GPSR(IP7_15_12,	MSIOF0_SCK),
++
++	PINMUX_IPSR_GPSR(IP7_19_16,	SDA1),
++	PINMUX_IPSR_GPSR(IP7_19_16,	DU_DG1),
++	PINMUX_IPSR_GPSR(IP7_19_16,	TPU0TO3),
++	PINMUX_IPSR_GPSR(IP7_19_16,	WE0_N),
++	PINMUX_IPSR_GPSR(IP7_19_16,	RTS0_N_TANS),
++	PINMUX_IPSR_GPSR(IP7_19_16,	MSIOF0_SYNC),
++
++	PINMUX_IPSR_GPSR(IP7_23_20,	SCL2),
++	PINMUX_IPSR_GPSR(IP7_23_20,	DU_DB0),
++	PINMUX_IPSR_MSEL(IP7_23_20,	TCLK1_A,	SEL_TMU_0),
++	PINMUX_IPSR_GPSR(IP7_23_20,	WE1_N),
++	PINMUX_IPSR_GPSR(IP7_23_20,	RX0),
++	PINMUX_IPSR_GPSR(IP7_23_20,	MSIOF0_SS1),
++
++	PINMUX_IPSR_GPSR(IP7_27_24,	SDA2),
++	PINMUX_IPSR_GPSR(IP7_27_24,	DU_DB1),
++	PINMUX_IPSR_MSEL(IP7_27_24,	TCLK2_A,	SEL_TMU_0),
++	PINMUX_IPSR_GPSR(IP7_27_24,	EX_WAIT0),
++	PINMUX_IPSR_GPSR(IP7_27_24,	TX0),
++	PINMUX_IPSR_GPSR(IP7_27_24,	MSIOF0_SS2),
++
++	PINMUX_IPSR_GPSR(IP7_31_28,	AVB0_AVTP_CAPTURE),
++	PINMUX_IPSR_GPSR(IP7_31_28,	FSCLKST2_N_B),
++
++	/* IPSR8 */
++	PINMUX_IPSR_MSEL(IP8_3_0,	CANFD0_TX_A,	SEL_CANFD0_0),
++	PINMUX_IPSR_GPSR(IP8_3_0,	FXR_TXDA),
++	PINMUX_IPSR_MSEL(IP8_3_0,	PWM0_B,	SEL_PWM0_1),
++	PINMUX_IPSR_GPSR(IP8_3_0,	DU_DISP),
++	PINMUX_IPSR_GPSR(IP8_3_0,	FSCLKST2_N_C),
++
++	PINMUX_IPSR_MSEL(IP8_7_4,	CANFD0_RX_A,	SEL_CANFD0_0),
++	PINMUX_IPSR_GPSR(IP8_7_4,	RXDA_EXTFXR),
++	PINMUX_IPSR_MSEL(IP8_7_4,	PWM1_B,	SEL_PWM1_1),
++	PINMUX_IPSR_GPSR(IP8_7_4,	DU_CDE),
++
++	PINMUX_IPSR_GPSR(IP8_11_8,	CANFD1_TX),
++	PINMUX_IPSR_GPSR(IP8_11_8,	FXR_TXDB),
++	PINMUX_IPSR_MSEL(IP8_11_8,	PWM2_B,	SEL_PWM2_1),
++	PINMUX_IPSR_MSEL(IP8_11_8,	TCLK1_B,	SEL_TMU_1),
++	PINMUX_IPSR_MSEL(IP8_11_8,	TX1_B,	SEL_SCIF1_1),
++
++	PINMUX_IPSR_GPSR(IP8_15_12,	CANFD1_RX),
++	PINMUX_IPSR_GPSR(IP8_15_12,	RXDB_EXTFXR),
++	PINMUX_IPSR_MSEL(IP8_15_12,	PWM3_B,	SEL_PWM3_1),
++	PINMUX_IPSR_MSEL(IP8_15_12,	TCLK2_B,	SEL_TMU_1),
++	PINMUX_IPSR_MSEL(IP8_15_12,	RX1_B,	SEL_SCIF1_1),
++
++	PINMUX_IPSR_MSEL(IP8_19_16,	CANFD_CLK_A,	SEL_CANFD0_0),
++	PINMUX_IPSR_GPSR(IP8_19_16,	CLK_EXTFXR),
++	PINMUX_IPSR_MSEL(IP8_19_16,	PWM4_B,	SEL_PWM4_1),
++	PINMUX_IPSR_MSEL(IP8_19_16,	SPEEDIN_B,	SEL_RSP_0),
++	PINMUX_IPSR_MSEL(IP8_19_16,	SCIF_CLK_B,	SEL_HSCIF0_1),
++
++	PINMUX_IPSR_GPSR(IP8_23_20,	DIGRF_CLKIN),
++	PINMUX_IPSR_GPSR(IP8_23_20,	DIGRF_CLKEN_IN),
++
++	PINMUX_IPSR_GPSR(IP8_27_24,	DIGRF_CLKOUT),
++	PINMUX_IPSR_GPSR(IP8_27_24,	DIGRF_CLKEN_OUT),
++};
++
++static const struct sh_pfc_pin pinmux_pins[] = {
++	PINMUX_GPIO_GP_ALL(),
++};
++
++/* - EtherAVB --------------------------------------------------------------- */
++static const unsigned int avb0_rx_ctrl_pins[] = {
++	/* AVB0_RX_CTL */
++	RCAR_GP_PIN(1, 1),
++};
++static const unsigned int avb0_rx_ctrl_mux[] = {
++	AVB0_RX_CTL_MARK,
++};
++static const unsigned int avb0_rxc_pins[] = {
++	/* AVB0_RXC */
++	RCAR_GP_PIN(1, 2),
++};
++static const unsigned int avb0_rxc_mux[] = {
++	AVB0_RXC_MARK,
++};
++static const unsigned int avb0_rd0_pins[] = {
++	/* AVB0_RD[0] */
++	RCAR_GP_PIN(1, 3),
++};
++static const unsigned int avb0_rd0_mux[] = {
++	AVB0_RD0_MARK,
++};
++static const unsigned int avb0_rd1_pins[] = {
++	/* AVB0_RD[1] */
++	RCAR_GP_PIN(1, 4),
++};
++static const unsigned int avb0_rd1_mux[] = {
++	AVB0_RD1_MARK,
++};
++static const unsigned int avb0_rd2_pins[] = {
++	/* AVB0_RD[2] */
++	RCAR_GP_PIN(1, 5),
++};
++static const unsigned int avb0_rd2_mux[] = {
++	AVB0_RD2_MARK,
++};
++static const unsigned int avb0_rd3_pins[] = {
++	/* AVB0_RD[3] */
++	RCAR_GP_PIN(1, 6),
++};
++static const unsigned int avb0_rd3_mux[] = {
++	AVB0_RD3_MARK,
++};
++static const unsigned int avb0_rd4_pins[] = {
++	/* AVB0_RD[3:0] */
++	RCAR_GP_PIN(1, 3), RCAR_GP_PIN(1, 4),
++	RCAR_GP_PIN(1, 5), RCAR_GP_PIN(1, 6),
++};
++static const unsigned int avb0_rd4_mux[] = {
++	AVB0_RD0_MARK, AVB0_RD1_MARK,
++	AVB0_RD2_MARK, AVB0_RD3_MARK,
++};
++static const unsigned int avb0_tx_ctrl_pins[] = {
++	/* AVB0_TX_CTL */
++	RCAR_GP_PIN(1, 7),
++};
++static const unsigned int avb0_tx_ctrl_mux[] = {
++	AVB0_TX_CTL_MARK,
++};
++static const unsigned int avb0_txc_pins[] = {
++	/* AVB0_TXC */
++	RCAR_GP_PIN(1, 8),
++};
++static const unsigned int avb0_txc_mux[] = {
++	AVB0_TXC_MARK,
++};
++static const unsigned int avb0_td0_pins[] = {
++	/* AVB0_TD[0] */
++	RCAR_GP_PIN(1, 9),
++};
++static const unsigned int avb0_td0_mux[] = {
++	AVB0_TD0_MARK,
++};
++static const unsigned int avb0_td1_pins[] = {
++	/* AVB0_TD[1] */
++	RCAR_GP_PIN(1, 10),
++};
++static const unsigned int avb0_td1_mux[] = {
++	AVB0_TD1_MARK,
++};
++static const unsigned int avb0_td2_pins[] = {
++	/* AVB0_TD[2] */
++	RCAR_GP_PIN(1, 11),
++};
++static const unsigned int avb0_td2_mux[] = {
++	AVB0_TD2_MARK,
++};
++static const unsigned int avb0_td3_pins[] = {
++	/* AVB0_TD[3] */
++	RCAR_GP_PIN(1, 12),
++};
++static const unsigned int avb0_td3_mux[] = {
++	AVB0_TD3_MARK,
++};
++static const unsigned int avb0_td4_pins[] = {
++	/* AVB0_TD[3:0] */
++	RCAR_GP_PIN(1, 9), RCAR_GP_PIN(1, 10),
++	RCAR_GP_PIN(1, 11), RCAR_GP_PIN(1, 12),
++};
++static const unsigned int avb0_td4_mux[] = {
++	AVB0_TD0_MARK, AVB0_TD1_MARK,
++	AVB0_TD2_MARK, AVB0_TD3_MARK,
++};
++static const unsigned int avb0_txcrefclk_pins[] = {
++	/* AVB0_TXCREFCLK */
++	RCAR_GP_PIN(1, 13),
++};
++static const unsigned int avb0_txcrefclk_mux[] = {
++	AVB0_TXCREFCLK_MARK,
++};
++static const unsigned int avb0_mdio_pins[] = {
++	/* AVB0_MDIO */
++	RCAR_GP_PIN(1, 14),
++};
++static const unsigned int avb0_mdio_mux[] = {
++	AVB0_MDIO_MARK,
++};
++static const unsigned int avb0_mdc_pins[] = {
++	/* AVB0_MDC */
++	RCAR_GP_PIN(1, 15),
++};
++static const unsigned int avb0_mdc_mux[] = {
++	AVB0_MDC_MARK,
++};
++static const unsigned int avb0_magic_pins[] = {
++	/* AVB0_MAGIC */
++	RCAR_GP_PIN(1, 16),
++};
++static const unsigned int avb0_magic_mux[] = {
++	AVB0_MAGIC_MARK,
++};
++static const unsigned int avb0_phy_int_pins[] = {
++	/* AVB0_PHY_INT */
++	RCAR_GP_PIN(1, 17),
++};
++static const unsigned int avb0_phy_int_mux[] = {
++	AVB0_PHY_INT_MARK,
++};
++static const unsigned int avb0_link_pins[] = {
++	/* AVB0_LINK */
++	RCAR_GP_PIN(1, 18),
++};
++static const unsigned int avb0_link_mux[] = {
++	AVB0_LINK_MARK,
++};
++static const unsigned int avb0_avtp_match_pins[] = {
++	/* AVB0_AVTP_MATCH */
++	RCAR_GP_PIN(1, 19),
++};
++static const unsigned int avb0_avtp_match_mux[] = {
++	AVB0_AVTP_MATCH_MARK,
++};
++static const unsigned int avb0_avtp_pps_pins[] = {
++	/* AVB0_AVTP_PPS */
++	RCAR_GP_PIN(2, 6),
++};
++static const unsigned int avb0_avtp_pps_mux[] = {
++	AVB0_AVTP_PPS_MARK,
++};
++static const unsigned int avb0_avtp_capture_pins[] = {
++	/* AVB0_AVTP_CAPTURE */
++	RCAR_GP_PIN(1, 20),
++};
++static const unsigned int avb0_avtp_capture_mux[] = {
++	AVB0_AVTP_CAPTURE_MARK,
++};
++
++/* - CANFD0 ----------------------------------------------------------------- */
++static const unsigned int canfd0_data_a_pins[] = {
++	/* TX, RX */
++	RCAR_GP_PIN(1, 21), RCAR_GP_PIN(1, 22),
++};
++static const unsigned int canfd0_data_a_mux[] = {
++	CANFD0_TX_A_MARK, CANFD0_RX_A_MARK,
++};
++static const unsigned int canfd_clk_a_pins[] = {
++	/* CLK */
++	RCAR_GP_PIN(1, 25),
++};
++static const unsigned int canfd_clk_a_mux[] = {
++	CANFD_CLK_A_MARK,
++};
++static const unsigned int canfd0_data_b_pins[] = {
++	/* TX, RX */
++	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++};
++static const unsigned int canfd0_data_b_mux[] = {
++	CANFD0_TX_B_MARK, CANFD0_RX_B_MARK,
++};
++static const unsigned int canfd_clk_b_pins[] = {
++	/* CLK */
++	RCAR_GP_PIN(3, 8),
++};
++static const unsigned int canfd_clk_b_mux[] = {
++	CANFD_CLK_B_MARK,
++};
++
++/* - CANFD1 ----------------------------------------------------------------- */
++static const unsigned int canfd1_data_pins[] = {
++	/* TX, RX */
++	RCAR_GP_PIN(1, 23), RCAR_GP_PIN(1, 24),
++};
++static const unsigned int canfd1_data_mux[] = {
++	CANFD1_TX_MARK, CANFD1_RX_MARK,
++};
++
++/* - DU --------------------------------------------------------------------- */
++static const unsigned int du_rgb666_pins[] = {
++	/* R[7:0] */
++	RCAR_GP_PIN(0, 5), RCAR_GP_PIN(0, 4),
++	RCAR_GP_PIN(0, 3), RCAR_GP_PIN(0, 2),
++	RCAR_GP_PIN(0, 1), RCAR_GP_PIN(0, 0),
++	/* G[7:0] */
++	RCAR_GP_PIN(0, 11), RCAR_GP_PIN(0, 10),
++	RCAR_GP_PIN(0, 9), RCAR_GP_PIN(0, 8),
++	RCAR_GP_PIN(0, 7), RCAR_GP_PIN(0, 6),
++	/* B[7:0] */
++	RCAR_GP_PIN(0, 17), RCAR_GP_PIN(0, 16),
++	RCAR_GP_PIN(0, 15), RCAR_GP_PIN(0, 14),
++	RCAR_GP_PIN(0, 13), RCAR_GP_PIN(0, 12),
++};
++static const unsigned int du_rgb666_mux[] = {
++	DU_DR7_MARK, DU_DR6_MARK,
++	DU_DR5_MARK, DU_DR4_MARK,
++	DU_DR3_MARK, DU_DR2_MARK,
++	DU_DG7_MARK, DU_DG6_MARK,
++	DU_DG5_MARK, DU_DG4_MARK,
++	DU_DG3_MARK, DU_DG2_MARK,
++	DU_DB7_MARK, DU_DB6_MARK,
++	DU_DB5_MARK, DU_DB4_MARK,
++	DU_DB3_MARK, DU_DB2_MARK,
++};
++static const unsigned int du_clk_out_0_pins[] = {
++	/* CLKOUT0 */
++	RCAR_GP_PIN(0, 18),
++};
++static const unsigned int du_clk_out_0_mux[] = {
++	DU_DOTCLKOUT_MARK,
++};
++static const unsigned int du_clk_out_1_pins[] = {
++	/* CLKOUT1 */
++	RCAR_GP_PIN(0, 18),		/* @@ */
++};
++static const unsigned int du_clk_out_1_mux[] = {
++	DU_DOTCLKOUT_MARK,
++};
++static const unsigned int du_sync_pins[] = {
++	/* EXVSYNC/VSYNC, EXHSYNC/HSYNC */
++	RCAR_GP_PIN(0, 20), RCAR_GP_PIN(0, 19),
++};
++static const unsigned int du_sync_mux[] = {
++	DU_EXVSYNC_DU_VSYNC_MARK, DU_EXHSYNC_DU_HSYNC_MARK,
++};
++static const unsigned int du_oddf_pins[] = {
++	/* EXDISP/EXODDF/EXCDE */
++	RCAR_GP_PIN(0, 21),
++};
++static const unsigned int du_oddf_mux[] = {
++	DU_EXODDF_DU_ODDF_DISP_CDE_MARK,
++};
++static const unsigned int du_cde_pins[] = {
++	/* CDE */
++	RCAR_GP_PIN(1, 22),
++};
++static const unsigned int du_cde_mux[] = {
++	DU_CDE_MARK,
++};
++static const unsigned int du_disp_pins[] = {
++	/* DISP */
++	RCAR_GP_PIN(1, 21),
++};
++static const unsigned int du_disp_mux[] = {
++	DU_DISP_MARK,
++};
++
++/* - HSCIF0 ----------------------------------------------------------------- */
++static const unsigned int hscif0_data_pins[] = {
++	/* HRX0, HTX0 */
++	RCAR_GP_PIN(0, 19), RCAR_GP_PIN(0, 3),
++};
++static const unsigned int hscif0_data_mux[] = {
++	HRX0_MARK, HTX0_MARK,
++};
++static const unsigned int hscif0_clk_pins[] = {
++	/* HSCK0 */
++	RCAR_GP_PIN(0, 0),
++};
++static const unsigned int hscif0_clk_mux[] = {
++	HSCK0_MARK,
++};
++static const unsigned int hscif0_ctrl_pins[] = {
++	/* HRTS0#, HCTS0# */
++	RCAR_GP_PIN(0, 1), RCAR_GP_PIN(0, 2),
++};
++static const unsigned int hscif0_ctrl_mux[] = {
++	HRTS0_N_MARK, HCTS0_N_MARK,
++};
++
++/* - HSCIF1 ----------------------------------------------------------------- */
++static const unsigned int hscif1_data_pins[] = {
++	/* HRX1, HTX1 */
++	RCAR_GP_PIN(2, 11), RCAR_GP_PIN(2, 10),
++};
++static const unsigned int hscif1_data_mux[] = {
++	HRX1_MARK, HTX1_MARK,
++};
++static const unsigned int hscif1_clk_pins[] = {
++	/* HSCK1 */
++	RCAR_GP_PIN(2, 7),
++};
++static const unsigned int hscif1_clk_mux[] = {
++	HSCK1_MARK,
++};
++static const unsigned int hscif1_ctrl_pins[] = {
++	/* HRTS1#, HCTS1# */
++	RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
++};
++static const unsigned int hscif1_ctrl_mux[] = {
++	HRTS1_N_MARK, HCTS1_N_MARK,
++};
++
++/* - HSCIF2 ----------------------------------------------------------------- */
++static const unsigned int hscif2_data_pins[] = {
++	/* HRX2, HTX2 */
++	RCAR_GP_PIN(2, 16), RCAR_GP_PIN(2, 15),
++};
++static const unsigned int hscif2_data_mux[] = {
++	HRX2_MARK, HTX2_MARK,
++};
++static const unsigned int hscif2_clk_pins[] = {
++	/* HSCK2 */
++	RCAR_GP_PIN(2, 12),
++};
++static const unsigned int hscif2_clk_mux[] = {
++	HSCK2_MARK,
++};
++static const unsigned int hscif2_ctrl_pins[] = {
++	/* HRTS2#, HCTS2# */
++	RCAR_GP_PIN(2, 14), RCAR_GP_PIN(2, 13),
++};
++static const unsigned int hscif2_ctrl_mux[] = {
++	HRTS2_N_MARK, HCTS2_N_MARK,
++};
++
++/* - HSCIF3 ----------------------------------------------------------------- */
++static const unsigned int hscif3_data_pins[] = {
++	/* HRX3, HTX3 */
++	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 3),
++};
++static const unsigned int hscif3_data_mux[] = {
++	HRX3_MARK, HTX3_MARK,
++};
++static const unsigned int hscif3_clk_pins[] = {
++	/* HSCK3 */
++	RCAR_GP_PIN(2, 0),
++};
++static const unsigned int hscif3_clk_mux[] = {
++	HSCK3_MARK,
++};
++static const unsigned int hscif3_ctrl_pins[] = {
++	/* HRTS3#, HCTS3# */
++	RCAR_GP_PIN(2, 2), RCAR_GP_PIN(2, 1),
++};
++static const unsigned int hscif3_ctrl_mux[] = {
++	HRTS3_N_MARK, HCTS3_N_MARK,
++};
++
++/* - SCIF Clock ------------------------------------------------------------- */
++static const unsigned int scif_clk_a_pins[] = {
++	/* SCIF_CLK */
++	RCAR_GP_PIN(0, 18),
++};
++static const unsigned int scif_clk_a_mux[] = {
++	SCIF_CLK_A_MARK,
++};
++static const unsigned int scif_clk_b_pins[] = {
++	/* SCIF_CLK */
++	RCAR_GP_PIN(1, 25),
++};
++static const unsigned int scif_clk_b_mux[] = {
++	SCIF_CLK_B_MARK,
++};
++
++/* - I2C -------------------------------------------------------------------- */
++static const unsigned int i2c0_pins[] = {
++	/* SDA0, SCL0 */
++	RCAR_GP_PIN(4, 1), RCAR_GP_PIN(4, 0),
++};
++static const unsigned int i2c0_mux[] = {
++	SDA0_MARK, SCL0_MARK,
++};
++static const unsigned int i2c1_pins[] = {
++	/* SDA1, SCL1 */
++	RCAR_GP_PIN(4, 3), RCAR_GP_PIN(4, 2),
++};
++static const unsigned int i2c1_mux[] = {
++	SDA1_MARK, SCL1_MARK,
++};
++static const unsigned int i2c2_pins[] = {
++	/* SDA2, SCL2 */
++	RCAR_GP_PIN(4, 5), RCAR_GP_PIN(4, 4),
++};
++static const unsigned int i2c2_mux[] = {
++	SDA2_MARK, SCL2_MARK,
++};
++static const unsigned int i2c3_pins[] = {
++	/* SDA3_A, SCL3_A */
++	RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 5),
++};
++static const unsigned int i2c3_mux[] = {
++	SDA3_A_MARK, SCL3_A_MARK,
++};
++static const unsigned int i2c4_pins[] = {
++	/* SDA4, SCL4 */
++	RCAR_GP_PIN(3, 16), RCAR_GP_PIN(3, 15),
++};
++static const unsigned int i2c4_mux[] = {
++	SDA4_MARK, SCL4_MARK,
++};
++
++/* - INTC-EX ---------------------------------------------------------------- */
++static const unsigned int intc_ex_irq0_pins[] = {
++	/* IRQ0 */
++	RCAR_GP_PIN(1, 0),
++};
++static const unsigned int intc_ex_irq0_mux[] = {
++	IRQ0_MARK,
++};
++static const unsigned int intc_ex_irq1_pins[] = {
++	/* IRQ1 */
++	RCAR_GP_PIN(0, 11),
++};
++static const unsigned int intc_ex_irq1_mux[] = {
++	IRQ1_MARK,
++};
++static const unsigned int intc_ex_irq2_pins[] = {
++	/* IRQ2 */
++	RCAR_GP_PIN(0, 12),
++};
++static const unsigned int intc_ex_irq2_mux[] = {
++	IRQ2_MARK,
++};
++static const unsigned int intc_ex_irq3_pins[] = {
++	/* IRQ3 */
++	RCAR_GP_PIN(0, 19),
++};
++static const unsigned int intc_ex_irq3_mux[] = {
++	IRQ3_MARK,
++};
++static const unsigned int intc_ex_irq4_pins[] = {
++	/* IRQ4 */
++	RCAR_GP_PIN(3, 15),
++};
++static const unsigned int intc_ex_irq4_mux[] = {
++	IRQ4_MARK,
++};
++static const unsigned int intc_ex_irq5_pins[] = {
++	/* IRQ5 */
++	RCAR_GP_PIN(3, 16),
++};
++static const unsigned int intc_ex_irq5_mux[] = {
++	IRQ5_MARK,
++};
++
++/* - MSIOF0 ----------------------------------------------------------------- */
++static const unsigned int msiof0_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(4, 2),
++};
++static const unsigned int msiof0_clk_mux[] = {
++	MSIOF0_SCK_MARK,
++};
++static const unsigned int msiof0_sync_pins[] = {
++	/* SYNC */
++	RCAR_GP_PIN(4, 3),
++};
++static const unsigned int msiof0_sync_mux[] = {
++	MSIOF0_SYNC_MARK,
++};
++static const unsigned int msiof0_ss1_pins[] = {
++	/* SS1 */
++	RCAR_GP_PIN(4, 4),
++};
++static const unsigned int msiof0_ss1_mux[] = {
++	MSIOF0_SS1_MARK,
++};
++static const unsigned int msiof0_ss2_pins[] = {
++	/* SS2 */
++	RCAR_GP_PIN(4, 5),
++};
++static const unsigned int msiof0_ss2_mux[] = {
++	MSIOF0_SS2_MARK,
++};
++static const unsigned int msiof0_txd_pins[] = {
++	/* TXD */
++	RCAR_GP_PIN(4, 1),
++};
++static const unsigned int msiof0_txd_mux[] = {
++	MSIOF0_TXD_MARK,
++};
++static const unsigned int msiof0_rxd_pins[] = {
++	/* RXD */
++	RCAR_GP_PIN(4, 0),
++};
++static const unsigned int msiof0_rxd_mux[] = {
++	MSIOF0_RXD_MARK,
++};
++
++/* - MSIOF1 ----------------------------------------------------------------- */
++static const unsigned int msiof1_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(3, 2),
++};
++static const unsigned int msiof1_clk_mux[] = {
++	MSIOF1_SCK_MARK,
++};
++static const unsigned int msiof1_sync_pins[] = {
++	/* SYNC */
++	RCAR_GP_PIN(3, 3),
++};
++static const unsigned int msiof1_sync_mux[] = {
++	MSIOF1_SYNC_MARK,
++};
++static const unsigned int msiof1_ss1_pins[] = {
++	/* SS1 */
++	RCAR_GP_PIN(3, 4),
++};
++static const unsigned int msiof1_ss1_mux[] = {
++	MSIOF1_SS1_MARK,
++};
++static const unsigned int msiof1_ss2_pins[] = {
++	/* SS2 */
++	RCAR_GP_PIN(3, 5),
++};
++static const unsigned int msiof1_ss2_mux[] = {
++	MSIOF1_SS2_MARK,
++};
++static const unsigned int msiof1_txd_pins[] = {
++	/* TXD */
++	RCAR_GP_PIN(3, 1),
++};
++static const unsigned int msiof1_txd_mux[] = {
++	MSIOF1_TXD_MARK,
++};
++static const unsigned int msiof1_rxd_pins[] = {
++	/* RXD */
++	RCAR_GP_PIN(3, 0),
++};
++static const unsigned int msiof1_rxd_mux[] = {
++	MSIOF1_RXD_MARK,
++};
++
++/* - MSIOF2 ----------------------------------------------------------------- */
++static const unsigned int msiof2_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(2, 0),
++};
++static const unsigned int msiof2_clk_mux[] = {
++	MSIOF2_SCK_MARK,
++};
++static const unsigned int msiof2_sync_pins[] = {
++	/* SYNC */
++	RCAR_GP_PIN(2, 3),
++};
++static const unsigned int msiof2_sync_mux[] = {
++	MSIOF2_SYNC_MARK,
++};
++static const unsigned int msiof2_ss1_pins[] = {
++	/* SS1 */
++	RCAR_GP_PIN(2, 4),
++};
++static const unsigned int msiof2_ss1_mux[] = {
++	MSIOF2_SS1_MARK,
++};
++static const unsigned int msiof2_ss2_pins[] = {
++	/* SS2 */
++	RCAR_GP_PIN(2, 5),
++};
++static const unsigned int msiof2_ss2_mux[] = {
++	MSIOF2_SS2_MARK,
++};
++static const unsigned int msiof2_txd_pins[] = {
++	/* TXD */
++	RCAR_GP_PIN(2, 2),
++};
++static const unsigned int msiof2_txd_mux[] = {
++	MSIOF2_TXD_MARK,
++};
++static const unsigned int msiof2_rxd_pins[] = {
++	/* RXD */
++	RCAR_GP_PIN(2, 1),
++};
++static const unsigned int msiof2_rxd_mux[] = {
++	MSIOF2_RXD_MARK,
++};
++
++/* - MSIOF3 ----------------------------------------------------------------- */
++static const unsigned int msiof3_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(0, 20),
++};
++static const unsigned int msiof3_clk_mux[] = {
++	MSIOF3_SCK_MARK,
++};
++static const unsigned int msiof3_sync_pins[] = {
++	/* SYNC */
++	RCAR_GP_PIN(0, 21),
++};
++static const unsigned int msiof3_sync_mux[] = {
++	MSIOF3_SYNC_MARK,
++};
++static const unsigned int msiof3_ss1_pins[] = {
++	/* SS1 */
++	RCAR_GP_PIN(0, 6),
++};
++static const unsigned int msiof3_ss1_mux[] = {
++	MSIOF3_SS1_MARK,
++};
++static const unsigned int msiof3_ss2_pins[] = {
++	/* SS2 */
++	RCAR_GP_PIN(0, 7),
++};
++static const unsigned int msiof3_ss2_mux[] = {
++	MSIOF3_SS2_MARK,
++};
++static const unsigned int msiof3_txd_pins[] = {
++	/* TXD */
++	RCAR_GP_PIN(0, 5),
++};
++static const unsigned int msiof3_txd_mux[] = {
++	MSIOF3_TXD_MARK,
++};
++static const unsigned int msiof3_rxd_pins[] = {
++	/* RXD */
++	RCAR_GP_PIN(0, 4),
++};
++static const unsigned int msiof3_rxd_mux[] = {
++	MSIOF3_RXD_MARK,
++};
++
++/* - TPU ------------------------------------------------------------------- */
++static const unsigned int tpu_to0_pins[] = {
++	/* TPU0TO0 */
++	RCAR_GP_PIN(4, 0),
++};
++static const unsigned int tpu_to0_mux[] = {
++	TPU0TO0_MARK,
++};
++static const unsigned int tpu_to1_pins[] = {
++	/* TPU0TO1 */
++	RCAR_GP_PIN(4, 1),
++};
++static const unsigned int tpu_to1_mux[] = {
++	TPU0TO1_MARK,
++};
++static const unsigned int tpu_to2_pins[] = {
++	/* TPU0TO2 */
++	RCAR_GP_PIN(4, 2),
++};
++static const unsigned int tpu_to2_mux[] = {
++	TPU0TO2_MARK,
++};
++static const unsigned int tpu_to3_pins[] = {
++	/* TPU0TO3 */
++	RCAR_GP_PIN(4, 3),
++};
++static const unsigned int tpu_to3_mux[] = {
++	TPU0TO3_MARK,
++};
++
++/* - PWM0 ------------------------------------------------------------------- */
++static const unsigned int pwm0_a_pins[] = {
++	/* PWM0 */
++	RCAR_GP_PIN(2, 12),
++};
++static const unsigned int pwm0_a_mux[] = {
++	PWM0_A_MARK,
++};
++static const unsigned int pwm0_b_pins[] = {
++	/* PWM0 */
++	RCAR_GP_PIN(1, 21),
++};
++static const unsigned int pwm0_b_mux[] = {
++	PWM0_B_MARK,
++};
++
++/* - PWM1 ------------------------------------------------------------------- */
++static const unsigned int pwm1_a_pins[] = {
++	/* PWM1 */
++	RCAR_GP_PIN(2, 13),
++};
++static const unsigned int pwm1_a_mux[] = {
++	PWM1_A_MARK,
++};
++static const unsigned int pwm1_b_pins[] = {
++	/* PWM1 */
++	RCAR_GP_PIN(1, 22),
++};
++static const unsigned int pwm1_b_mux[] = {
++	PWM1_B_MARK,
++};
++
++/* - PWM2 ------------------------------------------------------------------- */
++static const unsigned int pwm2_a_pins[] = {
++	/* PWM2 */
++	RCAR_GP_PIN(2, 14),
++};
++static const unsigned int pwm2_a_mux[] = {
++	PWM2_A_MARK,
++};
++static const unsigned int pwm2_b_pins[] = {
++	/* PWM2 */
++	RCAR_GP_PIN(1, 23),
++};
++static const unsigned int pwm2_b_mux[] = {
++	PWM2_B_MARK,
++};
++
++/* - PWM3 ------------------------------------------------------------------- */
++static const unsigned int pwm3_a_pins[] = {
++	/* PWM3 */
++	RCAR_GP_PIN(2, 15),
++};
++static const unsigned int pwm3_a_mux[] = {
++	PWM3_A_MARK,
++};
++static const unsigned int pwm3_b_pins[] = {
++	/* PWM3 */
++	RCAR_GP_PIN(1, 24),
++};
++static const unsigned int pwm3_b_mux[] = {
++	PWM3_B_MARK,
++};
++
++/* - PWM4 ------------------------------------------------------------------- */
++static const unsigned int pwm4_a_pins[] = {
++	/* PWM4 */
++	RCAR_GP_PIN(2, 16),
++};
++static const unsigned int pwm4_a_mux[] = {
++	PWM4_A_MARK,
++};
++static const unsigned int pwm4_b_pins[] = {
++	/* PWM4 */
++	RCAR_GP_PIN(1, 25),
++};
++static const unsigned int pwm4_b_mux[] = {
++	PWM4_B_MARK,
++};
++
++/* - SCIF0 ------------------------------------------------------------------ */
++static const unsigned int scif0_data_pins[] = {
++	/* RX, TX */
++	RCAR_GP_PIN(4, 4), RCAR_GP_PIN(4, 5),
++};
++static const unsigned int scif0_data_mux[] = {
++	RX0_MARK, TX0_MARK,
++};
++static const unsigned int scif0_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(4, 1),
++};
++static const unsigned int scif0_clk_mux[] = {
++	SCK0_MARK,
++};
++
++static const unsigned int scif0_ctrl_pins[] = {
++	/* RTS, CTS */
++	RCAR_GP_PIN(4, 3), RCAR_GP_PIN(4, 2),
++};
++static const unsigned int scif0_ctrl_mux[] = {
++	RTS0_N_TANS_MARK, CTS0_N_MARK,
++};
++
++/* - SCIF1 ------------------------------------------------------------------ */
++static const unsigned int scif1_data_a_pins[] = {
++	/* RX, TX */
++	RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
++};
++static const unsigned int scif1_data_a_mux[] = {
++	RX1_A_MARK, TX1_A_MARK,
++};
++static const unsigned int scif1_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(2, 5),
++};
++static const unsigned int scif1_clk_mux[] = {
++	SCK1_MARK,
++};
++static const unsigned int scif1_ctrl_pins[] = {
++	/* RTS, CTS */
++	RCAR_GP_PIN(2, 11), RCAR_GP_PIN(2, 10),
++};
++static const unsigned int scif1_ctrl_mux[] = {
++	RTS1_N_TANS_MARK, CTS1_N_MARK,
++};
++static const unsigned int scif1_data_b_pins[] = {
++	/* RX, TX */
++	RCAR_GP_PIN(1, 24), RCAR_GP_PIN(1, 23),
++};
++static const unsigned int scif1_data_b_mux[] = {
++	RX1_B_MARK, TX1_B_MARK,
++};
++
++/* - SCIF3 ------------------------------------------------------------------ */
++static const unsigned int scif3_data_pins[] = {
++	/* RX, TX */
++	RCAR_GP_PIN(2, 1), RCAR_GP_PIN(2, 2),
++};
++static const unsigned int scif3_data_mux[] = {
++	RX3_MARK, TX3_MARK,
++};
++static const unsigned int scif3_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(2, 0),
++};
++static const unsigned int scif3_clk_mux[] = {
++	SCK3_MARK,
++};
++static const unsigned int scif3_ctrl_pins[] = {
++	/* RTS, CTS */
++	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 3),
++};
++static const unsigned int scif3_ctrl_mux[] = {
++	RTS3_N_TANS_MARK, CTS3_N_MARK,
++};
++
++/* - SCIF4 ------------------------------------------------------------------ */
++static const unsigned int scif4_data_pins[] = {
++	/* RX, TX */
++	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
++};
++static const unsigned int scif4_data_mux[] = {
++	RX4_MARK, TX4_MARK,
++};
++static const unsigned int scif4_clk_pins[] = {
++	/* SCK */
++	RCAR_GP_PIN(3, 9),
++};
++static const unsigned int scif4_clk_mux[] = {
++	SCK4_MARK,
++};
++static const unsigned int scif4_ctrl_pins[] = {
++	/* RTS, CTS */
++	RCAR_GP_PIN(3, 13), RCAR_GP_PIN(3, 12),
++};
++static const unsigned int scif4_ctrl_mux[] = {
++	RTS4_N_TANS_MARK, CTS4_N_MARK,
++};
++
++/* - MMC -------------------------------------------------------------------- */
++static const unsigned int mmc_data1_pins[] = {
++	/* D0 */
++	RCAR_GP_PIN(3, 6),
++};
++static const unsigned int mmc_data1_mux[] = {
++	MMC_D0_MARK,
++};
++static const unsigned int mmc_data4_pins[] = {
++	/* D[0:3] */
++	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
++};
++static const unsigned int mmc_data4_mux[] = {
++	MMC_D0_MARK, MMC_D1_MARK,
++	MMC_D2_MARK, MMC_D3_MARK,
++};
++static const unsigned int mmc_data8_pins[] = {
++	/* D[0:7] */
++	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
++	RCAR_GP_PIN(3, 11), RCAR_GP_PIN(3, 12),
++	RCAR_GP_PIN(3, 13), RCAR_GP_PIN(3, 14),
++};
++static const unsigned int mmc_data8_mux[] = {
++	MMC_D0_MARK, MMC_D1_MARK,
++	MMC_D2_MARK, MMC_D3_MARK,
++	MMC_D4_MARK, MMC_D5_MARK,
++	MMC_D6_MARK, MMC_D7_MARK,
++};
++static const unsigned int mmc_ctrl_pins[] = {
++	/* CLK, CMD */
++	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 5),
++};
++static const unsigned int mmc_ctrl_mux[] = {
++	MMC_CLK_MARK, MMC_CMD_MARK,
++};
++static const unsigned int mmc_cd_pins[] = {
++	/* CD */
++	RCAR_GP_PIN(3, 16),
++};
++static const unsigned int mmc_cd_mux[] = {
++	MMC_CD_MARK,
++};
++static const unsigned int mmc_wp_pins[] = {
++	/* WP */
++	RCAR_GP_PIN(3, 15),
++};
++static const unsigned int mmc_wp_mux[] = {
++	MMC_WP_MARK,
++};
++
++/* - TMU -------------------------------------------------------------------- */
++static const unsigned int tmu_tclk1_a_pins[] = {
++	/* TCLK1 */
++	RCAR_GP_PIN(4, 4),
++};
++static const unsigned int tmu_tclk1_a_mux[] = {
++	TCLK1_A_MARK,
++};
++static const unsigned int tmu_tclk1_b_pins[] = {
++	/* TCLK1 */
++	RCAR_GP_PIN(1, 23),
++};
++static const unsigned int tmu_tclk1_b_mux[] = {
++	TCLK1_B_MARK,
++};
++static const unsigned int tmu_tclk2_a_pins[] = {
++	/* TCLK2 */
++	RCAR_GP_PIN(4, 5),
++};
++static const unsigned int tmu_tclk2_a_mux[] = {
++	TCLK2_A_MARK,
++};
++static const unsigned int tmu_tclk2_b_pins[] = {
++	/* TCLK2 */
++	RCAR_GP_PIN(1, 24),
++};
++static const unsigned int tmu_tclk2_b_mux[] = {
++	TCLK2_B_MARK,
++};
++
++/* - VIN0 ------------------------------------------------------------------- */
++static const unsigned int vin0_data8_pins[] = {
++	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 5),
++	RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 7),
++	RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
++	RCAR_GP_PIN(2, 10), RCAR_GP_PIN(2, 11),
++};
++static const unsigned int vin0_data8_mux[] = {
++	VI0_DATA0_MARK, VI0_DATA1_MARK,
++	VI0_DATA2_MARK, VI0_DATA3_MARK,
++	VI0_DATA4_MARK, VI0_DATA5_MARK,
++	VI0_DATA6_MARK, VI0_DATA7_MARK,
++};
++static const unsigned int vin0_data10_pins[] = {
++	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 5),
++	RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 7),
++	RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
++	RCAR_GP_PIN(2, 10), RCAR_GP_PIN(2, 11),
++	RCAR_GP_PIN(2, 12), RCAR_GP_PIN(2, 13),
++};
++static const unsigned int vin0_data10_mux[] = {
++	VI0_DATA0_MARK, VI0_DATA1_MARK,
++	VI0_DATA2_MARK, VI0_DATA3_MARK,
++	VI0_DATA4_MARK, VI0_DATA5_MARK,
++	VI0_DATA6_MARK, VI0_DATA7_MARK,
++	VI0_DATA8_MARK,  VI0_DATA9_MARK,
++};
++static const unsigned int vin0_data12_pins[] = {
++	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 5),
++	RCAR_GP_PIN(2, 6), RCAR_GP_PIN(2, 7),
++	RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
++	RCAR_GP_PIN(2, 10), RCAR_GP_PIN(2, 11),
++	RCAR_GP_PIN(2, 12), RCAR_GP_PIN(2, 13),
++	RCAR_GP_PIN(2, 14), RCAR_GP_PIN(2, 15),
++};
++static const unsigned int vin0_data12_mux[] = {
++	VI0_DATA0_MARK, VI0_DATA1_MARK,
++	VI0_DATA2_MARK, VI0_DATA3_MARK,
++	VI0_DATA4_MARK, VI0_DATA5_MARK,
++	VI0_DATA6_MARK, VI0_DATA7_MARK,
++	VI0_DATA8_MARK,  VI0_DATA9_MARK,
++	VI0_DATA10_MARK, VI0_DATA11_MARK,
++};
++static const unsigned int vin0_sync_pins[] = {
++	/* VSYNC_N, HSYNC_N */
++	RCAR_GP_PIN(2, 3), RCAR_GP_PIN(2, 2),
++};
++static const unsigned int vin0_sync_mux[] = {
++	VI0_HSYNC_N_MARK, VI0_VSYNC_N_MARK,
++};
++static const unsigned int vin0_field_pins[] = {
++	/* FIELD */
++	RCAR_GP_PIN(2, 16),
++};
++static const unsigned int vin0_field_mux[] = {
++	VI0_FIELD_MARK,
++};
++static const unsigned int vin0_clkenb_pins[] = {
++	/* CLKENB */
++	RCAR_GP_PIN(2, 1),
++};
++static const unsigned int vin0_clkenb_mux[] = {
++	VI0_CLKENB_MARK,
++};
++static const unsigned int vin0_clk_pins[] = {
++	/* CLK */
++	RCAR_GP_PIN(2, 0),
++};
++static const unsigned int vin0_clk_mux[] = {
++	VI0_CLK_MARK,
++};
++/* - VIN1 ------------------------------------------------------------------- */
++static const unsigned int vin1_data8_pins[] = {
++	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
++	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
++	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
++};
++static const unsigned int vin1_data8_mux[] = {
++	VI1_DATA0_MARK, VI1_DATA1_MARK,
++	VI1_DATA2_MARK, VI1_DATA3_MARK,
++	VI1_DATA4_MARK, VI1_DATA5_MARK,
++	VI1_DATA6_MARK, VI1_DATA7_MARK,
++};
++static const unsigned int vin1_data10_pins[] = {
++	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
++	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
++	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
++	RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
++};
++static const unsigned int vin1_data10_mux[] = {
++	VI1_DATA0_MARK, VI1_DATA1_MARK,
++	VI1_DATA2_MARK, VI1_DATA3_MARK,
++	VI1_DATA4_MARK, VI1_DATA5_MARK,
++	VI1_DATA6_MARK, VI1_DATA7_MARK,
++	VI1_DATA8_MARK,  VI1_DATA9_MARK,
++};
++static const unsigned int vin1_data12_pins[] = {
++	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
++	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
++	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
++	RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
++	RCAR_GP_PIN(3, 14), RCAR_GP_PIN(3, 15),
++};
++static const unsigned int vin1_data12_mux[] = {
++	VI1_DATA0_MARK, VI1_DATA1_MARK,
++	VI1_DATA2_MARK, VI1_DATA3_MARK,
++	VI1_DATA4_MARK, VI1_DATA5_MARK,
++	VI1_DATA6_MARK, VI1_DATA7_MARK,
++	VI1_DATA8_MARK,  VI1_DATA9_MARK,
++	VI1_DATA10_MARK, VI1_DATA11_MARK,
++};
++static const unsigned int vin1_sync_pins[] = {
++	/* VSYNC_N, HSYNC_N */
++	 RCAR_GP_PIN(3, 3), RCAR_GP_PIN(3, 2),
++};
++static const unsigned int vin1_sync_mux[] = {
++	VI1_HSYNC_N_MARK, VI1_VSYNC_N_MARK,
++};
++static const unsigned int vin1_field_pins[] = {
++	/* FIELD */
++	RCAR_GP_PIN(3, 16),
++};
++static const unsigned int vin1_field_mux[] = {
++	VI1_FIELD_MARK,
++};
++static const unsigned int vin1_clkenb_pins[] = {
++	/* CLKENB */
++	RCAR_GP_PIN(3, 1),
++};
++static const unsigned int vin1_clkenb_mux[] = {
++	VI1_CLKENB_MARK,
++};
++static const unsigned int vin1_clk_pins[] = {
++	/* CLK */
++	RCAR_GP_PIN(3, 0),
++};
++static const unsigned int vin1_clk_mux[] = {
++	VI1_CLK_MARK,
++};
++
++static const struct sh_pfc_pin_group pinmux_groups[] = {
++	SH_PFC_PIN_GROUP(avb0_rx_ctrl),
++	SH_PFC_PIN_GROUP(avb0_rxc),
++	SH_PFC_PIN_GROUP(avb0_rd0),
++	SH_PFC_PIN_GROUP(avb0_rd1),
++	SH_PFC_PIN_GROUP(avb0_rd2),
++	SH_PFC_PIN_GROUP(avb0_rd3),
++	SH_PFC_PIN_GROUP(avb0_rd4),
++	SH_PFC_PIN_GROUP(avb0_tx_ctrl),
++	SH_PFC_PIN_GROUP(avb0_txc),
++	SH_PFC_PIN_GROUP(avb0_td0),
++	SH_PFC_PIN_GROUP(avb0_td1),
++	SH_PFC_PIN_GROUP(avb0_td2),
++	SH_PFC_PIN_GROUP(avb0_td3),
++	SH_PFC_PIN_GROUP(avb0_td4),
++	SH_PFC_PIN_GROUP(avb0_txcrefclk),
++	SH_PFC_PIN_GROUP(avb0_mdio),
++	SH_PFC_PIN_GROUP(avb0_mdc),
++	SH_PFC_PIN_GROUP(avb0_magic),
++	SH_PFC_PIN_GROUP(avb0_phy_int),
++	SH_PFC_PIN_GROUP(avb0_link),
++	SH_PFC_PIN_GROUP(avb0_avtp_match),
++	SH_PFC_PIN_GROUP(avb0_avtp_pps),
++	SH_PFC_PIN_GROUP(avb0_avtp_capture),
++	SH_PFC_PIN_GROUP(canfd0_data_a),
++	SH_PFC_PIN_GROUP(canfd_clk_a),
++	SH_PFC_PIN_GROUP(canfd0_data_b),
++	SH_PFC_PIN_GROUP(canfd_clk_b),
++	SH_PFC_PIN_GROUP(canfd1_data),
++	SH_PFC_PIN_GROUP(du_rgb666),
++	SH_PFC_PIN_GROUP(du_clk_out_0),
++	SH_PFC_PIN_GROUP(du_clk_out_1),
++	SH_PFC_PIN_GROUP(du_sync),
++	SH_PFC_PIN_GROUP(du_oddf),
++	SH_PFC_PIN_GROUP(du_cde),
++	SH_PFC_PIN_GROUP(du_disp),
++	SH_PFC_PIN_GROUP(hscif0_data),
++	SH_PFC_PIN_GROUP(hscif0_clk),
++	SH_PFC_PIN_GROUP(hscif0_ctrl),
++	SH_PFC_PIN_GROUP(hscif1_data),
++	SH_PFC_PIN_GROUP(hscif1_clk),
++	SH_PFC_PIN_GROUP(hscif1_ctrl),
++	SH_PFC_PIN_GROUP(hscif2_data),
++	SH_PFC_PIN_GROUP(hscif2_clk),
++	SH_PFC_PIN_GROUP(hscif2_ctrl),
++	SH_PFC_PIN_GROUP(hscif3_data),
++	SH_PFC_PIN_GROUP(hscif3_clk),
++	SH_PFC_PIN_GROUP(hscif3_ctrl),
++	SH_PFC_PIN_GROUP(scif_clk_a),
++	SH_PFC_PIN_GROUP(scif_clk_b),
++	SH_PFC_PIN_GROUP(i2c0),
++	SH_PFC_PIN_GROUP(i2c1),
++	SH_PFC_PIN_GROUP(i2c2),
++	SH_PFC_PIN_GROUP(i2c3),
++	SH_PFC_PIN_GROUP(i2c4),
++	SH_PFC_PIN_GROUP(intc_ex_irq0),
++	SH_PFC_PIN_GROUP(intc_ex_irq1),
++	SH_PFC_PIN_GROUP(intc_ex_irq2),
++	SH_PFC_PIN_GROUP(intc_ex_irq3),
++	SH_PFC_PIN_GROUP(intc_ex_irq4),
++	SH_PFC_PIN_GROUP(intc_ex_irq5),
++	SH_PFC_PIN_GROUP(msiof0_clk),
++	SH_PFC_PIN_GROUP(msiof0_sync),
++	SH_PFC_PIN_GROUP(msiof0_ss1),
++	SH_PFC_PIN_GROUP(msiof0_ss2),
++	SH_PFC_PIN_GROUP(msiof0_txd),
++	SH_PFC_PIN_GROUP(msiof0_rxd),
++	SH_PFC_PIN_GROUP(msiof1_clk),
++	SH_PFC_PIN_GROUP(msiof1_sync),
++	SH_PFC_PIN_GROUP(msiof1_ss1),
++	SH_PFC_PIN_GROUP(msiof1_ss2),
++	SH_PFC_PIN_GROUP(msiof1_txd),
++	SH_PFC_PIN_GROUP(msiof1_rxd),
++	SH_PFC_PIN_GROUP(msiof2_clk),
++	SH_PFC_PIN_GROUP(msiof2_sync),
++	SH_PFC_PIN_GROUP(msiof2_ss1),
++	SH_PFC_PIN_GROUP(msiof2_ss2),
++	SH_PFC_PIN_GROUP(msiof2_txd),
++	SH_PFC_PIN_GROUP(msiof2_rxd),
++	SH_PFC_PIN_GROUP(msiof3_clk),
++	SH_PFC_PIN_GROUP(msiof3_sync),
++	SH_PFC_PIN_GROUP(msiof3_ss1),
++	SH_PFC_PIN_GROUP(msiof3_ss2),
++	SH_PFC_PIN_GROUP(msiof3_txd),
++	SH_PFC_PIN_GROUP(msiof3_rxd),
++	SH_PFC_PIN_GROUP(tpu_to0),
++	SH_PFC_PIN_GROUP(tpu_to1),
++	SH_PFC_PIN_GROUP(tpu_to2),
++	SH_PFC_PIN_GROUP(tpu_to3),
++	SH_PFC_PIN_GROUP(pwm0_a),
++	SH_PFC_PIN_GROUP(pwm0_b),
++	SH_PFC_PIN_GROUP(pwm1_a),
++	SH_PFC_PIN_GROUP(pwm1_b),
++	SH_PFC_PIN_GROUP(pwm2_a),
++	SH_PFC_PIN_GROUP(pwm2_b),
++	SH_PFC_PIN_GROUP(pwm3_a),
++	SH_PFC_PIN_GROUP(pwm3_b),
++	SH_PFC_PIN_GROUP(pwm4_a),
++	SH_PFC_PIN_GROUP(pwm4_b),
++	SH_PFC_PIN_GROUP(scif0_data),
++	SH_PFC_PIN_GROUP(scif0_clk),
++	SH_PFC_PIN_GROUP(scif0_ctrl),
++	SH_PFC_PIN_GROUP(scif1_data_a),
++	SH_PFC_PIN_GROUP(scif1_clk),
++	SH_PFC_PIN_GROUP(scif1_ctrl),
++	SH_PFC_PIN_GROUP(scif1_data_b),
++	SH_PFC_PIN_GROUP(scif3_data),
++	SH_PFC_PIN_GROUP(scif3_clk),
++	SH_PFC_PIN_GROUP(scif3_ctrl),
++	SH_PFC_PIN_GROUP(scif4_data),
++	SH_PFC_PIN_GROUP(scif4_clk),
++	SH_PFC_PIN_GROUP(scif4_ctrl),
++	SH_PFC_PIN_GROUP(mmc_data1),
++	SH_PFC_PIN_GROUP(mmc_data4),
++	SH_PFC_PIN_GROUP(mmc_data8),
++	SH_PFC_PIN_GROUP(mmc_ctrl),
++	SH_PFC_PIN_GROUP(mmc_cd),
++	SH_PFC_PIN_GROUP(mmc_wp),
++	SH_PFC_PIN_GROUP(tmu_tclk1_a),
++	SH_PFC_PIN_GROUP(tmu_tclk1_b),
++	SH_PFC_PIN_GROUP(tmu_tclk2_a),
++	SH_PFC_PIN_GROUP(tmu_tclk2_b),
++	SH_PFC_PIN_GROUP(vin0_data8),
++	SH_PFC_PIN_GROUP(vin0_data10),
++	SH_PFC_PIN_GROUP(vin0_data12),
++	SH_PFC_PIN_GROUP(vin0_sync),
++	SH_PFC_PIN_GROUP(vin0_field),
++	SH_PFC_PIN_GROUP(vin0_clkenb),
++	SH_PFC_PIN_GROUP(vin0_clk),
++	SH_PFC_PIN_GROUP(vin1_data8),
++	SH_PFC_PIN_GROUP(vin1_data10),
++	SH_PFC_PIN_GROUP(vin1_data12),
++	SH_PFC_PIN_GROUP(vin1_sync),
++	SH_PFC_PIN_GROUP(vin1_field),
++	SH_PFC_PIN_GROUP(vin1_clkenb),
++	SH_PFC_PIN_GROUP(vin1_clk),
++};
++
++static const char * const avb0_groups[] = {
++	"avb0_rx_ctrl",
++	"avb0_rxc",
++	"avb0_rd1",
++	"avb0_rd4",
++	"avb0_tx_ctrl",
++	"avb0_txc",
++	"avb0_td1",
++	"avb0_td4",
++	"avb0_txcrefclk",
++	"avb0_mdio",
++	"avb0_mdc",
++	"avb0_magic",
++	"avb0_phy_int",
++	"avb0_link",
++	"avb0_avtp_match",
++	"avb0_avtp_pps",
++	"avb0_avtp_capture",
++};
++
++static const char * const canfd0_groups[] = {
++	"canfd0_data_a",
++	"canfd_clk_a",
++	"canfd0_data_b",
++	"canfd_clk_b",
++};
++
++static const char * const canfd1_groups[] = {
++	"canfd1_data",
++};
++
++static const char * const du_groups[] = {
++	"du_rgb666",
++	"du_clk_out_0",
++	"du_clk_out_1",
++	"du_sync",
++	"du_oddf",
++	"du_cde",
++	"du_disp",
++};
++
++static const char * const hscif0_groups[] = {
++	"hscif0_data",
++	"hscif0_clk",
++	"hscif0_ctrl",
++};
++
++static const char * const hscif1_groups[] = {
++	"hscif1_data",
++	"hscif1_clk",
++	"hscif1_ctrl",
++};
++
++static const char * const hscif2_groups[] = {
++	"hscif2_data",
++	"hscif2_clk",
++	"hscif2_ctrl",
++};
++
++static const char * const hscif3_groups[] = {
++	"hscif3_data",
++	"hscif3_clk",
++	"hscif3_ctrl",
++};
++
++static const char * const scif_clk_groups[] = {
++	"scif_clk_a",
++	"scif_clk_b",
++};
++
++static const char * const i2c0_groups[] = {
++	"i2c0",
++};
++
++static const char * const i2c1_groups[] = {
++	"i2c1",
++};
++
++static const char * const i2c2_groups[] = {
++	"i2c2",
++};
++
++static const char * const i2c3_groups[] = {
++	"i2c3",
++};
++
++static const char * const i2c4_groups[] = {
++	"i2c4",
++};
++
++static const char * const intc_ex_groups[] = {
++	"intc_ex_irq0",
++	"intc_ex_irq1",
++	"intc_ex_irq2",
++	"intc_ex_irq3",
++	"intc_ex_irq4",
++	"intc_ex_irq5",
++};
++
++static const char * const msiof0_groups[] = {
++	"msiof0_clk",
++	"msiof0_sync",
++	"msiof0_ss1",
++	"msiof0_ss2",
++	"msiof0_txd",
++	"msiof0_rxd",
++};
++
++static const char * const msiof1_groups[] = {
++	"msiof1_clk",
++	"msiof1_sync",
++	"msiof1_ss1",
++	"msiof1_ss2",
++	"msiof1_txd",
++	"msiof1_rxd",
++};
++
++static const char * const msiof2_groups[] = {
++	"msiof2_clk",
++	"msiof2_sync",
++	"msiof2_ss1",
++	"msiof2_ss2",
++	"msiof2_txd",
++	"msiof2_rxd",
++};
++
++static const char * const msiof3_groups[] = {
++	"msiof3_clk",
++	"msiof3_sync",
++	"msiof3_ss1",
++	"msiof3_ss2",
++	"msiof3_txd",
++	"msiof3_rxd",
++};
++
++static const char * const tpu_groups[] = {
++	"tpu_to0",
++	"tpu_to1",
++	"tpu_to2",
++	"tpu_to3",
++};
++
++static const char * const pwm0_groups[] = {
++	"pwm0_a",
++	"pwm0_b",
++};
++
++static const char * const pwm1_groups[] = {
++	"pwm1_a",
++	"pwm1_b",
++};
++
++static const char * const pwm2_groups[] = {
++	"pwm2_a",
++	"pwm2_b",
++};
++
++static const char * const pwm3_groups[] = {
++	"pwm3_a",
++	"pwm3_b",
++};
++
++static const char * const pwm4_groups[] = {
++	"pwm4_a",
++	"pwm4_b",
++};
++
++static const char * const scif0_groups[] = {
++	"scif0_data",
++//	"scif0_clk",
++//	"scif0_ctrl",
++};
++
++static const char * const scif1_groups[] = {
++	"scif1_data_a",
++	"scif1_clk",
++	"scif1_ctrl",
++	"scif1_data_b",
++};
++
++static const char * const scif3_groups[] = {
++	"scif3_data",
++	"scif3_clk",
++	"scif3_ctrl",
++};
++
++static const char * const scif4_groups[] = {
++	"scif4_data",
++	"scif4_clk",
++	"scif4_ctrl",
++};
++
++static const char * const mmc_groups[] = {
++	"mmc_data1",
++	"mmc_data4",
++	"mmc_data8",
++	"mmc_ctrl",
++	"mmc_cd",
++	"mmc_wp",
++};
++
++static const char * const tmu_groups[] = {
++	"tmu_tclk1_a",
++	"tmu_tclk1_b",
++	"tmu_tclk2_a",
++	"tmu_tclk2_b",
++};
++
++static const char * const vin0_groups[] = {
++	"vin0_data8",
++	"vin0_data10",
++	"vin0_data12",
++	"vin0_sync",
++	"vin0_field",
++	"vin0_clkenb",
++	"vin0_clk",
++};
++
++static const char * const vin1_groups[] = {
++	"vin1_data8",
++	"vin1_data10",
++	"vin1_data12",
++	"vin1_sync",
++	"vin1_field",
++	"vin1_clkenb",
++	"vin1_clk",
++};
++
++#define POCCTRL0	0x380
++#define POCCTRL1	0x384
++#define PIN2POCCTRL0_SHIFT(a) ({ \
++	int _gp = (a) >> 5; \
++	int _bit = (a) & 0x1f; \
++	((_gp == 3) && (_bit < 17)) ? _bit + 7 : -1; \
++})
++
++
++static const struct sh_pfc_function pinmux_functions[] = {
++	SH_PFC_FUNCTION(avb0),
++	SH_PFC_FUNCTION(canfd0),
++	SH_PFC_FUNCTION(canfd1),
++	SH_PFC_FUNCTION(du),
++	SH_PFC_FUNCTION(hscif0),
++	SH_PFC_FUNCTION(hscif1),
++	SH_PFC_FUNCTION(hscif2),
++	SH_PFC_FUNCTION(hscif3),
++	SH_PFC_FUNCTION(scif_clk),
++	SH_PFC_FUNCTION(i2c0),
++	SH_PFC_FUNCTION(i2c1),
++	SH_PFC_FUNCTION(i2c2),
++	SH_PFC_FUNCTION(i2c3),
++	SH_PFC_FUNCTION(i2c4),
++	SH_PFC_FUNCTION(intc_ex),
++	SH_PFC_FUNCTION(msiof0),
++	SH_PFC_FUNCTION(msiof1),
++	SH_PFC_FUNCTION(msiof2),
++	SH_PFC_FUNCTION(msiof3),
++	SH_PFC_FUNCTION(tpu),
++	SH_PFC_FUNCTION(pwm0),
++	SH_PFC_FUNCTION(pwm1),
++	SH_PFC_FUNCTION(pwm2),
++	SH_PFC_FUNCTION(pwm3),
++	SH_PFC_FUNCTION(pwm4),
++	SH_PFC_FUNCTION(scif0),
++	SH_PFC_FUNCTION(scif1),
++	SH_PFC_FUNCTION(scif3),
++	SH_PFC_FUNCTION(scif4),
++	SH_PFC_FUNCTION(mmc),
++	SH_PFC_FUNCTION(tmu),
++	SH_PFC_FUNCTION(vin0),
++	SH_PFC_FUNCTION(vin1),
++};
++
++static const struct pinmux_cfg_reg pinmux_config_regs[] = {
++#define F_(x, y)	FN_##y
++#define FM(x)		FN_##x
++	{ PINMUX_CFG_REG("GPSR0", 0xe6060100, 32, 1) {
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		GP_0_21_FN,	GPSR0_21,
++		GP_0_20_FN,	GPSR0_20,
++		GP_0_19_FN,	GPSR0_19,
++		GP_0_18_FN,	GPSR0_18,
++		GP_0_17_FN,	GPSR0_17,
++		GP_0_16_FN,	GPSR0_16,
++		GP_0_15_FN,	GPSR0_15,
++		GP_0_14_FN,	GPSR0_14,
++		GP_0_13_FN,	GPSR0_13,
++		GP_0_12_FN,	GPSR0_12,
++		GP_0_11_FN,	GPSR0_11,
++		GP_0_10_FN,	GPSR0_10,
++		GP_0_9_FN,	GPSR0_9,
++		GP_0_8_FN,	GPSR0_8,
++		GP_0_7_FN,	GPSR0_7,
++		GP_0_6_FN,	GPSR0_6,
++		GP_0_5_FN,	GPSR0_5,
++		GP_0_4_FN,	GPSR0_4,
++		GP_0_3_FN,	GPSR0_3,
++		GP_0_2_FN,	GPSR0_2,
++		GP_0_1_FN,	GPSR0_1,
++		GP_0_0_FN,	GPSR0_0, }
++	},
++	{ PINMUX_CFG_REG("GPSR1", 0xe6060104, 32, 1) {
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		GP_1_27_FN,	GPSR1_27,
++		GP_1_26_FN,	GPSR1_26,
++		GP_1_25_FN,	GPSR1_25,
++		GP_1_24_FN,	GPSR1_24,
++		GP_1_23_FN,	GPSR1_23,
++		GP_1_22_FN,	GPSR1_22,
++		GP_1_21_FN,	GPSR1_21,
++		GP_1_20_FN,	GPSR1_20,
++		GP_1_19_FN,	GPSR1_19,
++		GP_1_18_FN,	GPSR1_18,
++		GP_1_17_FN,	GPSR1_17,
++		GP_1_16_FN,	GPSR1_16,
++		GP_1_15_FN,	GPSR1_15,
++		GP_1_14_FN,	GPSR1_14,
++		GP_1_13_FN,	GPSR1_13,
++		GP_1_12_FN,	GPSR1_12,
++		GP_1_11_FN,	GPSR1_11,
++		GP_1_10_FN,	GPSR1_10,
++		GP_1_9_FN,	GPSR1_9,
++		GP_1_8_FN,	GPSR1_8,
++		GP_1_7_FN,	GPSR1_7,
++		GP_1_6_FN,	GPSR1_6,
++		GP_1_5_FN,	GPSR1_5,
++		GP_1_4_FN,	GPSR1_4,
++		GP_1_3_FN,	GPSR1_3,
++		GP_1_2_FN,	GPSR1_2,
++		GP_1_1_FN,	GPSR1_1,
++		GP_1_0_FN,	GPSR1_0, }
++	},
++	{ PINMUX_CFG_REG("GPSR2", 0xe6060108, 32, 1) {
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		GP_2_16_FN,	GPSR2_16,
++		GP_2_15_FN,	GPSR2_15,
++		GP_2_14_FN,	GPSR2_14,
++		GP_2_13_FN,	GPSR2_13,
++		GP_2_12_FN,	GPSR2_12,
++		GP_2_11_FN,	GPSR2_11,
++		GP_2_10_FN,	GPSR2_10,
++		GP_2_9_FN,	GPSR2_9,
++		GP_2_8_FN,	GPSR2_8,
++		GP_2_7_FN,	GPSR2_7,
++		GP_2_6_FN,	GPSR2_6,
++		GP_2_5_FN,	GPSR2_5,
++		GP_2_4_FN,	GPSR2_4,
++		GP_2_3_FN,	GPSR2_3,
++		GP_2_2_FN,	GPSR2_2,
++		GP_2_1_FN,	GPSR2_1,
++		GP_2_0_FN,	GPSR2_0, }
++	},
++	{ PINMUX_CFG_REG("GPSR3", 0xe606010c, 32, 1) {
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		GP_3_16_FN,	GPSR3_16,
++		GP_3_15_FN,	GPSR3_15,
++		GP_3_14_FN,	GPSR3_14,
++		GP_3_13_FN,	GPSR3_13,
++		GP_3_12_FN,	GPSR3_12,
++		GP_3_11_FN,	GPSR3_11,
++		GP_3_10_FN,	GPSR3_10,
++		GP_3_9_FN,	GPSR3_9,
++		GP_3_8_FN,	GPSR3_8,
++		GP_3_7_FN,	GPSR3_7,
++		GP_3_6_FN,	GPSR3_6,
++		GP_3_5_FN,	GPSR3_5,
++		GP_3_4_FN,	GPSR3_4,
++		GP_3_3_FN,	GPSR3_3,
++		GP_3_2_FN,	GPSR3_2,
++		GP_3_1_FN,	GPSR3_1,
++		GP_3_0_FN,	GPSR3_0, }
++	},
++	{ PINMUX_CFG_REG("GPSR4", 0xe6060110, 32, 1) {
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		GP_4_5_FN,	GPSR4_5,
++		GP_4_4_FN,	GPSR4_4,
++		GP_4_3_FN,	GPSR4_3,
++		GP_4_2_FN,	GPSR4_2,
++		GP_4_1_FN,	GPSR4_1,
++		GP_4_0_FN,	GPSR4_0, }
++	},
++	{ PINMUX_CFG_REG("GPSR5", 0xe6060114, 32, 1) {
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		GP_5_14_FN,	GPSR5_14,
++		GP_5_13_FN,	GPSR5_13,
++		GP_5_12_FN,	GPSR5_12,
++		GP_5_11_FN,	GPSR5_11,
++		GP_5_10_FN,	GPSR5_10,
++		GP_5_9_FN,	GPSR5_9,
++		GP_5_8_FN,	GPSR5_8,
++		GP_5_7_FN,	GPSR5_7,
++		GP_5_6_FN,	GPSR5_6,
++		GP_5_5_FN,	GPSR5_5,
++		GP_5_4_FN,	GPSR5_4,
++		GP_5_3_FN,	GPSR5_3,
++		GP_5_2_FN,	GPSR5_2,
++		GP_5_1_FN,	GPSR5_1,
++		GP_5_0_FN,	GPSR5_0, }
++	},
++#undef F_
++#undef FM
++
++#define F_(x, y)	x,
++#define FM(x)		FN_##x,
++	{ PINMUX_CFG_REG("IPSR0", 0xe6060200, 32, 4) {
++		IP0_31_28
++		IP0_27_24
++		IP0_23_20
++		IP0_19_16
++		IP0_15_12
++		IP0_11_8
++		IP0_7_4
++		IP0_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR1", 0xe6060204, 32, 4) {
++		IP1_31_28
++		IP1_27_24
++		IP1_23_20
++		IP1_19_16
++		IP1_15_12
++		IP1_11_8
++		IP1_7_4
++		IP1_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR2", 0xe6060208, 32, 4) {
++		IP2_31_28
++		IP2_27_24
++		IP2_23_20
++		IP2_19_16
++		IP2_15_12
++		IP2_11_8
++		IP2_7_4
++		IP2_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR3", 0xe606020c, 32, 4) {
++		IP3_31_28
++		IP3_27_24
++		IP3_23_20
++		IP3_19_16
++		IP3_15_12
++		IP3_11_8
++		IP3_7_4
++		IP3_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR4", 0xe6060210, 32, 4) {
++		IP4_31_28
++		IP4_27_24
++		IP4_23_20
++		IP4_19_16
++		IP4_15_12
++		IP4_11_8
++		IP4_7_4
++		IP4_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR5", 0xe6060214, 32, 4) {
++		IP5_31_28
++		IP5_27_24
++		IP5_23_20
++		IP5_19_16
++		IP5_15_12
++		IP5_11_8
++		IP5_7_4
++		IP5_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR6", 0xe6060218, 32, 4) {
++		IP6_31_28
++		IP6_27_24
++		IP6_23_20
++		IP6_19_16
++		IP6_15_12
++		IP6_11_8
++		IP6_7_4
++		IP6_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR7", 0xe606021c, 32, 4) {
++		IP7_31_28
++		IP7_27_24
++		IP7_23_20
++		IP7_19_16
++		IP7_15_12
++		IP7_11_8
++		IP7_7_4
++		IP7_3_0 }
++	},
++	{ PINMUX_CFG_REG("IPSR8", 0xe6060220, 32, 4) {
++		IP8_31_28
++		IP8_27_24
++		IP8_23_20
++		IP8_19_16
++		IP8_15_12
++		IP8_11_8
++		IP8_7_4
++		IP8_3_0 }
++	},
++#undef F_
++#undef FM
++
++#define F_(x, y)	x,
++#define FM(x)		FN_##x,
++	{ PINMUX_CFG_REG("MOD_SEL0", 0xe6060500, 32, 1) {
++		/* RESERVED 31..12 */
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		0, 0,
++		MOD_SEL0_11
++		MOD_SEL0_10
++		MOD_SEL0_9
++		MOD_SEL0_8
++		MOD_SEL0_7
++		MOD_SEL0_6
++		MOD_SEL0_5
++		MOD_SEL0_4
++		MOD_SEL0_3
++		MOD_SEL0_2
++		MOD_SEL0_1
++		MOD_SEL0_0 }
++	},
++	{ },
++};
++
++static int r8a7797_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl)
++{
++	int bit = -EINVAL;
++
++	*pocctrl = 0xe6060384;
++
++	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 16))
++		bit = (pin & 0x1f) + 7;
++
++	return bit;
++}
++
++static const struct sh_pfc_soc_operations pinmux_ops = {
++	.pin_to_pocctrl = r8a7797_pin_to_pocctrl,
++};
++
++const struct sh_pfc_soc_info r8a7797_pinmux_info = {
++	.name = "r8a77970_pfc",
++	.ops = &pinmux_ops,
++	.unlock_reg = 0xe6060000, /* PMMR */
++
++	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
++
++	.pins = pinmux_pins,
++	.nr_pins = ARRAY_SIZE(pinmux_pins),
++	.groups = pinmux_groups,
++	.nr_groups = ARRAY_SIZE(pinmux_groups),
++	.functions = pinmux_functions,
++	.nr_functions = ARRAY_SIZE(pinmux_functions),
++
++	.cfg_regs = pinmux_config_regs,
++
++	.pinmux_data = pinmux_data,
++	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
++};
+diff --git a/drivers/pinctrl/sh-pfc/sh_pfc.h b/drivers/pinctrl/sh-pfc/sh_pfc.h
+index 5a0da3c..062af89 100644
+--- a/drivers/pinctrl/sh-pfc/sh_pfc.h
++++ b/drivers/pinctrl/sh-pfc/sh_pfc.h
+@@ -288,6 +288,7 @@ struct sh_pfc_soc_info {
+ extern const struct sh_pfc_soc_info r8a7795_es1_pinmux_info;
+ extern const struct sh_pfc_soc_info r8a7796_pinmux_info;
+ extern const struct sh_pfc_soc_info r8a77965_pinmux_info;
++extern const struct sh_pfc_soc_info r8a7797_pinmux_info;
+ extern const struct sh_pfc_soc_info sh7203_pinmux_info;
+ extern const struct sh_pfc_soc_info sh7264_pinmux_info;
+ extern const struct sh_pfc_soc_info sh7269_pinmux_info;
+@@ -393,6 +394,11 @@ struct sh_pfc_soc_info {
+ 	PORT_GP_CFG_1(bank, 3,  fn, sfx, cfg)
+ #define PORT_GP_4(bank, fn, sfx)	PORT_GP_CFG_4(bank, fn, sfx, 0)
+ 
++#define PORT_GP_CFG_6(bank, fn, sfx, cfg)				\
++	PORT_GP_CFG_4(bank, fn, sfx, cfg),				\
++	PORT_GP_CFG_1(bank, 4,  fn, sfx, cfg), PORT_GP_CFG_1(bank, 5,  fn, sfx, cfg)
++#define PORT_GP_6(bank, fn, sfx)	PORT_GP_CFG_6(bank, fn, sfx, 0)
++
+ #define PORT_GP_CFG_8(bank, fn, sfx, cfg)				\
+ 	PORT_GP_CFG_4(bank, fn, sfx, cfg),				\
+ 	PORT_GP_CFG_1(bank, 4,  fn, sfx, cfg),				\
+@@ -439,6 +445,12 @@ struct sh_pfc_soc_info {
+ 	PORT_GP_CFG_1(bank, 17, fn, sfx, cfg)
+ #define PORT_GP_18(bank, fn, sfx)	PORT_GP_CFG_18(bank, fn, sfx, 0)
+ 
++#define PORT_GP_CFG_22(bank, fn, sfx, cfg)				\
++	PORT_GP_CFG_18(bank, fn, sfx, cfg),				\
++	PORT_GP_CFG_1(bank, 18, fn, sfx, cfg), PORT_GP_CFG_1(bank, 19, fn, sfx, cfg),	\
++	PORT_GP_CFG_1(bank, 20, fn, sfx, cfg), PORT_GP_CFG_1(bank, 21, fn, sfx, cfg)
++#define PORT_GP_22(bank, fn, sfx)	PORT_GP_CFG_22(bank, fn, sfx, 0)
++
+ #define PORT_GP_CFG_23(bank, fn, sfx, cfg)				\
+ 	PORT_GP_CFG_18(bank, fn, sfx, cfg),				\
+ 	PORT_GP_CFG_1(bank, 18, fn, sfx, cfg),				\
+diff --git a/drivers/soc/renesas/Makefile b/drivers/soc/renesas/Makefile
+index 29b8a4d..2ba6a76 100644
+--- a/drivers/soc/renesas/Makefile
++++ b/drivers/soc/renesas/Makefile
+@@ -5,6 +5,7 @@ obj-$(CONFIG_ARCH_RCAR_GEN2)	+= rcar-rst.o
+ obj-$(CONFIG_ARCH_R8A7795)	+= rcar-rst.o
+ obj-$(CONFIG_ARCH_R8A7796)	+= rcar-rst.o
+ obj-$(CONFIG_ARCH_R8A77965)	+= rcar-rst.o
++obj-$(CONFIG_ARCH_R8A7797)	+= rcar-rst.o
+ 
+ obj-$(CONFIG_ARCH_R8A7743)	+= rcar-sysc.o r8a7743-sysc.o
+ obj-$(CONFIG_ARCH_R8A7745)	+= rcar-sysc.o r8a7745-sysc.o
+@@ -18,13 +19,16 @@ obj-$(CONFIG_ARCH_R8A7794)	+= rcar-sysc.o r8a7794-sysc.o
+ obj-$(CONFIG_ARCH_R8A7795)	+= rcar-sysc.o r8a7795-sysc.o
+ obj-$(CONFIG_ARCH_R8A7796)	+= rcar-sysc.o r8a7796-sysc.o
+ obj-$(CONFIG_ARCH_R8A77965)	+= rcar-sysc.o r8a77965-sysc.o
++obj-$(CONFIG_ARCH_R8A7797)	+= rcar-sysc.o r8a7797-sysc.o
+ 
+ obj-$(CONFIG_ARCH_R8A7795)	+= rcar-avs.o
+ obj-$(CONFIG_ARCH_R8A7796)	+= rcar-avs.o
+ obj-$(CONFIG_ARCH_R8A77965)	+= rcar-avs.o
++obj-$(CONFIG_ARCH_R8A7797)	+= rcar-avs.o
+ # EMS for R-Car Gen3
+ obj-$(CONFIG_ARCH_R8A7795)	+= rcar_ems_ctrl.o
+ obj-$(CONFIG_ARCH_R8A7796)	+= rcar_ems_ctrl.o
+ obj-$(CONFIG_ARCH_R8A77965)	+= rcar_ems_ctrl.o
++obj-$(CONFIG_ARCH_R8A7797)	+= rcar_ems_ctrl.o
+ 
+ obj-$(CONFIG_RCAR_DDR_BACKUP)	+= s2ram_ddr_backup.o
+diff --git a/drivers/soc/renesas/r8a7797-sysc.c b/drivers/soc/renesas/r8a7797-sysc.c
+new file mode 100644
+index 0000000..cde7d9e
+--- /dev/null
++++ b/drivers/soc/renesas/r8a7797-sysc.c
+@@ -0,0 +1,39 @@
++/*
++ * Renesas R-Car V3M System Controller
++ *
++ * Copyright (C) 2016 Glider bvba
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ */
++
++#include <linux/bug.h>
++#include <linux/kernel.h>
++
++#include <dt-bindings/power/r8a7797-sysc.h>
++
++#include "rcar-sysc.h"
++
++static const struct rcar_sysc_area r8a7797_areas[] __initconst = {
++	{ "always-on",	    0, 0, R8A7797_PD_ALWAYS_ON,	-1, PD_ALWAYS_ON },
++	{ "ca53-scu",	0x140, 0, R8A7797_PD_CA53_SCU,	R8A7797_PD_ALWAYS_ON,
++	  PD_SCU },
++	{ "ca53-cpu0",	0x200, 0, R8A7797_PD_CA53_CPU0,	R8A7797_PD_CA53_SCU,
++	  PD_CPU_NOCR },
++	{ "ca53-cpu1",	0x200, 1, R8A7797_PD_CA53_CPU1,	R8A7797_PD_CA53_SCU,
++	  PD_CPU_NOCR },
++	{ "cr7",	0x240, 0, R8A7797_PD_CR7,	R8A7797_PD_ALWAYS_ON },
++	{ "a3ir",	0x180, 0, R8A7797_PD_A3IR,	R8A7797_PD_ALWAYS_ON },
++	{ "a2ir0",	0x400, 0, R8A7797_PD_A2IR0,	R8A7797_PD_A3IR },
++	{ "a2ir1",	0x400, 1, R8A7797_PD_A2IR1,	R8A7797_PD_A3IR },
++	{ "a2ir2",	0x400, 2, R8A7797_PD_A2IR2,	R8A7797_PD_A3IR },
++	{ "a2ir3",	0x400, 3, R8A7797_PD_A2IR3,	R8A7797_PD_A3IR },
++	{ "a2sc0",	0x400, 4, R8A7797_PD_A2SC0,	R8A7797_PD_A3IR },
++	{ "a2sc1",	0x400, 5, R8A7797_PD_A2SC1,	R8A7797_PD_A3IR },
++};
++
++const struct rcar_sysc_info r8a7797_sysc_info __initconst = {
++	.areas = r8a7797_areas,
++	.num_areas = ARRAY_SIZE(r8a7797_areas),
++};
+diff --git a/drivers/soc/renesas/rcar-rst.c b/drivers/soc/renesas/rcar-rst.c
+index 61c2f2c..bc3632b 100644
+--- a/drivers/soc/renesas/rcar-rst.c
++++ b/drivers/soc/renesas/rcar-rst.c
+@@ -42,6 +42,7 @@ struct rst_config {
+ 	{ .compatible = "renesas,r8a7795-rst", .data = &rcar_rst_gen2 },
+ 	{ .compatible = "renesas,r8a7796-rst", .data = &rcar_rst_gen2 },
+ 	{ .compatible = "renesas,r8a77965-rst", .data = &rcar_rst_gen2 },
++	{ .compatible = "renesas,r8a7797-rst", .data = &rcar_rst_gen2 },
+ 	{ /* sentinel */ }
+ };
+ 
+diff --git a/drivers/soc/renesas/rcar-sysc.c b/drivers/soc/renesas/rcar-sysc.c
+index b25c5cf..1d5d440 100644
+--- a/drivers/soc/renesas/rcar-sysc.c
++++ b/drivers/soc/renesas/rcar-sysc.c
+@@ -324,6 +324,9 @@ static void __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
+ #ifdef CONFIG_ARCH_R8A77965
+ 	{ .compatible = "renesas,r8a77965-sysc", .data = &r8a77965_sysc_info },
+ #endif
++#ifdef CONFIG_ARCH_R8A7797
++	{ .compatible = "renesas,r8a7797-sysc", .data = &r8a7797_sysc_info },
++#endif
+ 	{ /* sentinel */ }
+ };
+ 
+diff --git a/drivers/soc/renesas/rcar-sysc.h b/drivers/soc/renesas/rcar-sysc.h
+index 04b5d01..1eb4e6d 100644
+--- a/drivers/soc/renesas/rcar-sysc.h
++++ b/drivers/soc/renesas/rcar-sysc.h
+@@ -61,4 +61,5 @@ struct rcar_sysc_info {
+ extern const struct rcar_sysc_info r8a7795_sysc_info;
+ extern const struct rcar_sysc_info r8a7796_sysc_info;
+ extern const struct rcar_sysc_info r8a77965_sysc_info;
++extern const struct rcar_sysc_info r8a7797_sysc_info;
+ #endif /* __SOC_RENESAS_RCAR_SYSC_H__ */
+diff --git a/drivers/soc/renesas/rcar_ems_ctrl.c b/drivers/soc/renesas/rcar_ems_ctrl.c
+index ca9af73..388c570 100644
+--- a/drivers/soc/renesas/rcar_ems_ctrl.c
++++ b/drivers/soc/renesas/rcar_ems_ctrl.c
+@@ -24,11 +24,17 @@
+ #include <linux/pm_runtime.h>
+ #include <linux/spinlock.h>
+ #include <linux/thermal.h>
++#include <linux/sys_soc.h>
+ 
+ #include <linux/soc/renesas/rcar_ems_ctrl.h>
+ 
+ #define EMS_THERMAL_ZONE_MAX	10
+ 
++static const struct soc_device_attribute r8a7797[] = {
++	{ .soc_id = "r8a7797" },
++	{ }
++};
++
+ static void rcar_ems_monitor(struct work_struct *ws);
+ static DECLARE_DELAYED_WORK(rcar_ems_monitor_work, rcar_ems_monitor);
+ 
+@@ -268,6 +274,10 @@ static int __init rcar_ems_cpu_shutdown_init(void)
+ 
+ 	for_each_online_cpu(cpu) {
+ 		tmp_node  = of_get_cpu_node(cpu, NULL);
++		if (soc_device_match(r8a7797)) {
++			if (!of_device_is_compatible(tmp_node, "arm,cortex-a53"))
++				continue;
++		}
+ 		if (!of_device_is_compatible(tmp_node, "arm,cortex-a57"))
+ 			continue;
+ 		for (i = 0; i < total_target_cpu; i++) {
+diff --git a/drivers/soc/renesas/renesas-soc.c b/drivers/soc/renesas/renesas-soc.c
+index 1b33c50..63f943d 100644
+--- a/drivers/soc/renesas/renesas-soc.c
++++ b/drivers/soc/renesas/renesas-soc.c
+@@ -139,6 +139,11 @@ struct renesas_soc {
+ 	.id	= 0x55,
+ };
+ 
++static const struct renesas_soc soc_rcar_v3m __initconst __maybe_unused = {
++	.family	= &fam_rcar_gen3,
++	.id	= 0x54,
++};
++
+ static const struct renesas_soc soc_shmobile_ag5 __initconst __maybe_unused = {
+ 	.family	= &fam_shmobile,
+ 	.id	= 0x37,
+@@ -191,6 +196,9 @@ struct renesas_soc {
+ #ifdef CONFIG_ARCH_R8A77965
+ 	{ .compatible = "renesas,r8a77965",	.data = &soc_rcar_m3_n },
+ #endif
++#ifdef CONFIG_ARCH_R8A7797
++	{ .compatible = "renesas,r8a7797",	.data = &soc_rcar_v3m },
++#endif
+ #ifdef CONFIG_ARCH_SH73A0
+ 	{ .compatible = "renesas,sh73a0",	.data = &soc_shmobile_ag5 },
+ #endif
+diff --git a/drivers/spi/spi-sh-msiof.c b/drivers/spi/spi-sh-msiof.c
+index 36e70db..a2606fe 100644
+--- a/drivers/spi/spi-sh-msiof.c
++++ b/drivers/spi/spi-sh-msiof.c
+@@ -216,7 +216,8 @@ static int msiof_rcar_is_gen3(struct device *dev)
+ 
+ 	return of_device_is_compatible(node, "renesas,msiof-r8a7795") ||
+ 		of_device_is_compatible(node, "renesas,msiof-r8a7796") ||
+-		of_device_is_compatible(node, "renesas,msiof-r8a77965");
++		of_device_is_compatible(node, "renesas,msiof-r8a77965") ||
++		of_device_is_compatible(node, "renesas,msiof-r8a7797");
+ }
+ 
+ static u32 sh_msiof_read(struct sh_msiof_spi_priv *p, int reg_offs)
+@@ -1190,6 +1191,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
+ 	{ .compatible = "renesas,msiof-r8a7795",   .data = &r8a779x_data },
+ 	{ .compatible = "renesas,msiof-r8a7796",   .data = &r8a779x_data },
+ 	{ .compatible = "renesas,msiof-r8a77965",  .data = &r8a779x_data },
++	{ .compatible = "renesas,msiof-r8a7797",   .data = &r8a779x_data },
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, sh_msiof_match);
+diff --git a/drivers/thermal/rcar_gen3_thermal.c b/drivers/thermal/rcar_gen3_thermal.c
+index 6eb7395..a23dd44 100644
+--- a/drivers/thermal/rcar_gen3_thermal.c
++++ b/drivers/thermal/rcar_gen3_thermal.c
+@@ -391,6 +391,30 @@ static int rcar_gen3_r8a7795_thermal_init(struct rcar_thermal_priv *priv)
+ 	return 0;
+ }
+ 
++/* @@ transitional */
++static int rcar_gen3_r8a7797_thermal_init(struct rcar_thermal_priv *priv)
++{
++#if 0
++	unsigned long flags;
++	unsigned long reg_val;
++
++	spin_lock_irqsave(&priv->lock, flags);
++	rcar_thermal_write(priv, REG_GEN3_THCTR,  0x0);
++	udelay(1000);
++	rcar_thermal_write(priv, REG_GEN3_IRQCTL, 0x3F);
++	rcar_thermal_write(priv, REG_GEN3_IRQEN,
++			   IRQ_TEMP1_BIT | IRQ_TEMPD2_BIT);
++	rcar_thermal_write(priv, REG_GEN3_THCTR, CTCTL | THCNTSEN(BIT_LEN_12));
++	reg_val = rcar_thermal_read(priv, REG_GEN3_THCTR);
++	reg_val &= ~CTCTL;
++	reg_val |= THSST;
++	rcar_thermal_write(priv, REG_GEN3_THCTR, reg_val);
++
++	spin_unlock_irqrestore(&priv->lock, flags);
++#endif
++	return 0;
++}
++
+ /*
+  *		Interrupt
+  */
+@@ -472,10 +496,15 @@ static int rcar_gen3_thermal_remove(struct platform_device *pdev)
+ 	.thermal_init = rcar_gen3_r8a7796_thermal_init,
+ };
+ 
++static const struct rcar_thermal_data r8a7797_data = {
++	.thermal_init = rcar_gen3_r8a7797_thermal_init,
++};
++
+ static const struct of_device_id rcar_thermal_dt_ids[] = {
+ 	{ .compatible = "renesas,thermal-r8a7795", .data = &r8a7795_data},
+ 	{ .compatible = "renesas,thermal-r8a7796", .data = &r8a7796_data},
+ 	{ .compatible = "renesas,thermal-r8a77965", .data = &r8a7796_data},
++	{ .compatible = "renesas,thermal-r8a7797", .data = &r8a7797_data},
+ 	{},
+ };
+ MODULE_DEVICE_TABLE(of, rcar_thermal_dt_ids);
+diff --git a/include/dt-bindings/clock/r8a7797-cpg-mssr.h b/include/dt-bindings/clock/r8a7797-cpg-mssr.h
+new file mode 100644
+index 0000000..ae6b3af
+--- /dev/null
++++ b/include/dt-bindings/clock/r8a7797-cpg-mssr.h
+@@ -0,0 +1,48 @@
++/*
++ * Copyright (C) 2016 Renesas Electronics Corp.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ */
++#ifndef __DT_BINDINGS_CLOCK_R8A7797_CPG_MSSR_H__
++#define __DT_BINDINGS_CLOCK_R8A7797_CPG_MSSR_H__
++
++#include <dt-bindings/clock/renesas-cpg-mssr.h>
++
++/* r8a7797 CPG Core Clocks */
++#define R8A7797_CLK_Z2			0
++#define R8A7797_CLK_ZR			1
++#define R8A7797_CLK_ZTR			2
++#define R8A7797_CLK_ZTRD2		3
++#define R8A7797_CLK_ZT			4
++#define R8A7797_CLK_ZX			5
++#define R8A7797_CLK_S1D1		6
++#define R8A7797_CLK_S1D2		7
++#define R8A7797_CLK_S1D4		8
++#define R8A7797_CLK_S2D1		9
++#define R8A7797_CLK_S2D2		10
++#define R8A7797_CLK_S2D4		11
++#define R8A7797_CLK_LB			12
++#define R8A7797_CLK_CL			13
++#define R8A7797_CLK_ZB3			14
++#define R8A7797_CLK_ZB3D2		15
++#define R8A7797_CLK_DDR			16
++#define R8A7797_CLK_CR			17
++#define R8A7797_CLK_CRD2		18
++#define R8A7797_CLK_SD0H		19
++#define R8A7797_CLK_SD0			20
++#define R8A7797_CLK_RPC			21
++#define R8A7797_CLK_RPCD2		22
++#define R8A7797_CLK_MSO			23
++#define R8A7797_CLK_CANFD		24
++#define R8A7797_CLK_CSI0		25
++#define R8A7797_CLK_CSIREF		26
++#define R8A7797_CLK_FRAY		27
++#define R8A7797_CLK_CP			28
++#define R8A7797_CLK_CPEX		29
++#define R8A7797_CLK_R			30
++#define R8A7797_CLK_OSC			31
++
++#endif /* __DT_BINDINGS_CLOCK_R8A7797_CPG_MSSR_H__ */
+diff --git a/include/dt-bindings/power/r8a7797-sysc.h b/include/dt-bindings/power/r8a7797-sysc.h
+new file mode 100644
+index 0000000..5aef212
+--- /dev/null
++++ b/include/dt-bindings/power/r8a7797-sysc.h
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (C) 2016 Glider bvba
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ */
++#ifndef __DT_BINDINGS_POWER_R8A7797_SYSC_H__
++#define __DT_BINDINGS_POWER_R8A7797_SYSC_H__
++
++/*
++ * These power domain indices match the numbers of the interrupt bits
++ * representing the power areas in the various Interrupt Registers
++ * (e.g. SYSCISR, Interrupt Status Register)
++ */
++
++#define R8A7797_PD_CA53_CPU0		 5
++#define R8A7797_PD_CA53_CPU1		 6
++#define R8A7797_PD_CR7				13
++#define R8A7797_PD_CA53_SCU			21
++#define R8A7797_PD_A2IR0			23
++#define R8A7797_PD_A3IR				24
++#define R8A7797_PD_A2IR1			27
++#define R8A7797_PD_A2IR2			28
++#define R8A7797_PD_A2IR3			29
++#define R8A7797_PD_A2SC0			30
++#define R8A7797_PD_A2SC1			31
++
++/* Always-on power area */
++#define R8A7797_PD_ALWAYS_ON		32
++
++#endif /* __DT_BINDINGS_POWER_R8A7797_SYSC_H__ */
+-- 
+1.9.1
+

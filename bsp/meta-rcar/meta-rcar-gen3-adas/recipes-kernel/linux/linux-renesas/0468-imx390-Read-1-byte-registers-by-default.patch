@@ -1,0 +1,37 @@
+From 0dc45a01a271f56aedeb7cfc72f8550243d0b3b0 Mon Sep 17 00:00:00 2001
+From: Petr Nechaev <petr.nechaev@cogentembedded.com>
+Date: Fri, 27 Dec 2019 22:07:20 +0300
+Subject: [PATCH] imx390: Read 1 byte registers by default
+
+This patch switches to 1-byte default register size for imx390 image sensor.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imx390.c  | 4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imx390.c b/drivers/media/i2c/soc_camera/imx390.c
+index c1e568055e54..9d970b16697d 100644
+--- a/drivers/media/i2c/soc_camera/imx390.c
++++ b/drivers/media/i2c/soc_camera/imx390.c
+@@ -217,7 +217,7 @@ static int imx390_g_register(struct v4l2_subdev *sd,
+ 	int ret;
+ 
+ 	if (!s)
+-		s = 4;
++		s = 1;
+ 	if (s > sizeof(reg->val))
+ 		s = sizeof(reg->val);
+ 
+@@ -235,7 +235,7 @@ static int imx390_s_register(struct v4l2_subdev *sd,
+ 	u32 s = reg->size;
+ 
+ 	if (!s)
+-		s = 4;
++		s = 1;
+ 	if (s > sizeof(reg->val))
+ 		s = sizeof(reg->val);
+ 
+-- 
+2.20.1
+

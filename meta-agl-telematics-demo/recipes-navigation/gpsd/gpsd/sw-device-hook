@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Figure out the parent usb device
+USBDEV=`ls -l "$1" |sed -ne 's!^c[^ ]* [0-9]* [^ ]* [^ ]* \([0-9]*\), \([0-9]*\) .*!/sys/dev/char/\1:\2/device/../..!p'`
+
+# Silently ignore any non-USB ports
+if [ ! -r "$USBDEV/idVendor" ] || [ ! -r "$USBDEV/idProduct" ]; then
+	exit 0
+fi 
+
+VID=`cat "$USBDEV/idVendor"`
+PID=`cat "$USBDEV/idProduct"`
+case "$2" in
+	ACTIVATE) CMD=START ;;
+	*) CMD=STOP ;;
+esac
+
+case "$VID:$PID" in
+	"1199:9071"|"1199:9079") echo \$GPS_$CMD >"$1" ;;
+	*) ;;
+esac
+
+exit 0

@@ -1,0 +1,10 @@
+[Unit]
+Description=Wait for Weston readiness
+Requires=weston@display.service
+After=weston@display.service
+
+[Service]
+SupplementaryGroups=display
+Environment="XDG_RUNTIME_DIR=/run/platform/display"
+ExecStart=/usr/bin/weston-ready -t 10
+Type=oneshot

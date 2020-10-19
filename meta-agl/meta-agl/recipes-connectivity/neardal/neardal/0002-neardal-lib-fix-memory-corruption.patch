@@ -1,0 +1,58 @@
+From ee6267f357b3d158f0a0e88460782e8b9d44274a Mon Sep 17 00:00:00 2001
+From: Raquel Medina <raquel.medina@konsulko.com>
+Date: Fri, 4 Jan 2019 07:43:03 -0500
+Subject: [PATCH] neardal: lib: fix memory corruption
+
+ The current commit fixes an invalid memory  access
+ which manifests as a random segfault  when executing
+ continuous tag read operations.
+
+ The corruption happens when releasing the  memory allocated to a
+ record: in the time between  the memory being g_free'd and the
+ subsequent memset  operation, the memory could have been reused by
+ some  other process. And since memory allocation  depends on
+ system-wide factors, it makes this bug hard to track.
+
+ Tested using ACR122U reader and NTAG213
+ tags on Automotive Grade Linux (flounder,
+ guppy and master branches)
+
+Signed-off-by: Raquel Medina <raquel.medina@konsulko.com>
+---
+ lib/neardal_record.c | 1 -
+ lib/neardal_tools.c  | 5 ++++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/lib/neardal_record.c b/lib/neardal_record.c
+index 669012c..cfed5e8 100644
+--- a/lib/neardal_record.c
++++ b/lib/neardal_record.c
+@@ -31,7 +31,6 @@ void neardal_record_free(neardal_record *r)
+ {
+ 	g_return_if_fail(r);
+ 	neardal_g_strfreev((void **) r, &r->uriObjSize);
+-	memset(r, 0, sizeof(*r));
+ }
+ 
+ void neardal_free_record(neardal_record *record) \
+diff --git a/lib/neardal_tools.c b/lib/neardal_tools.c
+index f0d6157..f307df6 100644
+--- a/lib/neardal_tools.c
++++ b/lib/neardal_tools.c
+@@ -32,9 +32,12 @@
+ void neardal_g_strfreev(void **array, void *end)
+ {
+ 	void **p = array;
+-	for (; (void *) p < end; p++)
++	for (; (void *) p < end; p++) {
+ 		g_free(*p);
++		*p = NULL;
++	}
+ 	g_free(array);
++	array = NULL;
+ }
+ 
+ void neardal_g_variant_add_parsed(GVariant **v, const char *format, ...)
+-- 
+2.17.1
+

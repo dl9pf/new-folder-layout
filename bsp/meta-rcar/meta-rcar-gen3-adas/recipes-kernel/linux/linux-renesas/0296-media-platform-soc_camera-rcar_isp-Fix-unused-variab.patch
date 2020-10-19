@@ -1,0 +1,51 @@
+From 050b4c8341386b0221c546b01ec30be9aaa6c897 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 29 Oct 2018 11:57:06 +0300
+Subject: [PATCH 116/211] media: platform: soc_camera: rcar_isp: Fix unused
+ variable warning
+
+This fixes unused "cam" variable warning.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/rcar_isp.c | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/platform/soc_camera/rcar_isp.c b/drivers/media/platform/soc_camera/rcar_isp.c
+index 878df95..1127c7d 100644
+--- a/drivers/media/platform/soc_camera/rcar_isp.c
++++ b/drivers/media/platform/soc_camera/rcar_isp.c
+@@ -728,7 +728,6 @@ static int rcar_isp_hw_ready(struct rcar_isp_priv *priv)
+ /* Moves a buffer from the queue to the HW slot */
+ static int rcar_isp_fill_hw_slot(struct rcar_isp_priv *priv)
+ {
+-	struct rcar_isp_cam *cam = priv->ici.icd->host_priv;
+ 	struct vb2_v4l2_buffer *vbuf;
+ 	dma_addr_t phys_addr_top;
+ 	int slot;
+@@ -745,12 +744,16 @@ static int rcar_isp_fill_hw_slot(struct rcar_isp_priv *priv)
+ 	list_del_init(to_buf_list(vbuf));
+ 	priv->queue_buf[slot] = vbuf;
+ 	phys_addr_top = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
+-#if 1
+-	rcar_isp_setup_out_buffer(priv, slot, phys_addr_top);
+-#else
+-	rcar_isp_setup_out_buffer(priv, 0, phys_addr_top); // Y
+-	rcar_isp_setup_out_buffer(priv, 1, phys_addr_top + cam->out_width * cam->out_height); // UV
+-#endif
++
++	if (1) {
++		rcar_isp_setup_out_buffer(priv, slot, phys_addr_top);
++	} else {
++		struct rcar_isp_cam *cam = priv->ici.icd->host_priv;
++
++		rcar_isp_setup_out_buffer(priv, 0, phys_addr_top); // Y
++		rcar_isp_setup_out_buffer(priv, 1, phys_addr_top +
++					  cam->out_width * cam->out_height); // UV
++	}
+ 	return 1;
+ }
+ 
+-- 
+2.7.4
+

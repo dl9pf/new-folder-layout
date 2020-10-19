@@ -1,0 +1,64 @@
+From 38cdfa4483de4c2e91bfccb9c22ec72d9c3720f4 Mon Sep 17 00:00:00 2001
+From: Walter Lozano <walter.lozano@collabora.com>
+Date: Sat, 22 Aug 2020 11:51:30 -0300
+Subject: [PATCH 9/9] alsa: adjust delay depending on hardware
+
+Currently PipeWire is able to reproduce audio in systems where
+DMA granularity is not burst but it could face an xrun.
+
+In order to mitigate this issue, adjust the delay PipeWire
+calculates to make sure that a period is available in the buffer
+when snd_pcm_hw_params_is_batch == 1.
+
+Signed-off-by: Walter Lozano <walter.lozano@collabora.com>
+---
+ spa/plugins/alsa/alsa-pcm.c | 12 +++++++++++-
+ spa/plugins/alsa/alsa-pcm.h |  1 +
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/spa/plugins/alsa/alsa-pcm.c b/spa/plugins/alsa/alsa-pcm.c
+index 92ef2151..1f15085f 100644
+--- a/spa/plugins/alsa/alsa-pcm.c
++++ b/spa/plugins/alsa/alsa-pcm.c
+@@ -462,8 +462,9 @@ int spa_alsa_set_format(struct state *state, struct spa_audio_info *fmt, uint32_
+ 	state->frame_size = info->channels * (snd_pcm_format_physical_width(format) / 8);
+ 
+ 	dir = 0;
++	state->pcm_is_batch = snd_pcm_hw_params_is_batch(params);
+ 	period_size = 1024;
+-	if (snd_pcm_hw_params_is_batch(params)) {
++	if (state->pcm_is_batch) {
+ 		period_size = 512;
+ 		spa_log_warn(state->log, NAME" hardware does double buffering, changing period_size to %ld", period_size);
+ 	}
+@@ -639,6 +640,15 @@ static int get_status(struct state *state, snd_pcm_uframes_t *delay, snd_pcm_ufr
+ 
+ 	if (state->stream == SND_PCM_STREAM_PLAYBACK) {
+ 		*delay = state->buffer_frames - avail;
++		if (state->pcm_is_batch) {
++			/* In this case, as we don't have a good granularity in the
++			 * avail report try to compensate this by tweaking the delay
++			 * and make sure that a period is available in the buffer */
++			if (*delay > state->period_frames)
++				*delay = *delay - state->period_frames;
++			else
++				*delay = 0;
++		}
+ 	}
+ 	else {
+ 		*delay = avail;
+diff --git a/spa/plugins/alsa/alsa-pcm.h b/spa/plugins/alsa/alsa-pcm.h
+index b7a2dd29..3b5c0d7b 100644
+--- a/spa/plugins/alsa/alsa-pcm.h
++++ b/spa/plugins/alsa/alsa-pcm.h
+@@ -100,6 +100,7 @@ struct state {
+ 
+ 	bool have_format;
+ 	struct spa_audio_info current_format;
++	bool pcm_is_batch;
+ 
+ 	snd_pcm_uframes_t buffer_frames;
+ 	snd_pcm_uframes_t period_frames;
+-- 
+2.20.1
+

@@ -1,0 +1,72 @@
+From 03b37015831c2f575276e140cf7b8ca6a3b31b22 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 21 Aug 2018 22:50:31 +0300
+Subject: [PATCH 031/211] arm64: dts: renesas: v3msk: add eMMC support
+
+Add the eMMC chip support for the V3M Started Kit board.
+
+Based on the original (and large) patches by Vladimir Barinov.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit 8d9923b3a2f6c0e4ad3f9d9cad6e9010cf0d67e6)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+index 8eac8ca..0dbcb4c 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+@@ -51,6 +51,15 @@
+ 		regulator-always-on;
+ 	};
+ 
++	vcc_vddq_vin0: regulator-2 {
++		compatible = "regulator-fixed";
++		regulator-name = "VCC_VDDQ_VIN0";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-boot-on;
++		regulator-always-on;
++	};
++
+ 	lvds-decoder {
+ 		compatible = "thine,thc63lvd1024";
+ 		vcc-supply = <&vcc_d3_3v>;
+@@ -128,6 +137,12 @@
+ 		function = "i2c0";
+ 	};
+ 
++	mmc_pins: mmc_3_3v {
++		groups = "mmc_data8", "mmc_ctrl";
++		function = "mmc";
++		power-source = <3300>;
++	};
++
+ 	scif0_pins: scif0 {
+ 		groups = "scif0_data";
+ 		function = "scif0";
+@@ -192,6 +207,17 @@
+ 	};
+ };
+ 
++&mmc0 {
++	pinctrl-0 = <&mmc_pins>;
++	pinctrl-names = "default";
++
++	vmmc-supply = <&vcc_d3_3v>;
++	vqmmc-supply = <&vcc_vddq_vin0>;
++	bus-width = <8>;
++	non-removable;
++	status = "okay";
++};
++
+ &scif0 {
+ 	pinctrl-0 = <&scif0_pins>;
+ 	pinctrl-names = "default";
+-- 
+2.7.4
+

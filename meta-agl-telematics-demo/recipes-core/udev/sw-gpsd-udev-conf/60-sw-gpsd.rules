@@ -1,0 +1,8 @@
+# udev rules for gpsd for Sierra Wireless modems
+SUBSYSTEM!="tty", GOTO="sw_gpsd_rules_end"
+
+ENV{ID_VENDOR_ID}=="1199", ATTRS{bInterfaceNumber}=="02", SYMLINK+="gps%n", TAG+="systemd", ENV{SYSTEMD_WANTS}="gpsdctl@%k.service"
+
+ACTION=="remove", TAG+="systemd", ENV{SYSTEMD_WANTS}="gpsdctl@%k.service"
+
+LABEL="sw_gpsd_rules_end"

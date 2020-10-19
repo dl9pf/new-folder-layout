@@ -1,0 +1,18 @@
+bootkaddr=0x49090000
+bootdaddr=0x48000000
+bootiaddr=0x5C3F9520
+
+bootargs_console=console=ttySC0,115200 ignore_loglevel
+bootargs_extra=rw rootfstype=ext4 rootwait rootdelay=2
+bootargs_root=ostree_root=/dev/mmcblk1p2 root=/dev/ram0 ramdisk_size=16384
+
+bootmmc=0:1
+rootmmc=0:2
+
+booteload_sd=ext4load mmc ${rootmmc} ${bootkaddr} boot/loader/uEnv.txt; env import -t ${bootkaddr} ${filesize}
+bootkload_sd=ext4load mmc ${rootmmc} ${bootkaddr} boot/${kernel_image}
+bootiload_sd=ext4load mmc ${rootmmc} ${bootiaddr} boot/${ramdisk_image}; setenv ramdisk_size ${filesize}
+bootdload_sd=fatload mmc ${bootmmc} ${bootdaddr} r8a7795-salvator-xs.dtb
+
+bootcmd=run booteload_sd; setenv bootargs ${bootargs} ${bootargs_console} ${bootargs_root} ${bootargs_extra}; run bootkload_sd; run bootiload_sd; run bootdload_sd; booti ${bootkaddr} ${bootiaddr}:${ramdisk_size} ${bootdaddr}
+

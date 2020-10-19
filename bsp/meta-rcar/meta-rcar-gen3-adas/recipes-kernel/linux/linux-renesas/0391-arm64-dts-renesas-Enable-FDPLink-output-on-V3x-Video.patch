@@ -1,0 +1,71 @@
+From c474a429fcdbe8c68cf87e4c2410840b85cb3627 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Wed, 17 Apr 2019 23:28:56 +0300
+Subject: [PATCH 211/211] arm64: dts: renesas: Enable FDPLink output on V3x
+ VideoBox
+
+This enables FDPLink output on all V3x VideoBox boards.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts    | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts    | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
+index f65ebeb..8d7ec04 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
+@@ -11,7 +11,7 @@
+ #include "r8a77970-v3msk.dts"
+ #include <dt-bindings/gpio/gpio.h>
+ /* FDPLink output */
+-//#include "vb-fdplink-output.dtsi"
++#include "vb-fdplink-output.dtsi"
+ 
+ / {
+ 	model = "Renesas V3MSK Videobox Mini board based on r8a77970";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index 12ef357..bca9014 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -11,7 +11,7 @@
+ #include "r8a77980-v3hsk.dts"
+ #include <dt-bindings/gpio/gpio.h>
+ /* FDPLink output */
+-//#include "vb-fdplink-output.dtsi"
++#include "vb-fdplink-output.dtsi"
+ 
+ / {
+ 	model = "Renesas V3HSK 4ch Videobox board based on r8a7798";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index 861b90f..1ef6b11 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -11,7 +11,7 @@
+ #include "r8a77980-v3hsk.dts"
+ #include <dt-bindings/gpio/gpio.h>
+ /* FDPLink output */
+-//#include "vb-fdplink-output.dtsi"
++#include "vb-fdplink-output.dtsi"
+ 
+ / {
+ 	model = "Renesas V3HSK 4ch Videobox board based on r8a7798";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
+index f5eb597..ea3d9e9 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
+@@ -11,7 +11,7 @@
+ #include "r8a77980-v3hsk.dts"
+ #include <dt-bindings/gpio/gpio.h>
+ /* FDPLink output */
+-//#include "vb-fdplink-output.dtsi"
++#include "vb-fdplink-output.dtsi"
+ 
+ / {
+ 	model = "Renesas V3HSK Videobox Mini board based on r8a7798";
+-- 
+2.7.4
+

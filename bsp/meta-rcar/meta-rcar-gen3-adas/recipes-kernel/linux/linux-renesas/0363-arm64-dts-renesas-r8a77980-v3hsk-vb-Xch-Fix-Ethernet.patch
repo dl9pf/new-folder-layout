@@ -1,0 +1,50 @@
+From 9b1ace6d26cd3234c87bd3f43ec0360485882f74 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Fri, 16 Nov 2018 12:59:24 +0300
+Subject: [PATCH 183/211] arm64: dts: renesas: r8a77980-v3hsk-vb-Xch: Fix
+ Ethernet AVB pins.
+
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts | 7 +------
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts | 7 +------
+ 2 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index 7b35608..cb9cd54 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -485,12 +485,7 @@
+ 	};
+ 
+ 	avb_pins: avb {
+-		groups = "avb_mdc", "avb_mdio",
+-			"avb_rx_ctrl", "avb_rxc",
+-			"avb_rd4",
+-			"avb_tx_ctrl", "avb_txc",
+-			"avb_txcrefclk",
+-			"avb_td4";
++		groups = "avb_mdio", "avb_rgmii";
+ 		function = "avb";
+ 	};
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index 84d89d2..f23f2d0 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -634,12 +634,7 @@
+ 	};
+ 
+ 	avb_pins: avb {
+-		groups = "avb_mdc", "avb_mdio",
+-			"avb_rx_ctrl", "avb_rxc",
+-			"avb_rd4",
+-			"avb_tx_ctrl", "avb_txc",
+-			"avb_txcrefclk",
+-			"avb_td4";
++		groups = "avb_mdio", "avb_rgmii";
+ 		function = "avb";
+ 	};
+ 
+-- 
+2.7.4
+

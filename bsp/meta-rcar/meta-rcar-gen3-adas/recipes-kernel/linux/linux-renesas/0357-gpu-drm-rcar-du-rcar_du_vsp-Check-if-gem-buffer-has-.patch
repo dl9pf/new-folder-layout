@@ -1,0 +1,29 @@
+From 1bf8035838734ebf1745805ae874feb491eedafa Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 27 Jun 2019 02:55:59 +0300
+Subject: [PATCH 177/211] gpu: drm: rcar-du: rcar_du_vsp: Check if gem buffer
+ has a physical address
+
+Do not copy the sg in case gem buffer does have a physical address.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/gpu/drm/rcar-du/rcar_du_vsp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/rcar-du/rcar_du_vsp.c b/drivers/gpu/drm/rcar-du/rcar_du_vsp.c
+index 2b076cf..a904132 100644
+--- a/drivers/gpu/drm/rcar-du/rcar_du_vsp.c
++++ b/drivers/gpu/drm/rcar-du/rcar_du_vsp.c
+@@ -277,7 +277,7 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
+ 			drm_fb_cma_get_gem_obj(state->fb, i);
+ 		struct sg_table *sgt = &rstate->sg_tables[i];
+ 
+-		if (gem->sgt) {
++		if (gem->sgt && !gem->paddr) {
+ 			struct scatterlist *src;
+ 			struct scatterlist *dst;
+ 
+-- 
+2.7.4
+

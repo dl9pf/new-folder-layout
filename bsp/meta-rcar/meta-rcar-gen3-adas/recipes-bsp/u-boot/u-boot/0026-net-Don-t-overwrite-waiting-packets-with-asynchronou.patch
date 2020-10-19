@@ -1,0 +1,158 @@
+From c8ecac854c314fa4bf8955991ca59c178ced8a64 Mon Sep 17 00:00:00 2001
+From: Joe Hershberger <joe.hershberger@ni.com>
+Date: Wed, 26 Sep 2018 16:49:02 -0500
+Subject: [PATCH 2/2] net: Don't overwrite waiting packets with asynchronous
+ replies
+
+Peter originally sent a fix, but it breaks a number of other things.
+This addresses the original reported issue in a different way.
+
+That report was:
+
+> U-Boot has 1 common buffer to send Ethernet frames, pointed to by
+> net_tx_packet.  When sending to an IP address without knowing the MAC
+> address, U-Boot makes an ARP request (using the arp_tx_packet buffer)
+> to find out the MAC address of the IP addressr. When a matching ARP
+> reply is received, U-Boot continues sending the frame stored in the
+> net_tx_packet buffer.
+>
+> However, in the mean time, if U-Boot needs to send out any network
+> packets (e.g. replying ping packets or ARP requests for its own IP
+> address etc.), it will use the net_tx_packet buffer to prepare the
+> new packet. Thus this buffer is no longer the original packet meant
+> to be transmitted after the ARP reply. The original packet will be
+> lost.
+
+This instead uses the ARP tx buffer to send async replies in the case
+where we are actively waiting for an ARP reply.
+
+Signed-off-by: Joe Hershberger <joe.hershberger@ni.com>
+
+Reported-by: Tran Tien Dat <peter.trantiendat@gmail.com>
+Reviewed-by: Simon Glass <sjg@chromium.org>
+Reviewed-by: Bin Meng <bmeng.cn@gmail.com>
+Tested-by: Bin Meng <bmeng.cn@gmail.com>
+
+(cherry picked from commit ac3f26cc15ad7e3e9efc2b0b0e18c6e84d93af77)
+[valentine.barshak: removed test/dm/eth.c part as not applicable]
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ include/net.h | 8 ++++++++
+ net/arp.c     | 9 +++++----
+ net/arp.h     | 1 +
+ net/net.c     | 8 ++++++++
+ net/ping.c    | 7 +++++--
+ 5 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/include/net.h b/include/net.h
+index 259c4a7..a789a38 100644
+--- a/include/net.h
++++ b/include/net.h
+@@ -654,6 +654,14 @@ static inline void net_set_state(enum net_loop_state state)
+ 	net_state = state;
+ }
+ 
++/*
++ * net_get_async_tx_pkt_buf - Get a packet buffer that is not in use for
++ *			      sending an asynchronous reply
++ *
++ * returns - ptr to packet buffer
++ */
++uchar * net_get_async_tx_pkt_buf(void);
++
+ /* Transmit a packet */
+ static inline void net_send_packet(uchar *pkt, int len)
+ {
+diff --git a/net/arp.c b/net/arp.c
+index ea685d9..b49c3d3 100644
+--- a/net/arp.c
++++ b/net/arp.c
+@@ -34,8 +34,7 @@ uchar	       *arp_wait_packet_ethaddr;
+ int		arp_wait_tx_packet_size;
+ ulong		arp_wait_timer_start;
+ int		arp_wait_try;
+-
+-static uchar   *arp_tx_packet;	/* THE ARP transmit packet */
++uchar	       *arp_tx_packet; /* THE ARP transmit packet */
+ static uchar	arp_tx_packet_buf[PKTSIZE_ALIGN + PKTALIGN];
+ 
+ void arp_init(void)
+@@ -126,6 +125,7 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
+ 	struct arp_hdr *arp;
+ 	struct in_addr reply_ip_addr;
+ 	int eth_hdr_size;
++	uchar *tx_packet;
+ 
+ 	/*
+ 	 * We have to deal with two types of ARP packets:
+@@ -182,8 +182,9 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
+ 		    (net_read_ip(&arp->ar_spa).s_addr & net_netmask.s_addr))
+ 			udelay(5000);
+ #endif
+-		memcpy(net_tx_packet, et, eth_hdr_size + ARP_HDR_SIZE);
+-		net_send_packet(net_tx_packet, eth_hdr_size + ARP_HDR_SIZE);
++		tx_packet = net_get_async_tx_pkt_buf();
++		memcpy(tx_packet, et, eth_hdr_size + ARP_HDR_SIZE);
++		net_send_packet(tx_packet, eth_hdr_size + ARP_HDR_SIZE);
+ 		return;
+ 
+ 	case ARPOP_REPLY:		/* arp reply */
+diff --git a/net/arp.h b/net/arp.h
+index afb8695..25b3c00 100644
+--- a/net/arp.h
++++ b/net/arp.h
+@@ -20,6 +20,7 @@ extern uchar *arp_wait_packet_ethaddr;
+ extern int arp_wait_tx_packet_size;
+ extern ulong arp_wait_timer_start;
+ extern int arp_wait_try;
++extern uchar *arp_tx_packet;
+ 
+ void arp_init(void);
+ void arp_request(void);
+diff --git a/net/net.c b/net/net.c
+index 31cf306..77a7141 100644
+--- a/net/net.c
++++ b/net/net.c
+@@ -799,6 +799,14 @@ void net_set_timeout_handler(ulong iv, thand_f *f)
+ 	}
+ }
+ 
++uchar *net_get_async_tx_pkt_buf(void)
++{
++	if (arp_is_waiting())
++		return arp_tx_packet; /* If we are waiting, we already sent */
++	else
++		return net_tx_packet;
++}
++
+ int net_send_udp_packet(uchar *ether, struct in_addr dest, int dport, int sport,
+ 		int payload_len)
+ {
+diff --git a/net/ping.c b/net/ping.c
+index 3e5461a..821d35d 100644
+--- a/net/ping.c
++++ b/net/ping.c
+@@ -84,6 +84,7 @@ void ping_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
+ 	struct icmp_hdr *icmph = (struct icmp_hdr *)&ip->udp_src;
+ 	struct in_addr src_ip;
+ 	int eth_hdr_size;
++	uchar *tx_packet;
+ 
+ 	switch (icmph->type) {
+ 	case ICMP_ECHO_REPLY:
+@@ -107,8 +108,10 @@ void ping_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
+ 		icmph->type = ICMP_ECHO_REPLY;
+ 		icmph->checksum = 0;
+ 		icmph->checksum = compute_ip_checksum(icmph, len - IP_HDR_SIZE);
+-		memcpy(net_tx_packet, et, eth_hdr_size + len);
+-		net_send_packet(net_tx_packet, eth_hdr_size + len);
++
++		tx_packet = net_get_async_tx_pkt_buf();
++		memcpy(tx_packet, et, eth_hdr_size + len);
++		net_send_packet(tx_packet, eth_hdr_size + len);
+ 		return;
+ /*	default:
+ 		return;*/
+-- 
+2.7.4
+

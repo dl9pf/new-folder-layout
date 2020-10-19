@@ -1,0 +1,36 @@
+From 6d44f2c02108f34b81acb2e081d274160129fcd0 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 29 Oct 2018 13:59:27 +0300
+Subject: [PATCH 127/211] arm64: dts: renesas: r8a77970: Add ISP node
+
+This adds ISP device node.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970.dtsi | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970.dtsi b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+index 782c49c..2585ba5 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+@@ -901,6 +901,16 @@
+ 			resets = <&cpg 820>;
+ 		};
+ 
++		isp@fec00000 {
++			compatible = "renesas,isp-r8a77970";
++			reg = <0 0xfec00000 0 0x20000>,
++			      <0 0xfed00000 0 0x10000>;
++			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 817>;
++			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
++		};
++
+ 		dmac1: dma-controller@e7300000 {
+ 			compatible = "renesas,dmac-r8a77970",
+ 				     "renesas,rcar-dmac";
+-- 
+2.7.4
+

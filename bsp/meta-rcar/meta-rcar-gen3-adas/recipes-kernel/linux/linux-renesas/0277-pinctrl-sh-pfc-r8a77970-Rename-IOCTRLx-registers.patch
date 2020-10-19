@@ -1,0 +1,65 @@
+From 7e60a2c1600ba242739092dba055235ca5be1872 Mon Sep 17 00:00:00 2001
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Date: Mon, 18 Feb 2019 10:35:39 +0100
+Subject: [PATCH 097/211] pinctrl: sh-pfc: r8a77970: Rename IOCTRLx registers
+
+The R-Car Gen3 HardWare Manual Errata for Rev. 1.00 (Jul 2, 2018)
+renamed the various miscellaneous I/O control registers (IOCTRLx) on
+R-Car V3M, to reflect better their actual purposes, and matching other
+SoCs.
+
+Update the code to match this.
+
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Reviewed-by: Ulrich Hecht <uli+renesas@fpond.eu>
+(cherry picked from commit 1c5c1101755c5ed9f1e74763dbf39c01c3dc7cf8)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/pinctrl/sh-pfc/pfc-r8a77970.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/pinctrl/sh-pfc/pfc-r8a77970.c b/drivers/pinctrl/sh-pfc/pfc-r8a77970.c
+index 53ad813..a609949 100644
+--- a/drivers/pinctrl/sh-pfc/pfc-r8a77970.c
++++ b/drivers/pinctrl/sh-pfc/pfc-r8a77970.c
+@@ -2409,15 +2409,15 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
+ };
+ 
+ enum ioctrl_regs {
+-	IOCTRL30,
+-	IOCTRL31,
+-	IOCTRL32,
++	POCCTRL0,
++	POCCTRL1,
++	POCCTRL2,
+ };
+ 
+ static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
+-	[IOCTRL30] = { 0xe6060380 },
+-	[IOCTRL31] = { 0xe6060384 },
+-	[IOCTRL32] = { 0xe6060388 },
++	[POCCTRL0] = { 0xe6060380 },
++	[POCCTRL1] = { 0xe6060384 },
++	[POCCTRL2] = { 0xe6060388 },
+ 	{ /* sentinel */ },
+ };
+ 
+@@ -2426,13 +2426,13 @@ static int r8a77970_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
+ {
+ 	int bit = pin & 0x1f;
+ 
+-	*pocctrl = pinmux_ioctrl_regs[IOCTRL30].reg;
++	*pocctrl = pinmux_ioctrl_regs[POCCTRL0].reg;
+ 	if (pin >= RCAR_GP_PIN(0, 0) && pin <= RCAR_GP_PIN(0, 21))
+ 		return bit;
+ 	if (pin >= RCAR_GP_PIN(2, 0) && pin <= RCAR_GP_PIN(2, 9))
+ 		return bit + 22;
+ 
+-	*pocctrl = pinmux_ioctrl_regs[IOCTRL31].reg;
++	*pocctrl = pinmux_ioctrl_regs[POCCTRL1].reg;
+ 	if (pin >= RCAR_GP_PIN(2, 10) && pin <= RCAR_GP_PIN(2, 16))
+ 		return bit - 10;
+ 	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 16))
+-- 
+2.7.4
+

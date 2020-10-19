@@ -1,0 +1,62 @@
+###########################################################################
+# Copyright 2020 MERA
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+###########################################################################
+
+# Generated library name
+NAME := awsiotsdk
+
+SRC = .
+AWS_SDK_DIR = $(SRC)/..
+PLATFORM_DIR = $(AWS_SDK_DIR)/platform/linux/mbedtls
+PLATFORM_COMMON_DIR = $(AWS_SDK_DIR)/platform/linux/common
+AWS_INSTALL_HEADERS_DIR = /usr/include/awsiotsdk
+
+
+CFLAGS += -I $(AWS_SDK_DIR)/include
+CFLAGS += -I $(AWS_SDK_DIR)/external_libs/jsmn
+CFLAGS += -I $(PLATFORM_COMMON_DIR)
+CFLAGS += -I $(PLATFORM_DIR)
+CFLAGS += -DENABLE_IOT_DEBUG -DENABLE_IOT_INFO -DENABLE_IOT_WARN -DENABLE_IOT_ERROR
+
+
+# Source to compile
+SRCS += $(wildcard $(SRC)/*.c)
+SRCS += $(wildcard $(AWS_SDK_DIR)/external_libs/jsmn/*.c)
+SRCS += $(wildcard $(PLATFORM_DIR)/*.c)
+SRCS += $(wildcard $(PLATFORM_COMMON_DIR)/*.c)
+
+OBJS = $(SRCS:.c=.o)
+
+
+.PHONY: all
+all: lib$(NAME).a
+
+lib$(NAME).a: $(OBJS)
+	$(AR) -rcs $@ $(OBJS)
+
+.PHONY: install
+install: lib$(NAME).a
+	install -D -m 0644 lib$(NAME).a $(DESTDIR)/usr/lib/lib$(NAME).a
+	install -d $(DESTDIR)$(AWS_INSTALL_HEADERS_DIR)
+	install -m 0644 $(AWS_SDK_DIR)/include/*.h $(DESTDIR)$(AWS_INSTALL_HEADERS_DIR)/
+	install -m 0644 $(AWS_SDK_DIR)/external_libs/jsmn/*.h $(DESTDIR)$(AWS_INSTALL_HEADERS_DIR)/
+	install -m 0644 $(PLATFORM_COMMON_DIR)/*.h $(DESTDIR)$(AWS_INSTALL_HEADERS_DIR)/
+	install -m 0644 $(PLATFORM_DIR)/*.h $(DESTDIR)$(AWS_INSTALL_HEADERS_DIR)/
+	install -d $(DESTDIR)/usr/lib/pkgconfig
+	install -m 0644 ../awsiotsdk.pc $(DESTDIR)/usr/lib/pkgconfig/ 
+
+.PHONY: clean
+clean:
+	-rm -f lib$(NAME).a $(OBJS)

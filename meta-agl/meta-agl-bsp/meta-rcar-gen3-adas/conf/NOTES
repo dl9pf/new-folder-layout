@@ -1,0 +1,74 @@
+#### These are notes for future reference
+
+# TODO: follow-up patch: Need to do other mechanism for package inclusion
+# TODO2: include or leave-out the kernel modules packages
+
+# E.g. MACHINE_FEATURE. Should *not* be in layer.conf !!
+# Radio packages
+#IMAGE_INSTALL_append_rcar-gen3 += " \
+#    si-tools \
+#    si-init \
+#    linux-firmware-wl18xx \
+#    ti-bt \
+#    ti-bt-firmware \
+#    bluez5 \
+#    bluez5-testtools \
+#    ofono \
+#    ofono-tests \
+#"
+# E.g. MACHINE_FEATURE
+#IMAGE_INSTALL_append_r8a7797 += " \
+#    kernel-module-uio-imp \
+#    kernel-module-cmemdrv \
+#    udev-rules-cvlib \
+#"
+# E.g. MACHINE_FEATURE
+#IMAGE_INSTALL_append_r8a7798 += " \
+#    kernel-module-uio-imp \
+#    kernel-module-cmemdrv \
+#    udev-rules-cvlib \
+#"
+# This is a special use case. Should be enabled by user.
+#DISTRO_FEATURES_append = " surroundview "
+
+
+#### BBMASK
+# not required for AGL
+BBMASK += "/meta-rcar-gen3-adas/recipes-benchmark/"
+
+# Do not interfer with the distro configuration
+BBMASK += "/meta-rcar-gen3-adas/recipes-connectivity/bluez/"
+
+# We do not need the network config done here
+BBMASK += "/meta-rcar-gen3-adas/recipes-core/systemd/"
+
+# These changes are applied unconditionally when the layer is present.
+# These are not required for AGL
+BBMASK += "/meta-rcar-gen3-adas/recipes-core/images/"
+BBMASK += "/meta-rcar-gen3-adas/recipes-core/packagegroups/nativesdk-packagegroup-sdk-host.bbappend"
+
+# Upstream does have this change already, so this is not required.
+# poky/meta/classes/cmake.bbclass:         -DCMAKE_NO_SYSTEM_FROM_IMPORTED=1
+BBMASK += "/meta-rcar-gen3-adas/recipes-devtools/cmake/"
+
+# Upstream has a more recent valgrind (3.15.0 vs 3.12.0)
+BBMASK += "/meta-rcar-gen3-adas/recipes-devtools/valgrind/"
+
+# This is already part of upstream and no bbappend is required
+BBMASK += "/meta-rcar-gen3-adas/recipes-devtools/gcc/"
+
+# libpng in upstream already enabled neon
+# poky/meta/recipes-multimedia/libpng/libpng_1.6.37.bb:EXTRA_OECONF_append_class-target = " ${@bb.utils.contains("TUNE_FEATURES", "neon", "--enable-arm-neon=on", "--enable-arm-neon=off" ,d)}"
+BBMASK += "/meta-rcar-gen3-adas/recipes-graphics/libpng/"
+
+# opencv in upstream is newer
+BBMASK += "/meta-rcar-gen3-adas/recipes-graphics/opencv/"
+
+# unclear patch status
+BBMASK += "/meta-rcar-gen3-adas/recipes-graphics/wayland/"
+
+# not required in AGL
+BBMASK += "/meta-rcar-gen3-adas/recipes-multimedia/pulseaudio/"
+
+# not required in AGL
+BBMASK += "/meta-rcar-gen3-adas/recipes-support/"

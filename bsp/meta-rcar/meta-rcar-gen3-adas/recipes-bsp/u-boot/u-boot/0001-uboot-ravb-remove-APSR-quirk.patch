@@ -1,0 +1,32 @@
+From ff3f6473d6df212f592cd7d7ea3ce9c553345d2f Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 16 Jun 2016 11:41:43 +0300
+Subject: [PATCH 01/23] uboot: ravb: remove APSR quirk
+
+Remove 2ns delay interoduces by DMAC APSR. This is
+not used in linux kernel, hence it is important to skips this
+in uboot.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/net/ravb.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/drivers/net/ravb.c b/drivers/net/ravb.c
+index 3a76490..f1f6eca 100644
+--- a/drivers/net/ravb.c
++++ b/drivers/net/ravb.c
+@@ -389,10 +389,6 @@ static int ravb_dmac_init(struct udevice *dev)
+ 	/* FIFO size set */
+ 	writel(0x00222210, eth->iobase + RAVB_REG_TGC);
+ 
+-	/* Delay CLK: 2ns */
+-	if (pdata->max_speed == 1000)
+-		writel(BIT(14), eth->iobase + RAVB_REG_APSR);
+-
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

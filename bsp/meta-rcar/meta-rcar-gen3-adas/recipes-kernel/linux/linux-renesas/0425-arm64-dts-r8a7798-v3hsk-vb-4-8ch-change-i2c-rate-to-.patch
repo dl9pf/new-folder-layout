@@ -1,0 +1,44 @@
+From 7cd42e725a0221bb9c0443b15311fe3f5d37ed97 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 9 Oct 2019 18:34:48 +0300
+Subject: [PATCH] arm64: dts: r8a7798-v3hsk-vb-4/8ch: change i2c rate to 400khz
+
+Change i2c rate to 400kHz for bus with cameras.
+This speeds up the cameras backchannel transactions.
+The restriction of 100khz for cs2300 looks not needed for rev C1 chip.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index 12ef357..4ca62c6 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -142,7 +142,7 @@
+ 	pinctrl-names = "default";
+ 	status = "okay";
+ 
+-	clock-frequency = <100000>;
++	clock-frequency = <400000>;
+ 
+ 	i2cswitch1: i2c-switch@74 {
+ 		compatible = "nxp,pca9548";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index 861b90f..b635132 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -142,7 +142,7 @@
+ 	pinctrl-names = "default";
+ 	status = "okay";
+ 
+-	clock-frequency = <100000>;
++	clock-frequency = <400000>;
+ 
+ 	i2cswitch1: i2c-switch@74 {
+ 		compatible = "nxp,pca9548";
+-- 
+2.7.4
+

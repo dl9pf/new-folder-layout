@@ -1,0 +1,13 @@
+[match-node]
+priority = 30
+properties = [
+  { name = "media.class", value = "Audio/Sink" },
+  { name = "api.alsa.card.name", value = "bcm2835 ALSA" },
+  { name = "api.alsa.pcm.name", value = "bcm2835 ALSA" },
+]
+
+[endpoint]
+type = "pw-audio-softdsp-endpoint"
+direction = "sink"
+streams = "playback.streams"
+priority = 30

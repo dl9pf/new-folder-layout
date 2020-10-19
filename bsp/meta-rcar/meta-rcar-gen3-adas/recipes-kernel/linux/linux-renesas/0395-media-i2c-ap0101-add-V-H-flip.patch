@@ -1,0 +1,63 @@
+From 2fa25532f64b6c7706b523476316490c60384db2 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Tue, 2 Jul 2019 15:49:39 +0300
+Subject: [PATCH] media: i2c: ap0101: add V/H flip
+
+This adds image mirror and flip
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ap0101_ar014x.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ap0101_ar014x.c b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+index e4f2bda..03b50e9 100644
+--- a/drivers/media/i2c/soc_camera/ap0101_ar014x.c
++++ b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+@@ -306,6 +306,7 @@ static int ap0101_s_ctrl(struct v4l2_ctrl *ctrl)
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+ 	struct ap0101_priv *priv = to_ap0101(client);
+ 	int ret = -EINVAL;
++	u16 val = 0;
+ 
+ 	if (!priv->init_complete)
+ 		return 0;
+@@ -320,8 +321,26 @@ static int ap0101_s_ctrl(struct v4l2_ctrl *ctrl)
+ 	case V4L2_CID_AUTOGAIN:
+ 	case V4L2_CID_GAIN:
+ 	case V4L2_CID_EXPOSURE:
++		break;
+ 	case V4L2_CID_HFLIP:
++		reg16_read16(client, 0xc846, &val);
++		if (ctrl->val)
++			val |= 0x01;
++		else
++			val &= ~0x01;
++		reg16_write16(client, 0xc846, val);
++		reg16_write16(client, 0xfc00, 0x2800);
++		ret = reg16_write16(client, 0x0040, 0x8100);
++		break;
+ 	case V4L2_CID_VFLIP:
++		reg16_read16(client, 0xc846, &val);
++		if (ctrl->val)
++			val |= 0x02;
++		else
++			val &= ~0x02;
++		reg16_write16(client, 0xc846, val);
++		reg16_write16(client, 0xfc00, 0x2800);
++		ret = reg16_write16(client, 0x0040, 0x8100);
+ 		break;
+ 	}
+ 
+@@ -558,7 +577,7 @@ static int ap0101_probe(struct i2c_client *client,
+ 	v4l2_ctrl_new_std(&priv->hdl, &ap0101_ctrl_ops,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ap0101_ctrl_ops,
+-			  V4L2_CID_VFLIP, 0, 1, 1, 0);
++			  V4L2_CID_VFLIP, 0, 1, 1, 1);
+ 	priv->sd.ctrl_handler = &priv->hdl;
+ 
+ 	ret = priv->hdl.error;
+-- 
+2.7.4
+

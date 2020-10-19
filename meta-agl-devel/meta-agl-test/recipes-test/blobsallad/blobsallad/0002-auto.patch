@@ -1,0 +1,95 @@
+--- a/bs_main.c
++++ b/bs_main.c
+@@ -11,6 +11,9 @@
+ #include "bs_profiler.h"
+ #include "bs_rubberband.h"
+ 
++static struct timeval beginTime; /* Time of the benchmark start */
++static int cur_step; /* Current benchmark phase. Used to subsequently increase number of objects each 10 seconds */
++
+ typedef struct bs_main_data_st 
+ {
+   bs_cairo_sdl_t *pCairoSdl; 
+@@ -113,7 +116,9 @@
+   SDL_Event event;
+   SDL_UserEvent userevent;
+   bs_main_data_t *pMainData; 
+-  
++  struct timeval curTime;
++  int hunsec;
++
+   pMainData = (bs_main_data_t*) pUserData; 
+   
+   userevent.type = SDL_USEREVENT;
+@@ -121,6 +126,20 @@
+   userevent.data1 = NULL;
+   userevent.data2 = NULL;
+ 
++  gettimeofday(&curTime, NULL);
++  hunsec = curTime.tv_sec - beginTime.tv_sec;
++
++  /* increase cur_step each 10 seconds */
++  if (cur_step < hunsec / 10) {
++	printf("%d objects = %.2f fps\n", 1 << (cur_step + 1), pMainData->fps);
++	userevent.code = 2; /* add more objects */
++	cur_step++;
++  }
++
++  /* exit if requested number of objects is reached */
++  if (cur_step == 4)
++	userevent.code = 3;
++
+   event.type = SDL_USEREVENT;
+   event.user = userevent;
+ 
+@@ -152,14 +171,19 @@
+   pMainData->newTimerInterval = 50; 
+   pMainData->fps = 20.0; 
+   pMainData->running = TRUE; 
+-  
++ 
++  cur_step = 0;
++ 
+   bs_profiler_init();
+   
++  gettimeofday(&beginTime, NULL); 
+   gettimeofday(&startTime, NULL); 
+   pMainData->lastFrameTimeStamp = startTime.tv_sec * 1000 + startTime.tv_usec / 1000; 
+   
+   SDL_AddTimer(50, bs_main_sdl_timer_callback, pMainData); 
+   
++  bs_blob_collective_split(pMainData->pCollective); 
++
+   for(;;)
+   {
+     SDL_WaitEvent(&event); 
+@@ -253,8 +277,7 @@
+         break; 
+       
+       case SDL_USEREVENT:
+-        if(event.user.code == 1)
+-        {
++        if (event.user.code == 1) {
+           gettimeofday(&startTime, NULL); 
+           bs_main_update_simulation(pMainData);
+           bs_main_redraw(pMainData);       
+@@ -268,10 +291,15 @@
+             usedTime = 50; 
+           }
+             
+-          pMainData->newTimerInterval = usedTime;                        
+-        }          
+-        break; 
+-      
++          pMainData->newTimerInterval = usedTime;
++	} else if (event.user.code == 2) {
++		int i;
++		for (i = 0; i < (1 << cur_step); i++)
++			bs_blob_collective_split(pMainData->pCollective);
++	} else if (event.user.code == 3) {
++		exit(0);
++        }
++	break;
+       case SDL_QUIT: 
+         exit(0); 
+         break; 

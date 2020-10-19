@@ -1,0 +1,37 @@
+# @@@LICENSE
+#
+# Copyright (c) 2017-2018 LG Electronics, Inc.
+#
+# Confidential computer software. Valid license from LG required for
+# possession, use or copying. Consistent with FAR 12.211 and 12.212,
+# Commercial Computer Software, Computer Software Documentation, and
+# Technical Data for Commercial Items are licensed to the U.S. Government
+# under vendor's standard commercial license.
+#
+# LICENSE@@@
+
+[Unit]
+Description="WebAppMgr is responsible for running web apps and manage their lifecycle"
+After=afm-service-homescreen-service--0.1--main@%i.service weston@display.service
+Wants=afm-service-homescreen-service--0.1--main@%i.service
+BindsTo=weston@display.service
+
+[Service]
+Type=simple
+User=%i
+Slice=user-%i.slice
+SmackProcessLabel=System
+SupplementaryGroups=audio display
+UMask=0077
+CapabilityBoundingSet=
+OOMScoreAdjust=-1000
+EnvironmentFile=-/etc/default/WebAppMgr.env
+Environment=XDG_RUNTIME_DIR=/run/user/%i
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%i/bus
+Environment=WAM_DATA_PATH="/home/%i/wamdata"
+ExecStart=/usr/bin/WebAppMgr --no-sandbox --in-process-gpu --remote-debugging-port=9998 --user-data-dir="/home/%i/wamdata" --webos-wam
+Restart=on-failure
+RestartSec=50
+
+[Install]
+WantedBy=default.target

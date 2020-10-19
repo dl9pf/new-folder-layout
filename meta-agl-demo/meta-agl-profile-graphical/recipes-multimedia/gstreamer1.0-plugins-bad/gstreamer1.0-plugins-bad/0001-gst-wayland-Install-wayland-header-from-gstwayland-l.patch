@@ -1,0 +1,28 @@
+From 03e502084633838badfcc2b91a1aca1651c18544 Mon Sep 17 00:00:00 2001
+From: Marius Vlad <marius.vlad@collabora.com>
+Date: Wed, 24 Jun 2020 19:44:35 +0300
+Subject: [PATCH] gst/wayland/: Install wayland header from gstwayland library
+
+Necessary for cluster-receiver to pass out the wl_surface.
+
+Bug-AGL: SPEC-3382
+
+Signed-off-by: Marius Vlad <marius.vlad@collabora.com>
+---
+ gst-libs/gst/wayland/meson.build | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/gst-libs/gst/wayland/meson.build b/gst-libs/gst/wayland/meson.build
+index b1ede41f1..8957381d2 100644
+--- a/gst-libs/gst/wayland/meson.build
++++ b/gst-libs/gst/wayland/meson.build
+@@ -21,4 +21,6 @@ if use_wayland
+   gstwayland_dep = declare_dependency(link_with : gstwayland,
+     include_directories : [libsinc],
+     dependencies : [gst_dep, gstvideo_dep])
++
++  install_headers('wayland.h', subdir: 'gst/wayland')
+ endif
+-- 
+2.26.2
+

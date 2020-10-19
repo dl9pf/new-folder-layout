@@ -1,0 +1,139 @@
+From 0d69d1e8b840a47bd72dd4b7ca873403a200db8d Mon Sep 17 00:00:00 2001
+From: Robin Murphy <robin.murphy@arm.com>
+Date: Thu, 12 Oct 2017 16:56:14 +0100
+Subject: [PATCH 050/211] drivers: flag buses which demand DMA configuration
+
+We do not want the common dma_configure() pathway to apply
+indiscriminately to all devices, since there are plenty of buses which
+do not have DMA capability, and if their child devices were used for
+DMA API calls it would only be indicative of a driver bug. However,
+there are a number of buses for which DMA is implicitly expected even
+when not described by firmware - those we whitelist with an automatic
+opt-in to dma_configure(), assuming that the DMA address space and the
+physical address space are equivalent if not otherwise specified.
+
+Commit 723288836628 ("of: restrict DMA configuration") introduced a
+short-term fix by comparing explicit bus types, but this approach is far
+from pretty, doesn't scale well, and fails to cope at all with bus
+drivers which may be built as modules, like host1x. Let's refine things
+by making that opt-in a property of the bus type, which neatly addresses
+those problems and lets the decision of whether firmware description of
+DMA capability should be optional or mandatory stay internal to the bus
+drivers themselves.
+
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+Acked-by: Rob Herring <robh@kernel.org>
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Acked-by: Thierry Reding <treding@nvidia.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+(cherry picked from commit d89e2378a97fafdc74cbf997e7c88af75b81610a)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/amba/bus.c       | 1 +
+ drivers/base/platform.c  | 1 +
+ drivers/gpu/host1x/bus.c | 1 +
+ drivers/of/device.c      | 8 +-------
+ drivers/pci/pci-driver.c | 1 +
+ include/linux/device.h   | 4 ++++
+ 6 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/amba/bus.c b/drivers/amba/bus.c
+index 8a99fbe..4a3ac31 100644
+--- a/drivers/amba/bus.c
++++ b/drivers/amba/bus.c
+@@ -200,6 +200,7 @@ struct bus_type amba_bustype = {
+ 	.match		= amba_match,
+ 	.uevent		= amba_uevent,
+ 	.pm		= &amba_pm,
++	.force_dma	= true,
+ };
+ 
+ static int __init amba_init(void)
+diff --git a/drivers/base/platform.c b/drivers/base/platform.c
+index 9045c5f..c203fb9 100644
+--- a/drivers/base/platform.c
++++ b/drivers/base/platform.c
+@@ -1143,6 +1143,7 @@ struct bus_type platform_bus_type = {
+ 	.match		= platform_match,
+ 	.uevent		= platform_uevent,
+ 	.pm		= &platform_dev_pm_ops,
++	.force_dma	= true,
+ };
+ EXPORT_SYMBOL_GPL(platform_bus_type);
+ 
+diff --git a/drivers/gpu/host1x/bus.c b/drivers/gpu/host1x/bus.c
+index f9cde03..ed03b32 100644
+--- a/drivers/gpu/host1x/bus.c
++++ b/drivers/gpu/host1x/bus.c
+@@ -320,6 +320,7 @@ struct bus_type host1x_bus_type = {
+ 	.name = "host1x",
+ 	.match = host1x_device_match,
+ 	.pm = &host1x_device_pm_ops,
++	.force_dma = true,
+ };
+ 
+ static void __host1x_device_del(struct host1x_device *device)
+diff --git a/drivers/of/device.c b/drivers/of/device.c
+index 64b7102..25bddf9 100644
+--- a/drivers/of/device.c
++++ b/drivers/of/device.c
+@@ -9,9 +9,7 @@
+ #include <linux/module.h>
+ #include <linux/mod_devicetable.h>
+ #include <linux/slab.h>
+-#include <linux/pci.h>
+ #include <linux/platform_device.h>
+-#include <linux/amba/bus.h>
+ 
+ #include <asm/errno.h>
+ #include "of_private.h"
+@@ -101,11 +99,7 @@ int of_dma_configure(struct device *dev, struct device_node *np)
+ 		 * DMA configuration regardless of whether "dma-ranges" is
+ 		 * correctly specified or not.
+ 		 */
+-		if (!dev_is_pci(dev) &&
+-#ifdef CONFIG_ARM_AMBA
+-		    dev->bus != &amba_bustype &&
+-#endif
+-		    dev->bus != &platform_bus_type)
++		if (!dev->bus->force_dma)
+ 			return ret == -ENODEV ? 0 : ret;
+ 
+ 		dma_addr = offset = 0;
+diff --git a/drivers/pci/pci-driver.c b/drivers/pci/pci-driver.c
+index ea69b4d..e453f26 100644
+--- a/drivers/pci/pci-driver.c
++++ b/drivers/pci/pci-driver.c
+@@ -1476,6 +1476,7 @@ struct bus_type pci_bus_type = {
+ 	.drv_groups	= pci_drv_groups,
+ 	.pm		= PCI_PM_OPS_PTR,
+ 	.num_vf		= pci_bus_num_vf,
++	.force_dma	= true,
+ };
+ EXPORT_SYMBOL(pci_bus_type);
+ 
+diff --git a/include/linux/device.h b/include/linux/device.h
+index f232081..144ca07 100644
+--- a/include/linux/device.h
++++ b/include/linux/device.h
+@@ -97,6 +97,8 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
+  * @p:		The private data of the driver core, only the driver core can
+  *		touch this.
+  * @lock_key:	Lock class key for use by the lock validator
++ * @force_dma:	Assume devices on this bus should be set up by dma_configure()
++ * 		even if DMA capability is not explicitly described by firmware.
+  *
+  * A bus is a channel between the processor and one or more devices. For the
+  * purposes of the device model, all devices are connected via a bus, even if
+@@ -135,6 +137,8 @@ struct bus_type {
+ 
+ 	struct subsys_private *p;
+ 	struct lock_class_key lock_key;
++
++	bool force_dma;
+ };
+ 
+ extern int __must_check bus_register(struct bus_type *bus);
+-- 
+2.7.4
+

@@ -1,0 +1,13 @@
+diff --git a/ivi-input-modules/ivi-input-controller/src/ivi-input-controller.c b/ivi-input-modules/ivi-input-controller/src/ivi-input-controller.c
+index a0bfc48..257a1dc 100644
+--- a/ivi-input-modules/ivi-input-controller/src/ivi-input-controller.c
++++ b/ivi-input-modules/ivi-input-controller/src/ivi-input-controller.c
+@@ -31,7 +31,7 @@
+ #include <fcntl.h>
+ #include <unistd.h>
+ 
+-#include "plugin-registry.h"
++#include <libweston/plugin-registry.h>
+ #include "ilm_types.h"
+ 
+ #include "ivi-input-server-protocol.h"

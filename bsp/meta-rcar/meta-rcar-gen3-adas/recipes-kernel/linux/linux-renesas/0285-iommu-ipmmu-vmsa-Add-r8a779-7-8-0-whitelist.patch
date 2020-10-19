@@ -1,0 +1,65 @@
+From 48a84430fd00e74e4a380324acd3f96b7a2873ad Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 25 Jun 2019 22:40:40 +0300
+Subject: [PATCH 105/211] iommu: ipmmu-vmsa: Add r8a779{7|8}0 whitelist
+
+This adds empty r8a779{7|8}0 whitelist disabling
+IPMMU on R-Car V3M and V3H SoCs.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/iommu/ipmmu-vmsa.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/drivers/iommu/ipmmu-vmsa.c b/drivers/iommu/ipmmu-vmsa.c
+index cdbfc53..52e292a 100644
+--- a/drivers/iommu/ipmmu-vmsa.c
++++ b/drivers/iommu/ipmmu-vmsa.c
+@@ -243,6 +243,16 @@ static struct ipmmu_whitelist *r8a77965_whitelist[] = {
+ 	NULL, /* Terminator */
+ };
+ 
++/* R-Car V3M (R8A77970) */
++static struct ipmmu_whitelist *r8a77970_whitelist[] = {
++	NULL, /* Terminator */
++};
++
++/* R-Car V3H (R8A77980) */
++static struct ipmmu_whitelist *r8a77980_whitelist[] = {
++	NULL, /* Terminator */
++};
++
+ /* R-Car E3 (R8A77990) */
+ static struct ipmmu_whitelist r8a77990_ipmmu_vi0 = {
+ 	.ipmmu_name	= "febd0000.mmu",
+@@ -1145,6 +1155,16 @@ static const struct soc_device_attribute r8a77965[]  = {
+ 	{ /* sentinel */ }
+ };
+ 
++static const struct soc_device_attribute r8a77970[]  = {
++	{ .soc_id = "r8a77970" },
++	{ /* sentinel */ }
++};
++
++static const struct soc_device_attribute r8a77980[]  = {
++	{ .soc_id = "r8a77980" },
++	{ /* sentinel */ }
++};
++
+ static const struct soc_device_attribute r8a77990[]  = {
+ 	{ .soc_id = "r8a77990" },
+ 	{ /* sentinel */ }
+@@ -1482,6 +1502,10 @@ static int ipmmu_whitelist_init(struct ipmmu_vmsa_device *mmu)
+ 		mmu->whitelist = r8a77965_whitelist;
+ 	else if (soc_device_match(r8a77990))
+ 		mmu->whitelist = r8a77990_whitelist;
++	else if (soc_device_match(r8a77970))
++		mmu->whitelist = r8a77970_whitelist;
++	else if (soc_device_match(r8a77980))
++		mmu->whitelist = r8a77980_whitelist;
+ 	else
+ 		mmu->whitelist = NULL;
+ 
+-- 
+2.7.4
+

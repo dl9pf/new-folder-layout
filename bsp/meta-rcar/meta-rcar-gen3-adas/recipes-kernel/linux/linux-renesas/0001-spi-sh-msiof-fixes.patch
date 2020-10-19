@@ -1,0 +1,33 @@
+From 7fcc40a9b19ca41bf140eb9ebe9a7dbd5871b54e Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Sun, 15 May 2016 21:53:13 +0300
+Subject: [PATCH 001/122] spi: sh-msiof: fixes
+
+speed up polling of CTR register
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/spi/spi-sh-msiof.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/spi/spi-sh-msiof.c b/drivers/spi/spi-sh-msiof.c
+index d32e631..6a27bca 100644
+--- a/drivers/spi/spi-sh-msiof.c
++++ b/drivers/spi/spi-sh-msiof.c
+@@ -253,11 +253,11 @@ static int sh_msiof_modify_ctr_wait(struct sh_msiof_spi_priv *p,
+ 	data |= set;
+ 	sh_msiof_write(p, CTR, data);
+ 
+-	for (k = 100; k > 0; k--) {
++	for (k = 1000; k > 0; k--) {
+ 		if ((sh_msiof_read(p, CTR) & mask) == set)
+ 			break;
+ 
+-		udelay(10);
++		udelay(1);
+ 	}
+ 
+ 	return k > 0 ? 0 : -ETIMEDOUT;
+-- 
+2.7.4
+

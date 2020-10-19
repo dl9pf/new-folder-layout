@@ -1,0 +1,7 @@
+# udev rules for USB CAN adapters
+SUBSYSTEM!="tty", GOTO="usb_can_rules_end"
+
+# VScom USB-CAN Plus
+ATTRS{idProduct}=="6015", ATTRS{idVendor}=="0403", SYMLINK+="usbcan%n", TAG+="systemd", ENV{SYSTEMD_WANTS}="slcand@%k.service"
+
+LABEL="usb_can_rules_end"

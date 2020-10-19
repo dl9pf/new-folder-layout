@@ -1,0 +1,16 @@
+0014-lib-swiotlb-reduce-verbosity.patch
+0018-arm64-renesas-r8a7797-Add-Renesas-R8A7797-SoC-suppor.patch
+0026-drm-adv7511-add-polling-mode-when-no-irq-available.patch
+0051-arm64-renesas-r8a7798-Add-Renesas-R8A7798-SoC-suppor.patch
+0052-soc-renesas-rcar-sysc-Add-workaround-for-A3-PD-issue.patch
+0079-Revert-dmaengine-rcar-dmac-use-TCRB-instead-of-TCR-f.patch
+0082-gpio-pca953x-fix-interrupt-trigger.patch
+0090-ASoC-rsnd-fixup-rsnd_ssi_master_clk_start-user-count.patch
+0100-LVDS-ar0132-use-raw12.patch
+0101-LVDS-ar0132-use-context-swwitch.patch
+0103-gpu-drm-rcar-du-Extend-VSP1-DRM-interface.patch
+0104-media-vsp1-extend-DRM-VSP1-interface.patch
+0105-media-rcar-imr-IMR-driver-updates-for-raw-DL.patch
+0106-media-rcar-imr-Add-RSE-support.patch
+0110-mmc-tmio-Add-SDHI-SEQUENCER-support.patch
+0111-mmc-renesas_sdhi-Add-SDHI-SEQUENCER-support.patch

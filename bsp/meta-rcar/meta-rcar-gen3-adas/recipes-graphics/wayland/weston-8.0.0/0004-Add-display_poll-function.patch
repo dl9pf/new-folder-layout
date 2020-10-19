@@ -1,0 +1,90 @@
+From 1d64f24383749038ccc8c5f273a279698b2a9662 Mon Sep 17 00:00:00 2001
+From: Grigory Kletsko <grigory.kletsko@cogentembedded.com>
+Date: Tue, 13 Jun 2017 23:51:22 +0300
+Subject: [PATCH 3/4] Add display_poll function
+
+---
+ clients/toytoolkit.h |  3 +++
+ clients/window.c     | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)
+
+diff --git a/clients/toytoolkit.h b/clients/toytoolkit.h
+index b99b6f1..67c2720 100644
+--- a/clients/toytoolkit.h
++++ b/clients/toytoolkit.h
+@@ -161,6 +161,9 @@ display_unwatch_fd(struct display *display, int fd);
+ void
+ display_run(struct display *d);
+ 
++int
++display_poll(struct display *display, int timeout);
++
+ void
+ display_exit(struct display *d);
+ 
+diff --git a/clients/window.c b/clients/window.c
+index 34645b2..3b7def3 100644
+--- a/clients/window.c
++++ b/clients/window.c
+@@ -6559,6 +6559,58 @@ display_run(struct display *display)
+ 	}
+ }
+ 
++int
++display_poll(struct display *display, int timeout)
++{
++	struct task *task;
++	struct epoll_event ep[16];
++	int i, count, ret;
++
++	display->running = 1;
++	while (!wl_list_empty(&display->deferred_list)) {
++		task = container_of(display->deferred_list.prev,
++		                    struct task, link);
++		wl_list_remove(&task->link);
++		task->run(task, 0);
++	}
++
++    /* ...prepare for a reading */
++    while (wl_display_prepare_read(display->display) != 0)
++    {
++        /* ...dispatch all pending events and repeat attempt */
++        wl_display_dispatch_pending(display->display);
++    }
++
++    /* ...flush all outstanding commands to a display */
++    if (wl_display_flush(display->display) < 0) {
++        return -1;
++    }
++
++    if (!display->running)
++	    return -1;
++
++    count = epoll_wait(display->epoll_fd, ep, ARRAY_LENGTH(ep), timeout);
++    if (!count) {
++        wl_display_cancel_read(display->display);
++        return 0;
++    }
++
++    if (count > 0) {
++        /* ...read display events (if any) before we do any drawing */
++        if (wl_display_read_events(display->display) < 0) {
++            return -1;
++        }
++
++        /* ...process pending display events (if any) */
++        if (wl_display_dispatch_pending(display->display) < 0) {
++            return -1;
++        }
++    } else if (count < 0) {
++        wl_display_cancel_read(display->display);
++        return count;
++    }
++}
++
+ void
+ display_exit(struct display *display)
+ {
+-- 
+2.7.4
+

@@ -1,0 +1,210 @@
+From 8f4ae642234e52dc283b15cfe8e08aff4bc8c230 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 19 Nov 2018 16:30:33 +0300
+Subject: [PATCH 04/23] configs: rcar-gen3: Enable GPT support
+
+This enables GPT support in for R-Car Gen3 boards.
+It can be used for disk partitioning in U-Boot.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ configs/r8a7795_salvator-x_defconfig       | 1 +
+ configs/r8a7795_salvator-xs-2x2g_defconfig | 1 +
+ configs/r8a7795_salvator-xs-4x2g_defconfig | 1 +
+ configs/r8a7795_salvator-xs_defconfig      | 1 +
+ configs/r8a7795_ulcb-4x2g_defconfig        | 1 +
+ configs/r8a7795_ulcb_defconfig             | 1 +
+ configs/r8a77965_salvator-x_defconfig      | 1 +
+ configs/r8a77965_ulcb_defconfig            | 1 +
+ configs/r8a7796_salvator-x_defconfig       | 1 +
+ configs/r8a7796_salvator-xs_defconfig      | 1 +
+ configs/r8a7796_ulcb_defconfig             | 1 +
+ configs/r8a77970_eagle_defconfig           | 1 +
+ configs/r8a77990_ebisu-4d_defconfig        | 1 +
+ configs/r8a77990_ebisu_defconfig           | 1 +
+ configs/r8a77995_draak_defconfig           | 1 +
+ 15 files changed, 15 insertions(+)
+
+diff --git a/configs/r8a7795_salvator-x_defconfig b/configs/r8a7795_salvator-x_defconfig
+index 7c352a2..92b1644 100644
+--- a/configs/r8a7795_salvator-x_defconfig
++++ b/configs/r8a7795_salvator-x_defconfig
+@@ -16,6 +16,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7795_salvator-xs-2x2g_defconfig b/configs/r8a7795_salvator-xs-2x2g_defconfig
+index 49dc5dd..e8aabd8 100644
+--- a/configs/r8a7795_salvator-xs-2x2g_defconfig
++++ b/configs/r8a7795_salvator-xs-2x2g_defconfig
+@@ -16,6 +16,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7795_salvator-xs-4x2g_defconfig b/configs/r8a7795_salvator-xs-4x2g_defconfig
+index a4ccb50..589fa57 100644
+--- a/configs/r8a7795_salvator-xs-4x2g_defconfig
++++ b/configs/r8a7795_salvator-xs-4x2g_defconfig
+@@ -16,6 +16,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7795_salvator-xs_defconfig b/configs/r8a7795_salvator-xs_defconfig
+index c17f0a7..0b1411c 100644
+--- a/configs/r8a7795_salvator-xs_defconfig
++++ b/configs/r8a7795_salvator-xs_defconfig
+@@ -16,6 +16,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7795_ulcb-4x2g_defconfig b/configs/r8a7795_ulcb-4x2g_defconfig
+index e91d8f9..6ee62c6 100644
+--- a/configs/r8a7795_ulcb-4x2g_defconfig
++++ b/configs/r8a7795_ulcb-4x2g_defconfig
+@@ -16,6 +16,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7795_ulcb_defconfig b/configs/r8a7795_ulcb_defconfig
+index bf24ff7..e88ac08 100644
+--- a/configs/r8a7795_ulcb_defconfig
++++ b/configs/r8a7795_ulcb_defconfig
+@@ -16,6 +16,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a77965_salvator-x_defconfig b/configs/r8a77965_salvator-x_defconfig
+index 6be612f..201a5c3 100644
+--- a/configs/r8a77965_salvator-x_defconfig
++++ b/configs/r8a77965_salvator-x_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a77965_ulcb_defconfig b/configs/r8a77965_ulcb_defconfig
+index 1519b10..7446b42 100644
+--- a/configs/r8a77965_ulcb_defconfig
++++ b/configs/r8a77965_ulcb_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7796_salvator-x_defconfig b/configs/r8a7796_salvator-x_defconfig
+index 9225d5b..931e431 100644
+--- a/configs/r8a7796_salvator-x_defconfig
++++ b/configs/r8a7796_salvator-x_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7796_salvator-xs_defconfig b/configs/r8a7796_salvator-xs_defconfig
+index f0fd374..9614951 100644
+--- a/configs/r8a7796_salvator-xs_defconfig
++++ b/configs/r8a7796_salvator-xs_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a7796_ulcb_defconfig b/configs/r8a7796_ulcb_defconfig
+index 508dd08..a93d173 100644
+--- a/configs/r8a7796_ulcb_defconfig
++++ b/configs/r8a7796_ulcb_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a77970_eagle_defconfig b/configs/r8a77970_eagle_defconfig
+index 81b0e84..3430ccb 100644
+--- a/configs/r8a77970_eagle_defconfig
++++ b/configs/r8a77970_eagle_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_SF=y
+ CONFIG_CMD_SPI=y
+diff --git a/configs/r8a77990_ebisu-4d_defconfig b/configs/r8a77990_ebisu-4d_defconfig
+index 0c7ff85..1506c60 100644
+--- a/configs/r8a77990_ebisu-4d_defconfig
++++ b/configs/r8a77990_ebisu-4d_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a77990_ebisu_defconfig b/configs/r8a77990_ebisu_defconfig
+index 8385488..92a247e 100644
+--- a/configs/r8a77990_ebisu_defconfig
++++ b/configs/r8a77990_ebisu_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+diff --git a/configs/r8a77995_draak_defconfig b/configs/r8a77995_draak_defconfig
+index 1ba391e..31b3623 100644
+--- a/configs/r8a77995_draak_defconfig
++++ b/configs/r8a77995_draak_defconfig
+@@ -17,6 +17,7 @@ CONFIG_HUSH_PARSER=y
+ CONFIG_CMD_BOOTZ=y
+ CONFIG_CMD_ASKENV=y
+ CONFIG_CMD_GPIO=y
++CONFIG_CMD_GPT=y
+ CONFIG_CMD_I2C=y
+ CONFIG_CMD_MMC=y
+ CONFIG_CMD_USB=y
+-- 
+2.7.4
+

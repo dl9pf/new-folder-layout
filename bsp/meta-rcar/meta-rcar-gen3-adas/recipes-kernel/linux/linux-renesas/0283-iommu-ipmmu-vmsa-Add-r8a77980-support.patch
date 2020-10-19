@@ -1,0 +1,45 @@
+From 64a70b1e21ac951c879fbc7d2200f692a0e58afa Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 26 Oct 2018 23:49:18 +0300
+Subject: [PATCH 103/211] iommu: ipmmu-vmsa: Add r8a77980 support
+
+This adds R-Car V3H support to IPMMU VMSA driver.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/iommu/ipmmu-vmsa.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/drivers/iommu/ipmmu-vmsa.c b/drivers/iommu/ipmmu-vmsa.c
+index 5844dc7..4a3055f 100644
+--- a/drivers/iommu/ipmmu-vmsa.c
++++ b/drivers/iommu/ipmmu-vmsa.c
+@@ -1123,6 +1123,7 @@ static const struct soc_device_attribute soc_rcar_gen3[] = {
+ 	{ .soc_id = "r8a7796", },
+ 	{ .soc_id = "r8a77965", },
+ 	{ .soc_id = "r8a77970", },
++	{ .soc_id = "r8a77980", },
+ 	{ .soc_id = "r8a77990", },
+ 	{ .soc_id = "r8a77995", },
+ 	{ /* sentinel */ }
+@@ -1426,6 +1427,9 @@ static const struct of_device_id ipmmu_of_ids[] = {
+ 		.compatible = "renesas,ipmmu-r8a77970",
+ 		.data = &ipmmu_features_rcar_gen3,
+ 	}, {
++		.compatible = "renesas,ipmmu-r8a77980",
++		.data = &ipmmu_features_rcar_gen3,
++	}, {
+ 		.compatible = "renesas,ipmmu-r8a77990",
+ 		.data = &ipmmu_features_rcar_gen3,
+ 	}, {
+@@ -1866,6 +1870,7 @@ IOMMU_OF_DECLARE(ipmmu_r8a7795_iommu_of, "renesas,ipmmu-r8a7795");
+ IOMMU_OF_DECLARE(ipmmu_r8a7796_iommu_of, "renesas,ipmmu-r8a7796");
+ IOMMU_OF_DECLARE(ipmmu_r8a77965_iommu_of, "renesas,ipmmu-r8a77965");
+ IOMMU_OF_DECLARE(ipmmu_r8a77970_iommu_of, "renesas,ipmmu-r8a77970");
++IOMMU_OF_DECLARE(ipmmu_r8a77980_iommu_of, "renesas,ipmmu-r8a77980");
+ IOMMU_OF_DECLARE(ipmmu_r8a77990_iommu_of, "renesas,ipmmu-r8a77990");
+ IOMMU_OF_DECLARE(ipmmu_r8a77995_iommu_of, "renesas,ipmmu-r8a77995");
+ 
+-- 
+2.7.4
+

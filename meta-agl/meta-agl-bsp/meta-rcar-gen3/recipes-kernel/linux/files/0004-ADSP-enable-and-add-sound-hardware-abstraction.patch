@@ -1,0 +1,81 @@
+The ADSP on Renesas SoCs required a reserved memory area to become
+enabled, and this needs to be done manually.
+
+This patch adds sound hardware abstraction information for the m3ulcb
+and m3ulcb-kf (kingfisher) device trees. This is helpful on-board the
+ADSP for dynamically determining sound hardware at runtime, allowing
+single binaries to be used between the two boards. 
+
+Future work will incorporate the h3ulcb and Salvator boards into the
+abstraction.
+
+Signed-off-by: Ronan Le Martret <ronan.lemartret@iot.bzh>
+Signed-off-by: Mark Farrugia <mark.farrugia@fiberdyne.com.au>
+---
+diff --git a/arch/arm64/boot/dts/renesas/r8a7796-m3ulcb.dts b/arch/arm64/boot/dts/renesas/r8a7796-m3ulcb.dts
+index 1cd64c1b3b31..71e59da3528d 100644
+--- a/arch/arm64/boot/dts/renesas/r8a7796-m3ulcb.dts
++++ b/arch/arm64/boot/dts/renesas/r8a7796-m3ulcb.dts
+@@ -42,11 +42,18 @@
+ 			reg = <0x00000000 0x54000000 0x0 0x03000000>;
+ 		};
+ 
++		/* For Audio DSP */
++		adsp_reserved: linux,adsp {
++			compatible = "shared-dma-pool";
++			reusable;
++			reg = <0x00000000 0x57000000 0x0 0x01000000>;
++		};
++
+ 		/* global autoconfigured region for contiguous allocations */
+ 		linux,cma@57000000 {
+ 			compatible = "shared-dma-pool";
+ 			reusable;
+-			reg = <0x00000000 0x57000000 0x0 0x19000000>;
++			reg = <0x00000000 0x58000000 0x0 0x18000000>;
+ 			linux,cma-default;
+ 		};
+ 
+@@ -110,6 +117,42 @@
+ 		      "dclkin.0", "dclkin.1", "dclkin.2";
+ };
+ 
++&adsp {
++	status = "okay";
++	clock-frequency = <12288000 11289600>;
++	audio-clocks = <22579200 24576000>;
++	memory-region = <&adsp_reserved>;
++
++	/* ADSP playback setting for ak4613 */
++	adsp_playback0: adsp,playback {
++		mode  = "i2s";
++		clock-mode = "master";
++		bus-width = <16>;
++		ssi = <0>;
++		bus-if = <0>;
++		channels = <2>;
++		pin-share-ssi = <1>;
++	};
++
++	/* ADSP capture setting for ak4613 */
++	adsp_capture0: adsp,capture {
++		mode  = "i2s";
++		clock-mode = "slave";
++		bus-width = <16>;
++		ssi = <1>;
++		bus-if = <0>;
++		channels = <2>;
++		pin-share-ssi = <0>;
++	};
++	
++	adsp,ports {
++		port@0 {
++			playback = <&adsp_playback0>;
++			capture  = <&adsp_capture0>;
++		};
++	};
++};
++
+ &vspb {
+ 	status = "okay";
+ };

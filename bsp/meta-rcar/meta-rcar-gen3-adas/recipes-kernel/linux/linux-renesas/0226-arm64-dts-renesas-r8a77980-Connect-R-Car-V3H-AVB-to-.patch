@@ -1,0 +1,32 @@
+From c4db27990ce2f5ec7b44351ca27f8a5550710a25 Mon Sep 17 00:00:00 2001
+From: Magnus Damm <damm@opensource.se>
+Date: Mon, 22 Oct 2018 02:14:54 +0900
+Subject: [PATCH 046/211] arm64: dts: renesas: r8a77980: Connect R-Car V3H AVB
+ to IPMMU
+
+Hook up the R-Car V3H AVB device to IPMMU-DS1 33 as described in
+the data sheet.
+
+Signed-off-by: Magnus Damm <damm@opensource.se>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit 8aa7fb3fee6b5105a612d49a10e06f8e64232fe8)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index c11ee04..4e019f7 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -667,6 +667,7 @@
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 812>;
+ 			phy-mode = "rgmii";
++			iommus = <&ipmmu_ds1 33>;
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			status = "disabled";
+-- 
+2.7.4
+

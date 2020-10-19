@@ -1,0 +1,40 @@
+From 3aeaf8054fcb2617ca8f6196ca32be3e69337f77 Mon Sep 17 00:00:00 2001
+From: Martin Kelly <mkelly@xevo.com>
+Date: Fri, 21 Apr 2017 10:29:19 -0700
+Subject: [PATCH] remove -I/usr/include in pkg-config
+
+This shouldn't be necessary as it's part of the default compiler include
+paths anyway. Morever, it can cause GCC 6 C++ build failures in
+downstream packages when combined with QMake (such as
+qtmultimedia-rtlfm-radio-plugin).
+
+Fix these issues by removing it.
+
+Upstream-Status: Inappropriate [disable-feature]
+
+This patch should not go upstream because it breaks the ability to build
+with --prefix. That's not a problem for Openembedded, but it is for
+upstream more generally. See this mail thread for more information:
+
+http://lists.osmocom.org/pipermail/osmocom-sdr/2017-April/001580.html
+
+Signed-off-by: Martin Kelly <mkelly@xevo.com>
+---
+ librtlsdr.pc.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/librtlsdr.pc.in b/librtlsdr.pc.in
+index 5e55049..84b6d0c 100644
+--- a/librtlsdr.pc.in
++++ b/librtlsdr.pc.in
+@@ -6,6 +6,6 @@ includedir=@includedir@
+ Name: RTL-SDR Library
+ Description: C Utility Library
+ Version: @VERSION@
+-Cflags: -I${includedir}/ @RTLSDR_PC_CFLAGS@
++Cflags: @RTLSDR_PC_CFLAGS@
+ Libs: -L${libdir} -lrtlsdr -lusb-1.0
+ Libs.private: @RTLSDR_PC_LIBS@
+-- 
+2.1.4
+

@@ -1,0 +1,25 @@
+This file contains a list of maintainers for the meta-spdxscanner layer.
+
+Please submit any patches against meta-spdxscanner to the Yocto Project 
+mailing list (yocto@yoctoproject.org) with'[meta-spdxscanner]' in the 
+subject.
+
+You may also contact the maintainers directly.
+
+Descriptions of section entries:
+
+	M: Mail patches to: FullName <address@domain>
+	F: Files and directories with wildcard patterns.
+	   A trailing slash includes all files and subdirectory files.
+	   F: recipes-devtools/   all files in and below meta-spdxscanner
+	   One pattern per line.  Multiple F: lines acceptable.
+
+Please keep this list in alphabetical order.
+
+Maintainers List (try to look for most precise areas first)
+
+COMMON
+M:	Lei Maohui <leimaohui@cn.fujitsu.com>
+F:	conf
+F:	classes
+F:	recipes-*

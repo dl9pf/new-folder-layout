@@ -1,0 +1,96 @@
+From 96bcbcc000541653e8937ff51b9ba945290d354d Mon Sep 17 00:00:00 2001
+From: Grigory Kletsko <grigory.kletsko@cogentembedded.com>
+Date: Tue, 13 Jun 2017 23:51:22 +0300
+Subject: [PATCH 2/4] add window_set_fullscreen_at_output
+
+---
+ clients/toytoolkit.h |  9 +++++++++
+ clients/window.c     | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)
+
+diff --git a/clients/toytoolkit.h b/clients/toytoolkit.h
+index cd5455e..b99b6f1 100644
+--- a/clients/toytoolkit.h
++++ b/clients/toytoolkit.h
+@@ -74,6 +74,12 @@ display_get_compositor(struct display *display);
+ struct output *
+ display_get_output(struct display *display);
+ 
++unsigned int
++display_get_outputs_number(struct display *display);
++
++struct output *
++display_get_output_by_index(struct display *display, unsigned int index); 
++
+ uint32_t
+ display_get_serial(struct display *display);
+ 
+@@ -430,6 +436,9 @@ window_is_fullscreen(struct window *window);
+ void
+ window_set_fullscreen(struct window *window, int fullscreen);
+ 
++void
++window_set_fullscreen_at_output(struct window *window, int fullscreen, struct output *output);
++
+ int
+ window_is_maximized(struct window *window);
+ 
+diff --git a/clients/window.c b/clients/window.c
+index 2bd303e..34645b2 100644
+--- a/clients/window.c
++++ b/clients/window.c
+@@ -4672,6 +4672,21 @@ window_set_fullscreen(struct window *window, int fullscreen)
+ 		xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
+ }
+ 
++void
++window_set_fullscreen_at_output(struct window *window, int fullscreen, struct output *output)
++{
++	if (!window->xdg_toplevel)
++		return;
++
++	if (window->fullscreen == fullscreen)
++		return;
++
++	if (fullscreen)
++		xdg_toplevel_set_fullscreen(window->xdg_toplevel, output ? output_get_wl_output(output) : NULL);
++	else
++		xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
++}
++
+ int
+ window_is_maximized(struct window *window)
+ {
+@@ -6397,6 +6412,29 @@ display_get_output(struct display *display)
+ 	return container_of(display->output_list.next, struct output, link);
+ }
+ 
++unsigned int
++display_get_outputs_number(struct display *display)
++{
++    return wl_list_length(&display->output_list);
++}
++
++struct output *
++display_get_output_by_index(struct display *display, unsigned int index)
++{
++    int i;
++    int n = wl_list_length(&display->output_list);
++    struct wl_list *item;
++
++    if (index >= n)
++        return NULL;
++
++    item = display->output_list.next;
++    for (i = 0; i < index; i++)
++        item = item->next;
++
++	return container_of(item, struct output, link);
++}
++
+ struct wl_compositor *
+ display_get_compositor(struct display *display)
+ {
+-- 
+2.7.4
+

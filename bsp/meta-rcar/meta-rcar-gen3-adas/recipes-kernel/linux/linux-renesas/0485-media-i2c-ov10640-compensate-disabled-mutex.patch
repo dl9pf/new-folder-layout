@@ -1,0 +1,85 @@
+From 955d8c3c39605a389f10c96b2cf43b975476f272 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Tue, 10 Mar 2020 11:34:03 +0300
+Subject: [PATCH] media: i2c: ov10640: compensate disabled mutex
+
+Compensate ADV_DEBUG mutex after disabling in v4l2_ioctl
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov10640.c | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov10640.c b/drivers/media/i2c/soc_camera/ov10640.c
+index f5f0fdd..d52a0a2 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov10640.c
+@@ -37,6 +37,7 @@ struct ov10640_priv {
+ 	struct v4l2_ctrl_handler	hdl;
+ 	struct media_pad		pad;
+ 	struct v4l2_rect		rect;
++	struct mutex			lock;
+ 	int				subsampling;
+ 	int				fps_numerator;
+ 	int				fps_denominator;
+@@ -328,6 +329,7 @@ static int ov10640_g_register(struct v4l2_subdev *sd,
+ 			      struct v4l2_dbg_register *reg)
+ {
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ov10640_priv *priv = to_ov10640(client);
+ 	int ret;
+ 	__be64 be_val;
+ 
+@@ -336,10 +338,14 @@ static int ov10640_g_register(struct v4l2_subdev *sd,
+ 	if (reg->size > sizeof(reg->val))
+ 		reg->size = sizeof(reg->val);
+ 
++	mutex_lock(&priv->lock);
++
+ 	ret = reg16_read_n(client, (u16)reg->reg, (u8*)&be_val, reg->size);
+ 	be_val = be_val << ((sizeof(be_val) - reg->size) * 8);
+ 	reg->val = be64_to_cpu(be_val);
+ 
++	mutex_unlock(&priv->lock);
++
+ 	return ret;
+ }
+ 
+@@ -347,7 +353,9 @@ static int ov10640_s_register(struct v4l2_subdev *sd,
+ 			      const struct v4l2_dbg_register *reg)
+ {
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ov10640_priv *priv = to_ov10640(client);
+ 	u32 size = reg->size;
++	int ret;
+ 	__be64 be_val;
+ 
+ 	if (!size)
+@@ -355,10 +363,15 @@ static int ov10640_s_register(struct v4l2_subdev *sd,
+ 	if (size > sizeof(reg->val))
+ 		size = sizeof(reg->val);
+ 
++	mutex_lock(&priv->lock);
++
+ 	be_val = cpu_to_be64(reg->val);
+ 	be_val = be_val >> ((sizeof(be_val) - size) * 8);
++	ret = reg16_write_n(client, (u16)reg->reg, (u8*)&be_val, size);
+ 
+-	return reg16_write_n(client, (u16)reg->reg, (u8*)&be_val, size);
++	mutex_unlock(&priv->lock);
++
++	return ret;
+ }
+ #endif
+ 
+@@ -711,6 +724,7 @@ static int ov10640_probe(struct i2c_client *client,
+ 	priv->rect.height = OV10640_DEFAULT_HEIGHT;
+ 	priv->fps_numerator = 1;
+ 	priv->fps_denominator = 30;
++	mutex_init(&priv->lock);
+ 
+ 	v4l2_ctrl_handler_init(&priv->hdl, 4);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ov10640_ctrl_ops,
+-- 
+2.7.4
+

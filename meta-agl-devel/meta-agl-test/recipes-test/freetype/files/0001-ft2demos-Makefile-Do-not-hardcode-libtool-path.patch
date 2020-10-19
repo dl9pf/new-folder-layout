@@ -1,0 +1,30 @@
+From 8c4f135619de929f9348b830a07a46a0c2c38e51 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jan-Simon=20M=C3=B6ller?= <jsmoeller@linuxfoundation.org>
+Date: Fri, 7 Oct 2016 15:26:20 +0200
+Subject: [PATCH] Do not hardcode libtool path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It is already known and imported through config.mk.
+
+Signed-off-by: Jan-Simon Möller <jsmoeller@linuxfoundation.org>
+---
+ Makefile | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index a5d34bd..254aad4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -153,7 +153,6 @@ else
+ 
+   ifeq ($(PLATFORM),unix)
+     CC        = $(CCraw)
+-	LIBTOOL   = $(OBJ_BUILD)/libtool
+     LINK_CMD  = $(subst /,$(SEP),$(LIBTOOL)) \
+                 --mode=link $(CC) \
+                 $(subst /,$(COMPILER_SEP),$(LDFLAGS))
+-- 
+2.1.4
+

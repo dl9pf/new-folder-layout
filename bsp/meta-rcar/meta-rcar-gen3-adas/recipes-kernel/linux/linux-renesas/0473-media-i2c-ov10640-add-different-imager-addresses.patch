@@ -1,0 +1,96 @@
+From 304be73e907a8c63d774f32358a7087a8b76657a Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 10 Feb 2020 23:41:22 +0300
+Subject: [PATCH] media: i2c: ov10640: add different imager addresses
+
+This adds different i2c imager addresses
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov10640.c | 39 ++++++++++++++++++++++++----------
+ 1 file changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov10640.c b/drivers/media/i2c/soc_camera/ov10640.c
+index 0af091e..f5f0fdd 100644
+--- a/drivers/media/i2c/soc_camera/ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov10640.c
+@@ -23,7 +23,7 @@
+ #include "max9286.h"
+ #include "ov10640.h"
+ 
+-#define OV10640_I2C_ADDR		0x30
++static const int ov10640_i2c_addr[] = {0x30, 0x34, 0x36};
+ 
+ #define OV10640_PIDA_REG		0x300a
+ #define OV10640_PIDB_REG		0x300b
+@@ -566,16 +566,33 @@ static int ov10640_initialize(struct i2c_client *client)
+ 	u16 pid;
+ 	u8 val = 0, rev;
+ 	int ret = 0;
++	int tmp_addr, i;
+ 
+ 	ov10640_s_port(client, 1);
+ 
+-	/* check and show product ID and manufacturer ID */
+-	reg16_read(client, OV10640_PIDA_REG, &val);
+-	pid = val;
+-	reg16_read(client, OV10640_PIDB_REG, &val);
+-	pid = (pid << 8) | val;
+-	reg16_read(client, OV10640_REV_REG, &val);
+-	rev = 0x10 | ((val & 0xf) + 0xa);
++	for (i = 0; i < ARRAY_SIZE(ov10640_i2c_addr); i++) {
++		tmp_addr = client->addr;
++		if (priv->ti9x4_addr) {
++			client->addr = priv->ti9x4_addr;
++			reg8_write(client, 0x5d, ov10640_i2c_addr[i] << 1); /* Sensor native I2C address */
++			usleep_range(2000, 2500);
++		}
++		if (priv->max9286_addr) {
++			client->addr = priv->max9271_addr;
++			reg8_write(client, 0x0a, ov10640_i2c_addr[i] << 1); /* Sensor native I2C address */
++			usleep_range(2000, 2500);
++		};
++		client->addr = tmp_addr;
++
++		/* check product ID */
++		reg16_read(client, OV10640_PIDA_REG, &val);
++		pid = val;
++		reg16_read(client, OV10640_PIDB_REG, &val);
++		pid = (pid << 8) | val;
++
++		if (pid == OV10640_PID)
++			break;
++	}
+ 
+ 	if (pid != OV10640_PID) {
+ 		dev_dbg(&client->dev, "Product ID error %x\n", pid);
+@@ -583,6 +600,9 @@ static int ov10640_initialize(struct i2c_client *client)
+ 		goto out;
+ 	}
+ 
++	/* check revision  */
++	reg16_read(client, OV10640_REV_REG, &val);
++	rev = 0x10 | ((val & 0xf) + 0xa);
+ 	/* Read OTP IDs */
+ 	ov10640_otp_id_read(client);
+ 	/* Program wizard registers */
+@@ -655,16 +675,13 @@ static int ov10640_parse_dt(struct device_node *np, struct ov10640_priv *priv)
+ 	if (priv->max9286_addr) {
+ 		client->addr = priv->max9271_addr;			/* Serializer I2C address */
+ 		reg8_write(client, 0x09, tmp_addr << 1);		/* Sensor translated I2C address */
+-		reg8_write(client, 0x0A, OV10640_I2C_ADDR << 1);	/* Sensor native I2C address */
+ 		usleep_range(2000, 2500);				/* wait 2ms */
+ 	};
+-
+ 	if (priv->ti9x4_addr) {
+ 		client->addr = priv->ti9x4_addr;			/* Deserializer I2C address */
+ 		reg8_write(client, 0x4c, (priv->port << 4) | (1 << priv->port)); /* Select RX port number */
+ 		usleep_range(2000, 2500);				/* wait 2ms */
+ 		reg8_write(client, 0x65, tmp_addr << 1);		/* Sensor translated I2C address */
+-		reg8_write(client, 0x5d, OV10640_I2C_ADDR << 1);	/* Sensor native I2C address */
+ 	}
+ 	client->addr = tmp_addr;
+ 
+-- 
+2.7.4
+

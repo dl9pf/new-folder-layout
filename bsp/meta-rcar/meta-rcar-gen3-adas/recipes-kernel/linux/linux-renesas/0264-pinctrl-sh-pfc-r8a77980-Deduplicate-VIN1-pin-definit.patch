@@ -1,0 +1,110 @@
+From 4a51481da796493b420fed4026b6643102997d05 Mon Sep 17 00:00:00 2001
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Date: Wed, 9 Jan 2019 15:57:57 +0100
+Subject: [PATCH 084/211] pinctrl: sh-pfc: r8a77980: Deduplicate VIN1 pin
+ definitions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Use union vin_data12 and VIN_DATA_PIN_GROUP() to reduce redundancies in
+pin definitions for the VIN1 channel.
+
+This reduces kernel size by 144 bytes.
+
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Reviewed-by: Jacopo Mondi <jacopo+renesas@jmondi.org>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+Reviewed-by: Niklas Söderlund <niklas.soderlund+renesas@ragnatech.se>
+(cherry picked from commit 9dd1731306d90f08d726987d3d7e39ba6e23a015)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/pinctrl/sh-pfc/pfc-r8a77980.c | 64 ++++++++++++-----------------------
+ 1 file changed, 21 insertions(+), 43 deletions(-)
+
+diff --git a/drivers/pinctrl/sh-pfc/pfc-r8a77980.c b/drivers/pinctrl/sh-pfc/pfc-r8a77980.c
+index 8bef245..b807b67a 100644
+--- a/drivers/pinctrl/sh-pfc/pfc-r8a77980.c
++++ b/drivers/pinctrl/sh-pfc/pfc-r8a77980.c
+@@ -1970,47 +1970,25 @@ static const unsigned int vin0_clk_mux[] = {
+ };
+ 
+ /* - VIN1 ------------------------------------------------------------------- */
+-static const unsigned int vin1_data8_pins[] = {
+-	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
+-	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
+-	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
+-	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
+-};
+-static const unsigned int vin1_data8_mux[] = {
+-	VI1_DATA0_MARK, VI1_DATA1_MARK,
+-	VI1_DATA2_MARK, VI1_DATA3_MARK,
+-	VI1_DATA4_MARK, VI1_DATA5_MARK,
+-	VI1_DATA6_MARK, VI1_DATA7_MARK,
+-};
+-static const unsigned int vin1_data10_pins[] = {
+-	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
+-	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
+-	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
+-	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
+-	RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
+-};
+-static const unsigned int vin1_data10_mux[] = {
+-	VI1_DATA0_MARK, VI1_DATA1_MARK,
+-	VI1_DATA2_MARK, VI1_DATA3_MARK,
+-	VI1_DATA4_MARK, VI1_DATA5_MARK,
+-	VI1_DATA6_MARK, VI1_DATA7_MARK,
+-	VI1_DATA8_MARK, VI1_DATA9_MARK,
+-};
+-static const unsigned int vin1_data12_pins[] = {
+-	RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
+-	RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
+-	RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
+-	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
+-	RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
+-	RCAR_GP_PIN(3, 14), RCAR_GP_PIN(3, 15),
++static const union vin_data12 vin1_data_pins = {
++	.data12 = {
++		RCAR_GP_PIN(3, 4), RCAR_GP_PIN(3, 5),
++		RCAR_GP_PIN(3, 6), RCAR_GP_PIN(3, 7),
++		RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
++		RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 11),
++		RCAR_GP_PIN(3, 12), RCAR_GP_PIN(3, 13),
++		RCAR_GP_PIN(3, 14), RCAR_GP_PIN(3, 15),
++	},
+ };
+-static const unsigned int vin1_data12_mux[] = {
+-	VI1_DATA0_MARK, VI1_DATA1_MARK,
+-	VI1_DATA2_MARK, VI1_DATA3_MARK,
+-	VI1_DATA4_MARK, VI1_DATA5_MARK,
+-	VI1_DATA6_MARK, VI1_DATA7_MARK,
+-	VI1_DATA8_MARK,  VI1_DATA9_MARK,
+-	VI1_DATA10_MARK, VI1_DATA11_MARK,
++static const union vin_data12 vin1_data_mux = {
++	.data12 = {
++		VI1_DATA0_MARK, VI1_DATA1_MARK,
++		VI1_DATA2_MARK, VI1_DATA3_MARK,
++		VI1_DATA4_MARK, VI1_DATA5_MARK,
++		VI1_DATA6_MARK, VI1_DATA7_MARK,
++		VI1_DATA8_MARK,  VI1_DATA9_MARK,
++		VI1_DATA10_MARK, VI1_DATA11_MARK,
++	},
+ };
+ static const unsigned int vin1_sync_pins[] = {
+ 	/* VI1_VSYNC#, VI1_HSYNC# */
+@@ -2182,9 +2160,9 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
+ 	SH_PFC_PIN_GROUP(vin0_field),
+ 	SH_PFC_PIN_GROUP(vin0_clkenb),
+ 	SH_PFC_PIN_GROUP(vin0_clk),
+-	SH_PFC_PIN_GROUP(vin1_data8),
+-	SH_PFC_PIN_GROUP(vin1_data10),
+-	SH_PFC_PIN_GROUP(vin1_data12),
++	VIN_DATA_PIN_GROUP(vin1_data, 8),
++	VIN_DATA_PIN_GROUP(vin1_data, 10),
++	VIN_DATA_PIN_GROUP(vin1_data, 12),
+ 	SH_PFC_PIN_GROUP(vin1_sync),
+ 	SH_PFC_PIN_GROUP(vin1_field),
+ 	SH_PFC_PIN_GROUP(vin1_clkenb),
+-- 
+2.7.4
+

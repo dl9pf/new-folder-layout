@@ -1,0 +1,109 @@
+From 28077faa11827e1ca7a7245ffd62ee78091b6bd2 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jos=C3=A9=20Bollo?= <jose.bollo@iot.bzh>
+Date: Fri, 16 Aug 2019 13:29:23 +0200
+Subject: [PATCH 6/8] Fix SIGSEGV on disconnections
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Sometime, at start of the system, dbus-daemon was crashing
+because a pending authorisation were reactivating a closed
+connection.
+
+Also, clean unused function.
+
+Signed-off-by: José Bollo <jose.bollo@iot.bzh>
+---
+ bus/check.c      |  5 +++++
+ bus/check.h      |  1 +
+ bus/connection.c | 14 +++-----------
+ bus/connection.h |  3 ---
+ 4 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/bus/check.c b/bus/check.c
+index f3d283f..b73d08b 100644
+--- a/bus/check.c
++++ b/bus/check.c
+@@ -617,3 +617,8 @@ bus_deferred_message_response_received (BusDeferredMessage *deferred_message,
+     }
+ }
+ 
++void
++bus_deferred_message_abort (BusDeferredMessage *deferred_message)
++{
++  deferred_message->response_callback = NULL;
++}
+diff --git a/bus/check.h b/bus/check.h
+index 9c13c18..d718a69 100644
+--- a/bus/check.h
++++ b/bus/check.h
+@@ -93,6 +93,7 @@ void                bus_deferred_message_set_policy_check_info (BusDeferredMessa
+                                                                 const char *privilege);
+ dbus_bool_t         bus_deferred_message_check_message_limits (BusDeferredMessage *deferred_message,
+                                                                DBusError *error);
++void                bus_deferred_message_abort                (BusDeferredMessage *deferred_message);
+ 
+ 
+ #ifdef DBUS_ENABLE_EMBEDDED_TESTS
+diff --git a/bus/connection.c b/bus/connection.c
+index ee93384..b520d57 100644
+--- a/bus/connection.c
++++ b/bus/connection.c
+@@ -47,6 +47,7 @@
+ #define MAX_LOG_COMMAND_LEN 50
+ 
+ static void bus_connection_remove_transactions (DBusConnection *connection);
++static void bus_connection_clear_deferred_messages (DBusConnection *connection);
+ 
+ typedef struct
+ {
+@@ -2821,17 +2822,7 @@ bus_connection_pop_deferred_message (DBusConnection *connection)
+   return NULL;
+ }
+ 
+-dbus_bool_t
+-bus_connection_putback_deferred_message (DBusConnection *connection, BusDeferredMessage *message)
+-{
+-  BusConnectionData *d = BUS_CONNECTION_DATA(connection);
+-  if (_dbus_list_prepend(&d->deferred_messages, message))
+-    {
+-      return TRUE;
+-    }
+-  return FALSE;
+-}
+-
++static
+ void
+ bus_connection_clear_deferred_messages (DBusConnection *connection)
+ {
+@@ -2846,6 +2837,7 @@ bus_connection_clear_deferred_messages (DBusConnection *connection)
+       next = _dbus_list_get_next_link (&d->deferred_messages, link);
+       message = link->data;
+ 
++      bus_deferred_message_abort(message);
+       bus_deferred_message_unref(message);
+       _dbus_list_remove_link(&d->deferred_messages, link);
+ 
+diff --git a/bus/connection.h b/bus/connection.h
+index 97dae96..6af7bf1 100644
+--- a/bus/connection.h
++++ b/bus/connection.h
+@@ -90,15 +90,12 @@ dbus_bool_t         bus_connection_queue_deferred_message   (DBusConnection *con
+                                                              BusDeferredMessage *message,
+                                                              dbus_bool_t prepend);
+ BusDeferredMessage *bus_connection_pop_deferred_message     (DBusConnection *connection);
+-dbus_bool_t         bus_connection_putback_deferred_message (DBusConnection *connection,
+-                                                             BusDeferredMessage *message);
+ void                bus_connection_remove_deferred_message  (DBusConnection *connection,
+                                                              BusDeferredMessage *message);
+ dbus_bool_t         bus_connection_replace_deferred_message (DBusConnection *connection,
+                                                              BusDeferredMessage *oldMessage,
+                                                              BusDeferredMessage *newMessage);
+ void                bus_connection_dispatch_deferred        (DBusConnection *connection);
+-void                bus_connection_clear_deferred_messages  (DBusConnection *connection);
+ 
+ 
+ /* called by signals.c */
+-- 
+2.21.1
+

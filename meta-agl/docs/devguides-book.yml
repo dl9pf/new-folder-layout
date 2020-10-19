@@ -1,0 +1,15 @@
+type: books
+books:
+-
+    id: meta-agl
+    title: AGL Layers
+    description: Meta AGL documentation
+    keywords:
+    author: "AGL"
+    version: master
+    chapters:
+    - url: ../agl-layers-overview.md
+      name: Overview
+    - url: ../meta-agl.md
+      destination: meta-agl.md
+      name: meta-agl

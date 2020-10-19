@@ -1,0 +1,28 @@
+From 03708e8a6c537752528d865964fd37be56453995 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 15 Dec 2017 02:23:49 +0300
+Subject: [PATCH] gpio: pca953x: fix interrupt trigger
+
+The PCA9539 chip has edge sensitive interrupt
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/gpio/gpio-pca953x.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpio/gpio-pca953x.c b/drivers/gpio/gpio-pca953x.c
+index fe731f0..0b3f0d8 100644
+--- a/drivers/gpio/gpio-pca953x.c
++++ b/drivers/gpio/gpio-pca953x.c
+@@ -626,7 +626,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
+ 					client->irq,
+ 					   NULL,
+ 					   pca953x_irq_handler,
+-					   IRQF_TRIGGER_LOW | IRQF_ONESHOT |
++					   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+ 						   IRQF_SHARED,
+ 					   dev_name(&client->dev), chip);
+ 		if (ret) {
+-- 
+1.9.1
+

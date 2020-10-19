@@ -1,0 +1,3 @@
+#!/bin/sh
+
+afm-test /usr/AGL/apps/testwgt/aftest-test.wgt

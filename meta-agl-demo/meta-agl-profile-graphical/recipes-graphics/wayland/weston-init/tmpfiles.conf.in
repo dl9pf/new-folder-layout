@@ -1,0 +1,6 @@
+# This file is distributed to create weston XDG_RUNTIME_DIR (/run/deamon/@WESTONUSER@)
+#
+# See tmpfiles.d(5) for details
+
+d /run/platform/ 0775 root root -
+d /run/platform/@WESTONUSER@ 0770 @WESTONUSER@ @WESTONGROUP@ -

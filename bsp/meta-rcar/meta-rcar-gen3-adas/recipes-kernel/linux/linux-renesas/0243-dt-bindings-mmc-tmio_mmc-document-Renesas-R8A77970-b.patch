@@ -1,0 +1,33 @@
+From d8aa4c14b62f4a1b96677b4e3173a64cf0ced214 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 21 Aug 2018 22:14:12 +0300
+Subject: [PATCH 063/211] dt-bindings: mmc: tmio_mmc: document Renesas R8A77970
+ bindings
+
+Document the R-Car V3M (R8A77970) SoC in the R-Car SDHI bindings -- it's
+the usual R-Car gen3 compatible controller with the internal DMA engine.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Ulf Hansson <ulf.hansson@linaro.org>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit 00c6527b8311e598ad9bfec8415fe96a94fa1b1b)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ Documentation/devicetree/bindings/mmc/tmio_mmc.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/mmc/tmio_mmc.txt b/Documentation/devicetree/bindings/mmc/tmio_mmc.txt
+index c434200..9d0ea43 100644
+--- a/Documentation/devicetree/bindings/mmc/tmio_mmc.txt
++++ b/Documentation/devicetree/bindings/mmc/tmio_mmc.txt
+@@ -27,6 +27,7 @@ Required properties:
+ 		"renesas,sdhi-r8a7795" - SDHI IP on R8A7795 SoC
+ 		"renesas,sdhi-r8a7796" - SDHI IP on R8A7796 SoC
+ 		"renesas,sdhi-r8a77965" - SDHI IP on R8A77965 SoC
++		"renesas,sdhi-r8a77970" - SDHI IP on R8A77970 SoC
+ 		"renesas,sdhi-r8a77980" - SDHI IP on R8A77980 SoC
+ 		"renesas,sdhi-r8a77990" - SDHI IP on R8A77990 SoC
+ 		"renesas,sdhi-r8a77995" - SDHI IP on R8A77995 SoC
+-- 
+2.7.4
+

@@ -1,0 +1,49 @@
+From 0d71cf7d1b39f5a5f65efce898c1953e18a069b5 Mon Sep 17 00:00:00 2001
+From: Konstantin Kozhevnikov <Konstantin.Kozhevnikov@cogentembedded.com>
+Date: Thu, 30 Aug 2018 20:30:13 +0300
+Subject: [PATCH 159/211] media: rcar_imr: Enable LUCE for NV16 format
+
+Enable LUCE for NV16 format
+
+Signed-off-by: Konstantin Kozhevnikov <Konstantin.Kozhevnikov@cogentembedded.com>
+---
+ drivers/media/platform/rcar_imr.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/platform/rcar_imr.c b/drivers/media/platform/rcar_imr.c
+index 607778e..8864b0b 100644
+--- a/drivers/media/platform/rcar_imr.c
++++ b/drivers/media/platform/rcar_imr.c
+@@ -853,14 +853,14 @@ static inline void imr_dl_program_setup(struct imr_ctx *ctx, struct imr_cfg *cfg
+ 		/* ...planar input means planar output; set Y-plane precision */
+ 		if (cflags & IMR_F_Y8) {
+ 			/* ...setup Y-plane processing: YCM=0, SY/DY=xx, SUV/DUV=0 */
+-			*dl++ = IMR_OP_WTS(IMR_CMRCSR, src_y_fmt | src_uv_fmt | dst_y_fmt | dst_uv_fmt | __imr_luce(type));
++			*dl++ = IMR_OP_WTS(IMR_CMRCSR, src_y_fmt | src_uv_fmt | dst_y_fmt | dst_uv_fmt | __imr_luce(type) | __imr_clce(type));
+ 
+ 			/* ...set source/destination strides basing on Y-plane precision */
+ 			*dl++ = IMR_OP_WTS(IMR_DSTR, W << (cflags & IMR_F_Y10 ? 1 : 0));
+ 			*dl++ = IMR_OP_WTS(IMR_SSTR, w << (iflags & IMR_F_Y10 ? 1 : 0));
+ 		} else {
+ 			/* ...setup UV-plane processing only */
+-			*dl++ = IMR_OP_WTS(IMR_CMRCSR, IMR_CMR_YCM | src_uv_fmt | dst_uv_fmt | __imr_clce(type));
++			*dl++ = IMR_OP_WTS(IMR_CMRCSR, IMR_CMR_YCM | src_uv_fmt | dst_uv_fmt | __imr_clce(type) | __imr_luce(type));
+ 
+ 			/* ...set source/destination strides basing on UV-plane precision */
+ 			*dl++ = IMR_OP_WTS(IMR_DSTR, W << (cflags & IMR_F_UV10 ? 1 : 0));
+@@ -919,10 +919,10 @@ static inline void imr_dl_program_setup(struct imr_ctx *ctx, struct imr_cfg *cfg
+ 		cfg->src_pa_ptr[1] = dl++;
+ 
+ 		/* ...select correction mode */
+-		*dl++ = IMR_OP_WTS(IMR_CMRCSR, IMR_CMR_YCM | __imr_clce(type));
++		*dl++ = IMR_OP_WTS(IMR_CMRCSR, IMR_CMR_YCM | __imr_clce(type) | __imr_luce(type));
+ 
+ 		/* ...luminance correction bit must be cleared (if it was set) */
+-		*dl++ = IMR_OP_WTS(IMR_CMRCCR, IMR_CMR_LUCE);
++		//*dl++ = IMR_OP_WTS(IMR_CMRCCR, IMR_CMR_LUCE);
+ 
+ 		/* ...draw triangles */
+ 		*dl++ = IMR_OP_GOSUB;
+-- 
+2.7.4
+

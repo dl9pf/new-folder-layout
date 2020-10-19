@@ -1,0 +1,53 @@
+From 3e66b97221440b17a184feb48692dce7e0561cac Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Wed, 8 Mar 2017 16:30:01 -0800
+Subject: [PATCH] plugin: ogg: fix chucksize issue
+
+There are some OGG files that have metadata chucks that go over the
+hardcoded 10 * 4096 size due to album art. This patchset just parses
+each chuck and continues till it runs out of valid chunks.
+
+Signed-off-by: Matt Ranostay <matt.ranostay@konsulko.com>
+---
+ src/plugins/ogg/ogg.c | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/plugins/ogg/ogg.c b/src/plugins/ogg/ogg.c
+index 1c0818e..c94dc38 100644
+--- a/src/plugins/ogg/ogg.c
++++ b/src/plugins/ogg/ogg.c
+@@ -47,8 +47,6 @@
+ int CHUNKSIZE = 4096;
+ #endif
+ 
+-#define MAX_CHUNKS_PER_PAGE 10
+-
+ struct stream {
+     struct lms_stream base;
+     int serial;
+@@ -122,10 +120,8 @@ _set_lms_info(struct lms_string_size *info, const char *tag)
+ 
+ static bool _ogg_read_page(FILE *fp, ogg_sync_state *osync, ogg_page *page)
+ {
+-    int i;
+-
+-    for (i = 0; i < MAX_CHUNKS_PER_PAGE && ogg_sync_pageout(osync, page) != 1;
+-         i++) {
++    while(ogg_sync_pageout(osync, page) != 1)
++    {
+         lms_ogg_buffer_t buffer = lms_get_ogg_sync_buffer(osync, CHUNKSIZE);
+         int bytes = fread(buffer, 1, CHUNKSIZE, fp);
+ 
+@@ -136,9 +132,6 @@ static bool _ogg_read_page(FILE *fp, ogg_sync_state *osync, ogg_page *page)
+         ogg_sync_wrote(osync, bytes);
+     }
+ 
+-    if (i > MAX_CHUNKS_PER_PAGE)
+-        return false;
+-
+     return true;
+ }
+ 
+-- 
+2.7.4
+

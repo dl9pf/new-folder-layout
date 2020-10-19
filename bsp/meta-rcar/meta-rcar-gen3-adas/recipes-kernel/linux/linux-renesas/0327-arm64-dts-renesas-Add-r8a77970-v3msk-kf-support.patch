@@ -1,0 +1,39 @@
+From 960431f5ff91366a3625d4696d83617e3d8b9419 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:28:40 +0300
+Subject: [PATCH 147/211] arm64: dts: renesas: Add r8a77970-v3msk-kf support
+
+This adds r8a77970-v3msk-kf device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile              | 1 +
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk-kf.dts | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 3e52401..98d1479 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -37,5 +37,6 @@ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-eagle-function.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-eagle.dtb r8a77970-es1-eagle-function.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-v3msk.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-view.dtb r8a77970-es1-v3msk-view.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-kf.dtb r8a77970-es1-v3msk-kf.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-kf.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-kf.dts
+index 29ae871..8c001a5 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-kf.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-kf.dts
+@@ -10,6 +10,7 @@
+  */
+ 
+ #include "r8a77970-v3msk.dts"
++#include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+ 	model = "Renesas V3MSK Kingfisher board based on r8a7797";
+-- 
+2.7.4
+

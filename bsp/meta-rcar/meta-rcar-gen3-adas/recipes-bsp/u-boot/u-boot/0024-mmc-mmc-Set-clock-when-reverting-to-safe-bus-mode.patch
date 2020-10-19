@@ -1,0 +1,29 @@
+From d299ca847ab26f76fcd49eb14aecff9ea37b1bc8 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 25 Oct 2019 01:06:46 +0300
+Subject: [PATCH] mmc: mmc: Set clock when reverting to safe bus mode
+
+Set MMC clock when reverting to safe bus mode and speed
+in case current MMC mode fails. Otherwise, trying out
+the other modes may fail as well.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/mmc/mmc.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/mmc/mmc.c b/drivers/mmc/mmc.c
+index 0cecb10..b3f29ee 100644
+--- a/drivers/mmc/mmc.c
++++ b/drivers/mmc/mmc.c
+@@ -2033,6 +2033,7 @@ error:
+ 			mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL,
+ 				   EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_1);
+ 			mmc_select_mode(mmc, MMC_LEGACY);
++			mmc_set_clock(mmc, mmc->tran_speed, MMC_CLK_ENABLE);
+ 			mmc_set_bus_width(mmc, 1);
+ 		}
+ 	}
+-- 
+2.7.4
+

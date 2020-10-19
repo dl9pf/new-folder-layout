@@ -1,0 +1,37 @@
+From 02c9e06095279dff4a1a91b1aacfc21c184c6c53 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Fri, 5 Oct 2018 00:03:13 +0300
+Subject: [PATCH 067/211] thermal: rcar_thermal: add R8A77970 support
+
+Add the R-Car V3M (R8A77970) SoC support to the R-Car gen2 thermal driver.
+The hardware is the same as in the R-Car D3 (R8A77995) plus the CIVM status
+register (we don't use).
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+Signed-off-by: Eduardo Valentin <edubezval@gmail.com>
+(cherry picked from commit 92ca366e9b835ada0bfe3c663da91ae44d7e8184)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/thermal/rcar_thermal.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/thermal/rcar_thermal.c b/drivers/thermal/rcar_thermal.c
+index e77e6307..e3fd253 100644
+--- a/drivers/thermal/rcar_thermal.c
++++ b/drivers/thermal/rcar_thermal.c
+@@ -125,6 +125,10 @@ static const struct of_device_id rcar_thermal_dt_ids[] = {
+ 		 .data = &rcar_gen2_thermal,
+ 	},
+ 	{
++		.compatible = "renesas,thermal-r8a77970",
++		.data = &rcar_gen3_thermal,
++	},
++	{
+ 		.compatible = "renesas,thermal-r8a77995",
+ 		.data = &rcar_gen3_thermal,
+ 	},
+-- 
+2.7.4
+

@@ -1,0 +1,374 @@
+From 918dd4d7f4cc9af593617a0bef51bfc531b74b53 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 13 Nov 2018 18:11:49 +0300
+Subject: [PATCH 176/211] media: platform: vsp1: Extend DRM-VSP1 interface
+
+- Extend DRM-VSP1 interface
+- Add alpha-plane support for VSP1
+
+This is based on the original "extend DRM-VSP1 interface" patch by
+Konstantin Kozhevnikov <Konstantin.Kozhevnikov@cogentembedded.com>.
+
+The only changes are the following:
+ * in vsp1_du_setup_lif() conversion back to ARGB is forced
+   on the pipe's output (pipe->output) instead of the first
+   one (vsp1->wpf[0]);
+ * "ckey", "ckey_set0", and "ckey_set1" properties are used only
+   when the conflicting "colorkey" property is disabled.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/media/platform/vsp1/vsp1_brx.c  | 17 ++++++++++++++++-
+ drivers/media/platform/vsp1/vsp1_dl.c   |  5 +++++
+ drivers/media/platform/vsp1/vsp1_drm.c  | 32 ++++++++++++++++++++++++++++++--
+ drivers/media/platform/vsp1/vsp1_lif.c  |  2 +-
+ drivers/media/platform/vsp1/vsp1_pipe.c |  4 ++++
+ drivers/media/platform/vsp1/vsp1_rpf.c  | 26 +++++++++++++++++++++++---
+ drivers/media/platform/vsp1/vsp1_rwpf.c |  1 +
+ drivers/media/platform/vsp1/vsp1_rwpf.h |  6 ++++++
+ drivers/media/platform/vsp1/vsp1_wpf.c  |  4 ++++
+ include/media/vsp1.h                    |  6 ++++++
+ 10 files changed, 96 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/platform/vsp1/vsp1_brx.c b/drivers/media/platform/vsp1/vsp1_brx.c
+index 942ff12..7e82821 100644
+--- a/drivers/media/platform/vsp1/vsp1_brx.c
++++ b/drivers/media/platform/vsp1/vsp1_brx.c
+@@ -392,6 +392,20 @@ static void brx_configure_stream(struct vsp1_entity *entity,
+ 			ctrl |= VI6_BRU_CTRL_SRCSEL_BRUIN(i);
+ 
+ 		vsp1_brx_write(brx, dlb, VI6_BRU_CTRL(i), ctrl);
++		dev_dbg(entity->vsp1->dev, "brx#%d: ctrl=%X\n", i, ctrl);
++
++		/* ...set blending formula as defined by the input RPF */
++		if (brx->inputs[i].rpf) {
++			if (brx->inputs[i].rpf->blend) {
++				vsp1_brx_write(brx, dlb, VI6_BRU_BLD(i),
++					       brx->inputs[i].rpf->blend);
++				dev_dbg(entity->vsp1->dev,
++					"brx#%d(#%d): setup blending formula: %X\n",
++					i, brx->inputs[i].rpf->entity.index,
++					brx->inputs[i].rpf->blend);
++				continue;
++			}
++		}
+ 
+ 		/*
+ 		 * Harcode the blending formula to
+@@ -458,7 +472,8 @@ struct vsp1_brx *vsp1_brx_create(struct vsp1_device *vsp1,
+ 	v4l2_ctrl_new_std(&brx->ctrls, &brx_ctrl_ops, V4L2_CID_BG_COLOR,
+ 			  0, 0xffffff, 1, 0);
+ 
+-	brx->bgcolor = 0;
++	/* ...for YUV, set black background */
++	brx->bgcolor = 0x00800080;
+ 
+ 	brx->entity.subdev.ctrl_handler = &brx->ctrls;
+ 
+diff --git a/drivers/media/platform/vsp1/vsp1_dl.c b/drivers/media/platform/vsp1/vsp1_dl.c
+index 48542854..f501307 100644
+--- a/drivers/media/platform/vsp1/vsp1_dl.c
++++ b/drivers/media/platform/vsp1/vsp1_dl.c
+@@ -373,6 +373,7 @@ void vsp1_dl_set_addr_auto_fld(struct vsp1_dl_body *dlb,
+ 	u32 y_top_index, y_bot_index;
+ 	u32 u_top_index, u_bot_index;
+ 	u32 v_top_index, v_bot_index;
++	u32 alpha_index;
+ 	dma_addr_t y_top_addr, y_bot_addr;
+ 	dma_addr_t u_top_addr, u_bot_addr;
+ 	dma_addr_t v_top_addr, v_bot_addr;
+@@ -388,6 +389,7 @@ void vsp1_dl_set_addr_auto_fld(struct vsp1_dl_body *dlb,
+ 	u_bot_index = rpf->entity.index * 8 + 3;
+ 	v_top_index = rpf->entity.index * 8 + 4;
+ 	v_bot_index = rpf->entity.index * 8 + 5;
++	alpha_index = rpf->entity.index * 8 + 6;
+ 
+ 	switch (rpf->fmtinfo->fourcc) {
+ 	case V4L2_PIX_FMT_YUV420M:
+@@ -436,6 +438,9 @@ void vsp1_dl_set_addr_auto_fld(struct vsp1_dl_body *dlb,
+ 	dlb->src_dst_addr[u_bot_index].addr = u_bot_addr;
+ 	dlb->src_dst_addr[v_top_index].addr = v_top_addr;
+ 	dlb->src_dst_addr[v_bot_index].addr = v_bot_addr;
++
++	/* ...set alpha-plane address as needed */
++	dlb->src_dst_addr[alpha_index].addr = rpf->mem.alpha;
+ }
+ 
+ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
+diff --git a/drivers/media/platform/vsp1/vsp1_drm.c b/drivers/media/platform/vsp1/vsp1_drm.c
+index 68364d4..27aeabd 100644
+--- a/drivers/media/platform/vsp1/vsp1_drm.c
++++ b/drivers/media/platform/vsp1/vsp1_drm.c
+@@ -7,6 +7,7 @@
+  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
+  */
+ 
++//#define DEBUG
+ #include <linux/device.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/slab.h>
+@@ -207,7 +208,12 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
+ 		__func__, format.format.width, format.format.height,
+ 		format.format.code, rpf->entity.index);
+ 
++#if 0
+ 	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
++#else
++	/* ...always blend in YUV colorspace; apply conversion as needed */
++	format.format.code = MEDIA_BUS_FMT_AYUV8_1X32;
++#endif
+ 
+ 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
+ 			       &format);
+@@ -512,7 +518,14 @@ static int vsp1_du_pipeline_setup_output(struct vsp1_device *vsp1,
+ 	format.pad = RWPF_PAD_SINK;
+ 	format.format.width = drm_pipe->width;
+ 	format.format.height = drm_pipe->height;
++#if 0
+ 	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
++#else
++	/* ...always blend in YUV colorspace;
++	 * apply conversion as needed
++	 */
++	format.format.code = MEDIA_BUS_FMT_AYUV8_1X32;
++#endif
+ 	format.format.field = V4L2_FIELD_NONE;
+ 
+ 	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt, NULL,
+@@ -525,6 +538,13 @@ static int vsp1_du_pipeline_setup_output(struct vsp1_device *vsp1,
+ 		format.format.code, pipe->output->entity.index);
+ 
+ 	format.pad = RWPF_PAD_SOURCE;
++	/* ...force conversion back to ARGB at the output */
++	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
++	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt, NULL,
++			       &format);
++	if (ret < 0)
++		return ret;
++
+ 	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, get_fmt, NULL,
+ 			       &format);
+ 	if (ret < 0)
+@@ -846,12 +866,14 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
+ 	}
+ 
+ 	dev_dbg(vsp1->dev,
+-		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u dma { %pad, %pad, %pad } zpos %u\n",
++		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u "
++		"dma { %pad, %pad, %pad } zpos %u, alpha %pad, ckey %x/%x/%x\n",
+ 		__func__, rpf_index,
+ 		cfg->src.left, cfg->src.top, cfg->src.width, cfg->src.height,
+ 		cfg->dst.left, cfg->dst.top, cfg->dst.width, cfg->dst.height,
+ 		cfg->pixelformat, cfg->pitch, &cfg->mem[0], &cfg->mem[1],
+-		&cfg->mem[2], cfg->zpos);
++		&cfg->mem[2], cfg->zpos, &cfg->alpha_mem, cfg->ckey,
++		cfg->ckey_set0, cfg->ckey_set1);
+ 
+ 	/*
+ 	 * Store the format, stride, memory buffer address, crop and compose
+@@ -879,6 +901,11 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
+ 	rpf->colorkey_en = cfg->colorkey_en;
+ 	rpf->colorkey_alpha = cfg->colorkey_alpha;
+ 	rpf->interlaced = cfg->interlaced;
++	rpf->alpha_pitch = cfg->alpha_pitch;
++	rpf->ckey = cfg->ckey;
++	rpf->ckey_set0 = cfg->ckey_set0;
++	rpf->ckey_set1 = cfg->ckey_set1;
++	rpf->blend = cfg->blend;
+ 
+ 	if ((vsp1->ths_quirks & VSP1_AUTO_FLD_NOT_SUPPORT) &&
+ 	    rpf->interlaced) {
+@@ -890,6 +917,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
+ 	rpf->mem.addr[0] = cfg->mem[0];
+ 	rpf->mem.addr[1] = cfg->mem[1];
+ 	rpf->mem.addr[2] = cfg->mem[2];
++	rpf->mem.alpha = cfg->alpha_mem;
+ 
+ 	vsp1->drm->inputs[rpf_index].crop = cfg->src;
+ 	vsp1->drm->inputs[rpf_index].compose = cfg->dst;
+diff --git a/drivers/media/platform/vsp1/vsp1_lif.c b/drivers/media/platform/vsp1/vsp1_lif.c
+index eae5e6a..86dbaa4 100644
+--- a/drivers/media/platform/vsp1/vsp1_lif.c
++++ b/drivers/media/platform/vsp1/vsp1_lif.c
+@@ -116,7 +116,7 @@ static void lif_configure_stream(struct vsp1_entity *entity,
+ 
+ 	vsp1_lif_write(lif, dlb, VI6_LIF_CTRL,
+ 			(obth << VI6_LIF_CTRL_OBTH_SHIFT) |
+-			(format->code == 0 ? VI6_LIF_CTRL_CFMT : 0) |
++			(format->code != MEDIA_BUS_FMT_ARGB8888_1X32 ? VI6_LIF_CTRL_CFMT : 0) |
+ 			VI6_LIF_CTRL_REQSEL | VI6_LIF_CTRL_LIF_EN);
+ 
+ 	/*
+diff --git a/drivers/media/platform/vsp1/vsp1_pipe.c b/drivers/media/platform/vsp1/vsp1_pipe.c
+index 17b9812..5d23cfd 100644
+--- a/drivers/media/platform/vsp1/vsp1_pipe.c
++++ b/drivers/media/platform/vsp1/vsp1_pipe.c
+@@ -141,6 +141,10 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
+ 	  VI6_FMT_Y_U_V_444, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+ 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+ 	  3, { 8, 8, 8 }, false, true, 1, 1, false },
++	{ V4L2_PIX_FMT_GREY, MEDIA_BUS_FMT_Y8_1X8,
++	  /*VI6_FMT_Y_U_V_444*/0xDEAD, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
++	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
++	  1, { 8, 0, 0 }, false, false, 0, 0, false },
+ };
+ 
+ /**
+diff --git a/drivers/media/platform/vsp1/vsp1_rpf.c b/drivers/media/platform/vsp1/vsp1_rpf.c
+index bb24a42..9875b0b 100644
+--- a/drivers/media/platform/vsp1/vsp1_rpf.c
++++ b/drivers/media/platform/vsp1/vsp1_rpf.c
+@@ -7,6 +7,7 @@
+  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
+  */
+ 
++//#define DEBUG
+ #include <linux/device.h>
+ 
+ #include <media/v4l2-subdev.h>
+@@ -89,8 +90,10 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
+ 	if (sink_format->code != source_format->code)
+ 		infmt |= VI6_RPF_INFMT_CSC;
+ 
++	dev_dbg(entity->vsp1->dev, "rpf#%d: infmt=%x (csc=%d)\n",
++		rpf->entity.index, infmt, !!(infmt & VI6_RPF_INFMT_CSC));
+ 	vsp1_rpf_write(rpf, dlb, VI6_RPF_INFMT, infmt);
+-	vsp1_rpf_write(rpf, dlb, VI6_RPF_DSWAP, fmtinfo->swap);
++	vsp1_rpf_write(rpf, dlb, VI6_RPF_DSWAP, fmtinfo->swap | 0xF00);
+ 
+ 	/* Output location */
+ 	if (pipe->brx) {
+@@ -113,6 +116,17 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
+ 			       (left << VI6_RPF_LOC_HCOORD_SHIFT) |
+ 			       (top << VI6_RPF_LOC_VCOORD_SHIFT));
+ 
++	// ...setup alpha-plane as required
++	if (rpf->mem.alpha) {
++		vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ADDR_AI, rpf->mem.alpha);
++		vsp1_rpf_write(rpf, dlb, VI6_RPF_ALPH_SEL, VI6_RPF_ALPH_SEL_ASEL_8B_PLANE);
++		vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_ASTRIDE, rpf->alpha_pitch);
++		dev_dbg(entity->vsp1->dev,
++			"rpf#%d: setup alpha-plane: buffer=%pad, stride=%u\n",
++			rpf->entity.index, &rpf->mem.alpha, rpf->alpha_pitch);
++		goto out;
++	}
++
+ 	/*
+ 	 * On Gen2 use the alpha channel (extended to 8 bits) when available or
+ 	 * a fixed alpha value set through the V4L2_CID_ALPHA_COMPONENT control
+@@ -168,7 +182,9 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
+ 	if (entity->vsp1->info->gen == 3) {
+ 		u32 mult;
+ 
+-		if (fmtinfo->alpha &&
++		dev_dbg(entity->vsp1->dev, "rpf#%d: alpha=%x, fourcc=%x\n",
++			rpf->entity.index, fmtinfo->alpha, fmtinfo->fourcc);
++		if (0 && fmtinfo->alpha &&
+ 		    fmtinfo->fourcc != V4L2_PIX_FMT_ARGB555) {
+ 			/*
+ 			 * When the input contains an alpha channel enable the
+@@ -199,6 +215,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
+ 		rpf->mult_alpha = mult;
+ 	}
+ 
++out:
+ 	vsp1_rpf_write(rpf, dlb, VI6_RPF_MSK_CTRL, 0);
+ 
+ 	if (rpf->colorkey_en) {
+@@ -207,7 +224,10 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
+ 		vsp1_rpf_write(rpf, dlb, VI6_RPF_CKEY_CTRL,
+ 			       VI6_RPF_CKEY_CTRL_SAPE0);
+ 	} else {
+-		vsp1_rpf_write(rpf, dlb, VI6_RPF_CKEY_CTRL, 0);
++		/* ...set up color keying */
++		vsp1_rpf_write(rpf, dlb, VI6_RPF_CKEY_CTRL, rpf->ckey);
++		vsp1_rpf_write(rpf, dlb, VI6_RPF_CKEY_SET0, rpf->ckey_set0);
++		vsp1_rpf_write(rpf, dlb, VI6_RPF_CKEY_SET1, rpf->ckey_set1);
+ 	}
+ }
+ 
+diff --git a/drivers/media/platform/vsp1/vsp1_rwpf.c b/drivers/media/platform/vsp1/vsp1_rwpf.c
+index 049bdd9..f763008 100644
+--- a/drivers/media/platform/vsp1/vsp1_rwpf.c
++++ b/drivers/media/platform/vsp1/vsp1_rwpf.c
+@@ -7,6 +7,7 @@
+  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
+  */
+ 
++//#define DEBUG
+ #include <media/v4l2-subdev.h>
+ 
+ #include "vsp1.h"
+diff --git a/drivers/media/platform/vsp1/vsp1_rwpf.h b/drivers/media/platform/vsp1/vsp1_rwpf.h
+index 58d882e..793f27d 100644
+--- a/drivers/media/platform/vsp1/vsp1_rwpf.h
++++ b/drivers/media/platform/vsp1/vsp1_rwpf.h
+@@ -28,6 +28,7 @@ struct vsp1_video;
+ 
+ struct vsp1_rwpf_memory {
+ 	dma_addr_t addr[3];
++	dma_addr_t alpha;
+ };
+ 
+ struct vsp1_rwpf {
+@@ -71,6 +72,11 @@ struct vsp1_rwpf {
+ 
+ 	int write_back;
+ 	dma_addr_t buf_addr[3];
++	unsigned int alpha_pitch;
++	unsigned int ckey;
++	unsigned int ckey_set0;
++	unsigned int ckey_set1;
++	unsigned int blend;
+ };
+ 
+ static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)
+diff --git a/drivers/media/platform/vsp1/vsp1_wpf.c b/drivers/media/platform/vsp1/vsp1_wpf.c
+index 75f9636..c6edeb4 100644
+--- a/drivers/media/platform/vsp1/vsp1_wpf.c
++++ b/drivers/media/platform/vsp1/vsp1_wpf.c
+@@ -7,6 +7,7 @@
+  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
+  */
+ 
++//#define DEBUG
+ #include <linux/device.h>
+ 
+ #include <media/v4l2-subdev.h>
+@@ -245,6 +246,9 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
+ 	u32 outfmt = 0;
+ 	u32 srcrpf = 0;
+ 
++	dev_dbg(vsp1->dev, "wpf#%d: outfmt=%x (csc=%d)\n",
++		wpf->entity.index, outfmt, !!(outfmt & VI6_WPF_OUTFMT_CSC));
++
+ 	if (pipe->vmute_flag)
+ 		return;
+ 
+diff --git a/include/media/vsp1.h b/include/media/vsp1.h
+index 08d02de..bc14dd3 100644
+--- a/include/media/vsp1.h
++++ b/include/media/vsp1.h
+@@ -63,6 +63,11 @@ struct vsp1_du_atomic_config {
+ 	u32 pixelformat;
+ 	unsigned int pitch;
+ 	dma_addr_t mem[3];
++	dma_addr_t alpha_mem;
++	unsigned int alpha_pitch;
++	unsigned int ckey;
++	unsigned int ckey_set0;
++	unsigned int ckey_set1;
+ 	struct v4l2_rect src;
+ 	struct v4l2_rect dst;
+ 	unsigned int alpha;
+@@ -71,6 +76,7 @@ struct vsp1_du_atomic_config {
+ 	u32 colorkey_alpha;
+ 	bool colorkey_en;
+ 	bool interlaced;
++	unsigned int blend;
+ };
+ 
+ /**
+-- 
+2.7.4
+

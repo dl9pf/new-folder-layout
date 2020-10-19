@@ -1,0 +1,12 @@
+[Service]
+Type=notify
+Environment="XDG_RUNTIME_DIR=@XDG_RUNTIME_DIR@"
+# Note that clearing PAMName (thus not having PAMName=login) disables
+# logind support for the session, which allows setting XDG_RUNTIME_DIR
+# to something other than /run/user/% (as is done above).
+# Without systemd-logind support, weston needs to be patched to allow
+# its direct launcher to work for non-root users in this scenario.
+PAMName=
+ExecStart=
+ExecStart=@WESTONSTART@
+SmackProcessLabel=System::Weston

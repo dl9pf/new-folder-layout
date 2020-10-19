@@ -1,0 +1,67 @@
+From bfdc3bf828002a0550b8183a67879fc3a9246795 Mon Sep 17 00:00:00 2001
+From: Nikita Yushchenko <nikita.yoush@cogentembedded.com>
+Date: Thu, 6 Feb 2020 23:13:19 +0300
+Subject: [PATCH] rcar_canfd: fix one more interrupt storm window
+
+When more than one rcar_canfd channel works simultaneously, same irq and
+same irq handler, rcar_canfd_global_interrupt(), is shared between them
+all. Entry into this handler while Rx interrupt for one channel is masked
+per NAPI, becomes a very frequent event.
+
+Code makes an attempt to alter interrupt mask only when NAPI suggests to
+do so. However that code is racy, and with frequent call to handler with
+masked interrupt, this race actually happens.
+
+The race window is:
+- after code in napi_complete_done() clears NAPIF_STATE_SCHED flag inside
+  NAPI state, but before napi_complete_done() returns true, side-called
+  interrupt handler detects pending (although masked) Rx, calls
+  napi_schedule_prep(), and NAPIF_STATE_SCHED flag is re-set,
+- then napi_complete_done() returns true and Rx interrupt gets unmasked,
+- then unmasked interrupt fires, but this time NAPIF_STATE_SCHED flag
+  is already set, so napi_schedule_prep() returns false,
+- which causes return from interrupt handler without touching interrupt,
+  and IRQ storm is entered.
+
+To fix it, active Rx interrupt must be UNCONDITIONALLY masked inside the
+handler. Failing to mask active interrupt immediately results into IRQ
+storm, regardless of NAPI state or whatever other conditions.
+
+Once napi_schedule_prep() is called after this unconditional masking, future
+call to NAPI poller and evential interrupt unmask is guaranteed.
+
+Signed-off-by: Nikita Yushchenko <nikita.yoush@cogentembedded.com>
+---
+ drivers/net/can/rcar/rcar_canfd.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/can/rcar/rcar_canfd.c b/drivers/net/can/rcar/rcar_canfd.c
+index 0017ab9..056a5f6 100644
+--- a/drivers/net/can/rcar/rcar_canfd.c
++++ b/drivers/net/can/rcar/rcar_canfd.c
+@@ -1101,13 +1101,16 @@ static irqreturn_t rcar_canfd_global_interrupt(int irq, void *dev_id)
+ 		/* Handle Rx interrupts */
+ 		sts = rcar_canfd_read(priv->base, RCANFD_RFSTS(ridx));
+ 		if (likely(sts & RCANFD_RFSTS_RFIF)) {
+-			if (napi_schedule_prep(&priv->napi)) {
+-				/* Disable Rx FIFO interrupts */
+-				rcar_canfd_clear_bit(priv->base,
+-						     RCANFD_RFCC(ridx),
+-						     RCANFD_RFCC_RFIE);
++			/* If Rx FIFO interrupt is there, it must be masked
++			 * UNCONDITIONALLY, otherwise IRQ storm will start */
++			rcar_canfd_clear_bit(priv->base,
++					     RCANFD_RFCC(ridx),
++					     RCANFD_RFCC_RFIE);
++			/* The above calls ensure that napi polling will be
++			 * called sometime AFTER the above call, which
++			 * eventually ensures interrupt re-enable */
++			if (napi_schedule_prep(&priv->napi))
+ 				__napi_schedule(&priv->napi);
+-			}
+ 		}
+ 	}
+ 	return IRQ_HANDLED;
+-- 
+2.7.4
+

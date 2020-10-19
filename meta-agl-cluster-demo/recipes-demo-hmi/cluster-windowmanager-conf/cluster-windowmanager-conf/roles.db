@@ -1,0 +1,34 @@
+{
+    "roles":[
+    {
+        "category": "homescreen",
+        "role": "homescreen",
+        "area": "fullscreen",
+        "layer": "homescreen",
+    },
+    {
+        "category": "debug",
+        "role": "receiver | fallback",
+        "area": "normal.full",
+        "layer": "apps",
+    },
+    {
+        "category": "restriction",
+        "role": "restriction",
+        "area": "restriction.normal",
+        "layer": "restriction",
+    },
+    {
+        "category": "pop_up",
+        "role": "on_screen | on_screen_phone",
+        "area": "on_screen",
+        "layer": "on_screen",
+    },
+    {
+        "category": "system_alert",
+        "role": "system_alert",
+        "area": "on_screen",
+        "layer": "on_screen",
+    }
+    ]
+}

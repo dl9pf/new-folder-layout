@@ -1,0 +1,2 @@
+# Defaults for VScom USB-CAN Plus @ 500 Kb/s CAN rate
+SLCAND_OPTS="-o -s6 -t hw -S 3000000"

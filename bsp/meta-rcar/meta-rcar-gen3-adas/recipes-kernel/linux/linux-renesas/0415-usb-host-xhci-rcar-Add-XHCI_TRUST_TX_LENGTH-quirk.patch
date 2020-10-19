@@ -1,0 +1,37 @@
+From 1e82360f4dd318a8ca4bd2e0d0b75a1780c158d7 Mon Sep 17 00:00:00 2001
+From: Yasushi Asano <yasano@jp.adit-jv.com>
+Date: Mon, 18 Feb 2019 11:26:34 +0100
+Subject: [PATCH 2/6] usb: host: xhci-rcar: Add XHCI_TRUST_TX_LENGTH quirk
+
+When plugging BUFFALO LUA4-U3-AGT USB3.0 to Gigabit Ethernet LAN
+Adapter, warning messages filled up dmesg.
+
+[  101.098287] xhci-hcd ee000000.usb: WARN Successful completion on short TX for slot 1 ep 4: needs XHCI_TRUST_TX_LENGTH quirk?
+[  101.117463] xhci-hcd ee000000.usb: WARN Successful completion on short TX for slot 1 ep 4: needs XHCI_TRUST_TX_LENGTH quirk?
+[  101.136513] xhci-hcd ee000000.usb: WARN Successful completion on short TX for slot 1 ep 4: needs XHCI_TRUST_TX_LENGTH quirk?
+
+Adding the XHCI_TRUST_TX_LENGTH quirk resolves the issue.
+
+Signed-off-by: Yasushi Asano <yasano@jp.adit-jv.com>
+Signed-off-by: Spyridon Papageorgiou <spapageorgiou@de.adit-jv.com>
+Acked-by: Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ drivers/usb/host/xhci-rcar.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/usb/host/xhci-rcar.c b/drivers/usb/host/xhci-rcar.c
+index b05c937..1f31f84 100644
+--- a/drivers/usb/host/xhci-rcar.c
++++ b/drivers/usb/host/xhci-rcar.c
+@@ -264,6 +264,7 @@ int xhci_rcar_init_quirk(struct usb_hcd *hcd)
+ 		return -ETIMEDOUT;
+ 
+ 	xhci->quirks |= XHCI_SLOW_SUSPEND;
++	xhci->quirks |= XHCI_TRUST_TX_LENGTH;
+ 	return xhci_rcar_download_firmware(hcd);
+ }
+ 
+-- 
+2.7.4
+

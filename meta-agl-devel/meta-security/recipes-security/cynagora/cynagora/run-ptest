@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# test access to cynagora server
+cynagora-admin list > /dev/null

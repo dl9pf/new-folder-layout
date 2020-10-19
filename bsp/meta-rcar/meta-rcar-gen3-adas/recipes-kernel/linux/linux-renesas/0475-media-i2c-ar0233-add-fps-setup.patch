@@ -1,0 +1,127 @@
+From ec6c2c03f8c59cada4f8b0409b51534c54da282a Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 13 Feb 2020 10:02:20 +0300
+Subject: [PATCH] media: i2c: ar0233: add fps setup
+
+This add FPS setup for AR0233/AR0220
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0233.c | 59 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0233.c b/drivers/media/i2c/soc_camera/ar0233.c
+index cdd2d8a..fbff49b 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.c
++++ b/drivers/media/i2c/soc_camera/ar0233.c
+@@ -55,6 +55,8 @@ struct ar0233_priv {
+ 	struct v4l2_ctrl_handler	hdl;
+ 	struct media_pad		pad;
+ 	struct v4l2_rect		rect;
++	int				fps_denominator;
++	int				fps_numerator;
+ 	int				init_complete;
+ 	u8				id[6];
+ 	bool				emb_enable;
+@@ -63,6 +65,7 @@ struct ar0233_priv {
+ 	int				ti9x3_addr;
+ 	int				port;
+ 	int				trigger;
++	int				vts;
+ };
+ 
+ static int extclk = 23;
+@@ -271,6 +274,53 @@ static int ar0233_g_mbus_config(struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
++static int ar0233_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0233_priv *priv = to_ar0233(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++
++	memset(cp, 0, sizeof(struct v4l2_captureparm));
++	cp->capability = V4L2_CAP_TIMEPERFRAME;
++	cp->timeperframe.numerator = priv->fps_numerator;
++	cp->timeperframe.denominator = priv->fps_denominator;
++
++	return 0;
++}
++
++static int ar0233_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0233_priv *priv = to_ar0233(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++	int ret = 0;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		switch (chipid) {
++		case AR0220_PID:
++			priv->vts = (AR0233_SENSOR_HEIGHT + 794) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator; break;
++		case AR0233_PID:
++			priv->vts = (AR0233_SENSOR_HEIGHT + 100) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator; break;
++		};
++
++		ret = reg16_write16(client, 0x300A, priv->vts);		/* FRAME_LENGTH_LINES_ */
++
++		priv->fps_numerator = cp->timeperframe.numerator;
++		priv->fps_denominator = cp->timeperframe.denominator;
++	}
++
++	return ret;
++}
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int ar0233_g_register(struct v4l2_subdev *sd,
+ 			    struct v4l2_dbg_register *reg)
+@@ -335,7 +385,8 @@ static int ar0233_s_ctrl(struct v4l2_ctrl *ctrl)
+ 		break;
+ 	case V4L2_CID_EXPOSURE:
+ 		/* T1 exposure */
+-		ret = reg16_write16(client, 0x3012, ctrl->val);
++		if (ctrl->val < 0x600 * 30 * priv->fps_numerator / priv->fps_denominator)
++			ret = reg16_write16(client, 0x3012, ctrl->val);
+ 		break;
+ 	case V4L2_CID_HFLIP:
+ 		ret = reg16_read16(client, 0x3040, &val);
+@@ -374,6 +425,8 @@ static const struct v4l2_ctrl_ops ar0233_ctrl_ops = {
+ static struct v4l2_subdev_video_ops ar0233_video_ops = {
+ 	.s_stream	= ar0233_s_stream,
+ 	.g_mbus_config	= ar0233_g_mbus_config,
++	.g_parm		= ar0233_g_parm,
++	.s_parm		= ar0233_s_parm,
+ };
+ 
+ static const struct v4l2_subdev_pad_ops ar0233_subdev_pad_ops = {
+@@ -654,6 +707,8 @@ static int ar0233_probe(struct i2c_client *client,
+ 
+ 	v4l2_i2c_subdev_init(&priv->sd, client, &ar0233_subdev_ops);
+ 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
++	priv->fps_numerator = 1;
++	priv->fps_denominator = 30;
+ 
+ 	v4l2_ctrl_handler_init(&priv->hdl, 4);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0233_ctrl_ops,
+@@ -675,7 +730,7 @@ static int ar0233_probe(struct i2c_client *client,
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0233_ctrl_ops,
+ 			  V4L2_CID_ANALOGUE_GAIN, 1, 0xe, 1, 0xa);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0233_ctrl_ops,
+-			  V4L2_CID_EXPOSURE, 1, 0x600, 1, 0x144);
++			  V4L2_CID_EXPOSURE, 1, 0x600 * 30, 1, 0x144);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0233_ctrl_ops,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0233_ctrl_ops,
+-- 
+2.7.4
+

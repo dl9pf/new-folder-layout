@@ -1,0 +1,227 @@
+From f9a95f0866f6d1d694392c5598330980105e14c9 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Aug 2019 22:44:03 +0300
+Subject: [PATCH 08/23] clk: renesas: cpg: Update SD-IF clock handling
+
+Make SD-IF clock division rate table configurable
+in the cpg_mssr_info structure. This is needed
+for R-Car V3M, which uses different SD-IF register
+settings, and thus needs a different division ratio
+table and a different mask value.
+
+While at it, make clk_set_rate callback select
+the closest ratio value using the SD-IF clock
+division ratio table instead of hard-coding it.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/clk-rcar-gen3.c    | 117 +++++++++++++++++++++------------
+ drivers/clk/renesas/renesas-cpg-mssr.h |   8 +++
+ 2 files changed, 82 insertions(+), 43 deletions(-)
+
+diff --git a/drivers/clk/renesas/clk-rcar-gen3.c b/drivers/clk/renesas/clk-rcar-gen3.c
+index 0529fc8..0ddd907 100644
+--- a/drivers/clk/renesas/clk-rcar-gen3.c
++++ b/drivers/clk/renesas/clk-rcar-gen3.c
+@@ -51,11 +51,6 @@
+ 	.div = (sd_div), \
+ }
+ 
+-struct sd_div_table {
+-	u32 val;
+-	unsigned int div;
+-};
+-
+ /* SDn divider
+  *                     sd_srcfc   sd_fc   div
+  * stp_hck   stp_ck    (div)      (div)     = sd_srcfc x sd_fc
+@@ -71,7 +66,7 @@ struct sd_div_table {
+  *  1         0         3 (8)      0 (2)     16
+  *  1         0         4 (16)     0 (2)     32
+  */
+-static const struct sd_div_table cpg_sd_div_table[] = {
++static const struct cpg_sd_div_table cpg_sd_div_table[] = {
+ /*	CPG_SD_DIV_TABLE_DATA(stp_hck,  stp_ck,   sd_srcfc,   sd_fc,  sd_div) */
+ 	CPG_SD_DIV_TABLE_DATA(0,        0,        0,          1,        4),
+ 	CPG_SD_DIV_TABLE_DATA(0,        0,        1,          1,        8),
+@@ -107,37 +102,6 @@ static int gen3_clk_get_parent(struct gen3_clk_priv *priv, struct clk *clk,
+ 	return renesas_clk_get_parent(clk, info, parent);
+ }
+ 
+-static int gen3_clk_setup_sdif_div(struct clk *clk, ulong rate)
+-{
+-	struct gen3_clk_priv *priv = dev_get_priv(clk->dev);
+-	struct cpg_mssr_info *info = priv->info;
+-	const struct cpg_core_clk *core;
+-	struct clk parent;
+-	int ret;
+-
+-	ret = gen3_clk_get_parent(priv, clk, info, &parent);
+-	if (ret) {
+-		printf("%s[%i] parent fail, ret=%i\n", __func__, __LINE__, ret);
+-		return ret;
+-	}
+-
+-	if (renesas_clk_is_mod(&parent))
+-		return 0;
+-
+-	ret = renesas_clk_get_core(&parent, info, &core);
+-	if (ret)
+-		return ret;
+-
+-	if (core->type != CLK_TYPE_GEN3_SD)
+-		return 0;
+-
+-	debug("%s[%i] SDIF offset=%x\n", __func__, __LINE__, core->offset);
+-
+-	writel((rate == 400000000) ? 0x4 : 0x1, priv->base + core->offset);
+-
+-	return 0;
+-}
+-
+ static int gen3_clk_enable(struct clk *clk)
+ {
+ 	struct gen3_clk_priv *priv = dev_get_priv(clk->dev);
+@@ -268,17 +232,17 @@ static u64 gen3_clk_get_rate64(struct clk *clk)
+ 
+ 	case CLK_TYPE_GEN3_SD:		/* FIXME */
+ 		value = readl(priv->base + core->offset);
+-		value &= CPG_SD_STP_MASK | CPG_SD_FC_MASK;
++		value &= info->sd_div_mask;
+ 
+-		for (i = 0; i < ARRAY_SIZE(cpg_sd_div_table); i++) {
+-			if (cpg_sd_div_table[i].val != value)
++		for (i = 0; i < info->sd_div_table_size; i++) {
++			if (info->sd_div_table[i].val != value)
+ 				continue;
+ 
+ 			rate = gen3_clk_get_rate64(&parent) /
+-			       cpg_sd_div_table[i].div;
++			       info->sd_div_table[i].div;
+ 			debug("%s[%i] SD clk: parent=%i div=%i => rate=%llu\n",
+ 			      __func__, __LINE__,
+-			      core->parent, cpg_sd_div_table[i].div, rate);
++			      core->parent, info->sd_div_table[i].div, rate);
+ 
+ 			return rate;
+ 		}
+@@ -316,6 +280,59 @@ static u64 gen3_clk_get_rate64(struct clk *clk)
+ 	return -ENOENT;
+ }
+ 
++static int gen3_clk_setup_sdif_div(struct clk *clk, ulong rate)
++{
++	struct gen3_clk_priv *priv = dev_get_priv(clk->dev);
++	struct cpg_mssr_info *info = priv->info;
++	int i, ret, up = INT_MAX, div = INT_MAX;
++	int entry = info->sd_div_table_size;
++	const struct cpg_core_clk *core;
++	struct clk parent;
++	u64 parent_rate;
++
++	if (renesas_clk_is_mod(clk))
++		return 0;
++
++	ret = renesas_clk_get_core(clk, info, &core);
++	if (ret)
++		return ret;
++
++	if (core->type != CLK_TYPE_GEN3_SD)
++		return 0;
++
++	ret = gen3_clk_get_parent(priv, clk, info, &parent);
++	if (ret) {
++		printf("%s[%i] parent fail, ret=%i\n", __func__, __LINE__, ret);
++		return ret;
++	}
++
++	parent_rate = gen3_clk_get_rate64(&parent);
++	if (rate)
++		div = DIV_ROUND_CLOSEST(parent_rate, rate);
++
++	for (i = 0; i < info->sd_div_table_size; i++) {
++		if (info->sd_div_table[i].div < div)
++			continue;
++
++		if (info->sd_div_table[i].div == div) {
++			entry = i;
++			break;
++		}
++
++		if ((info->sd_div_table[i].div - div) < (up - div)) {
++			up = info->sd_div_table[i].div;
++			entry = i;
++		}
++	}
++
++	if (entry >= info->sd_div_table_size)
++		return -EINVAL;
++
++	debug("%s[%i] SDIF offset=%x\n", __func__, __LINE__, core->offset);
++	writel(info->sd_div_table[entry].val, priv->base + core->offset);
++	return 0;
++}
++
+ static ulong gen3_clk_get_rate(struct clk *clk)
+ {
+ 	return gen3_clk_get_rate64(clk);
+@@ -323,8 +340,16 @@ static ulong gen3_clk_get_rate(struct clk *clk)
+ 
+ static ulong gen3_clk_set_rate(struct clk *clk, ulong rate)
+ {
++	struct gen3_clk_priv *priv = dev_get_priv(clk->dev);
++	struct cpg_mssr_info *info = priv->info;
++	struct clk parent;
++	int ret;
++
+ 	/* Force correct SD-IF divider configuration if applicable */
+-	gen3_clk_setup_sdif_div(clk, rate);
++	ret = gen3_clk_get_parent(priv, clk, info, &parent);
++	if (!ret)
++		gen3_clk_setup_sdif_div(&parent, rate);
++
+ 	return gen3_clk_get_rate64(clk);
+ }
+ 
+@@ -366,6 +391,12 @@ int gen3_clk_probe(struct udevice *dev)
+ 	if (ret < 0)
+ 		return ret;
+ 
++	if (!info->sd_div_table) {
++		info->sd_div_table = cpg_sd_div_table;
++		info->sd_div_table_size = ARRAY_SIZE(cpg_sd_div_table);
++		info->sd_div_mask = CPG_SD_STP_MASK | CPG_SD_FC_MASK;
++	}
++
+ 	rst_base = fdtdec_get_addr(gd->fdt_blob, ret, "reg");
+ 	if (rst_base == FDT_ADDR_T_NONE)
+ 		return -EINVAL;
+diff --git a/drivers/clk/renesas/renesas-cpg-mssr.h b/drivers/clk/renesas/renesas-cpg-mssr.h
+index bad3938..36072a6 100644
+--- a/drivers/clk/renesas/renesas-cpg-mssr.h
++++ b/drivers/clk/renesas/renesas-cpg-mssr.h
+@@ -13,6 +13,11 @@
+ #ifndef __DRIVERS_CLK_RENESAS_CPG_MSSR__
+ #define __DRIVERS_CLK_RENESAS_CPG_MSSR__
+ 
++struct cpg_sd_div_table {
++	u32 val;
++	unsigned int div;
++};
++
+ struct cpg_mssr_info {
+ 	const struct cpg_core_clk	*core_clk;
+ 	unsigned int			core_clk_size;
+@@ -20,6 +25,9 @@ struct cpg_mssr_info {
+ 	unsigned int			mod_clk_size;
+ 	const struct mstp_stop_table	*mstp_table;
+ 	unsigned int			mstp_table_size;
++	const struct cpg_sd_div_table	*sd_div_table;
++	unsigned int			sd_div_table_size;
++	u32				sd_div_mask;
+ 	const char			*reset_node;
+ 	const char			*extalr_node;
+ 	const char			*extal_usb_node;
+-- 
+2.7.4
+

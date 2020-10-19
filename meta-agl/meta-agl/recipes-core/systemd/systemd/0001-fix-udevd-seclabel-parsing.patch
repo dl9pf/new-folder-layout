@@ -1,0 +1,34 @@
+Fix udevd SECLABEL token parsing
+
+The udevd rules parsing rewrite in v243 broke SECLABEL parsing,
+with the result being that udevd crashes when it parses a line
+containing a SECLABEL token. Fix the handling of the attribute
+of SECLABEL tokens when parsing, and add a check to prevent
+crashes if the attribute is missing.
+
+Upstream-Status: Pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/src/udev/udev-rules.c b/src/udev/udev-rules.c
+index efea16e5c5..3e757ccb06 100644
+--- a/src/udev/udev-rules.c
++++ b/src/udev/udev-rules.c
+@@ -918,7 +918,7 @@ static int parse_token(UdevRules *rules, const char *key, char *attr, UdevRuleOp
+                         op = OP_ASSIGN;
+                 }
+ 
+-                r = rule_line_add_token(rule_line, TK_A_SECLABEL, op, value, NULL);
++                r = rule_line_add_token(rule_line, TK_A_SECLABEL, op, value, attr);
+         } else if (streq(key, "RUN")) {
+                 if (is_match || op == OP_REMOVE)
+                         return log_token_invalid_op(rules, key);
+@@ -1927,6 +1927,8 @@ static int udev_rule_apply_token_to_event(
+                 _cleanup_free_ char *name = NULL, *label = NULL;
+                 char label_str[UTIL_LINE_SIZE] = {};
+ 
++                if (!token->data)
++                        break;
+                 name = strdup((const char*) token->data);
+                 if (!name)
+                         return log_oom();

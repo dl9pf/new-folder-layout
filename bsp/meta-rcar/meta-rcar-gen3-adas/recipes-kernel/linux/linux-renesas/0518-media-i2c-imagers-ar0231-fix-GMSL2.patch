@@ -1,0 +1,55 @@
+From 92c2f541b19b139a4457383c634b142457ca3df3 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 6 May 2020 17:19:02 +0300
+Subject: [PATCH 1/2] media: i2c: imagers: ar0231: fix GMSL2
+
+This fixes imager MIPI setup over GMSL2
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imagers/ar0231.c      | 4 ++--
+ drivers/media/i2c/soc_camera/imagers/ar0231_rev7.h | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imagers/ar0231.c b/drivers/media/i2c/soc_camera/imagers/ar0231.c
+index 42f125c..fd8fe94 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ar0231.c
++++ b/drivers/media/i2c/soc_camera/imagers/ar0231.c
+@@ -423,11 +423,11 @@ static int ar0231_initialize(struct i2c_client *client)
+ 	/* Program wizard registers */
+ 	switch (get_des_id(client)) {
+ 	case UB960_ID:
++	case MAX9296A_ID:
++	case MAX96712_ID:
+ 		ar0231_set_regs(client, ar0231_regs_wizard_rev7, ARRAY_SIZE(ar0231_regs_wizard_rev7));
+ 		break;
+ 	case MAX9286_ID:
+-	case MAX9296A_ID:
+-	case MAX96712_ID:
+ 		ar0231_set_regs(client, ar0231_regs_wizard_rev6_dvp, ARRAY_SIZE(ar0231_regs_wizard_rev6_dvp));
+ 		break;
+ 	}
+diff --git a/drivers/media/i2c/soc_camera/imagers/ar0231_rev7.h b/drivers/media/i2c/soc_camera/imagers/ar0231_rev7.h
+index f3485f5..96dd2c4 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ar0231_rev7.h
++++ b/drivers/media/i2c/soc_camera/imagers/ar0231_rev7.h
+@@ -303,6 +303,7 @@ static const struct ar0231_reg ar0231_regs_wizard_rev7[] = {
+ #if 1 /* Serial 12-bit Timing Setup */
+ /* PCLK=24Mhz/PRE_PLL_CLK_DIV *PLL_MULTIPLIER /P1 /P4 *2 */
+ /* PCLK=24Mhz/2 *44/1/12 *2= 88Mhz - TI serializers */
++/* MIPI 528MBPS */
+ {0x302E, 2},  // pre_pll_clk_div
+ {0x3030, 44}, // pll_multiplier
+ {0x302C, 1},  // vt_sys_clk_div (P1 divider)
+@@ -381,7 +382,7 @@ static const struct ar0231_reg ar0231_regs_wizard_rev7[] = {
+ {0x31B6, 0x1146},
+ {0x31B8, 0x3047},
+ {0x31BA, 0x186},
+-{0x31BC, 0x805},
++{0x31BC, 0x805 | BIT(15)},
+ #endif /* MIPI 12 bit Settings */
+ 
+ /* FPS = 105MHz / reg0x300A / reg0x300C * (DES_XTAL/27MHz), DES_XTAL=23.5MHz */
+-- 
+2.7.4
+

@@ -1,0 +1,120 @@
+From 77503a746d91ad4bb637c907640d3576e1943e1c Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Mon, 25 Sep 2017 07:16:25 +0300
+Subject: [PATCH 052/122] MOST: dim2: Renesas R-Car3 variant
+
+- R-Car H3 has 8 FPSB
+- remove not existing registers access
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/staging/most/hdm-dim2/dim2_hal.c |  8 ++++----
+ drivers/staging/most/hdm-dim2/dim2_hdm.c |  2 +-
+ drivers/staging/most/hdm-dim2/dim2_reg.h | 18 +++++++++---------
+ 3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/staging/most/hdm-dim2/dim2_hal.c b/drivers/staging/most/hdm-dim2/dim2_hal.c
+index 9148464..a685c5a 100644
+--- a/drivers/staging/most/hdm-dim2/dim2_hal.c
++++ b/drivers/staging/most/hdm-dim2/dim2_hal.c
+@@ -532,11 +532,11 @@ static void dim2_cleanup(void)
+ 
+ 	/* clear status for all dma channels */
+ 	dimcb_io_write(&g.dim2->ACSR0, 0xFFFFFFFF);
+-	dimcb_io_write(&g.dim2->ACSR1, 0xFFFFFFFF);
++//	dimcb_io_write(&g.dim2->ACSR1, 0xFFFFFFFF);
+ 
+ 	/* mask interrupts for all channels */
+ 	dimcb_io_write(&g.dim2->ACMR0, 0);
+-	dimcb_io_write(&g.dim2->ACMR1, 0);
++//	dimcb_io_write(&g.dim2->ACMR1, 0);
+ }
+ 
+ static void dim2_initialize(bool enable_6pin, u8 mlb_clock)
+@@ -552,7 +552,7 @@ static void dim2_initialize(bool enable_6pin, u8 mlb_clock)
+ 
+ 	/* activate all HBI channels */
+ 	dimcb_io_write(&g.dim2->HCMR0, 0xFFFFFFFF);
+-	dimcb_io_write(&g.dim2->HCMR1, 0xFFFFFFFF);
++//	dimcb_io_write(&g.dim2->HCMR1, 0xFFFFFFFF);
+ 
+ 	/* enable HBI */
+ 	dimcb_io_write(&g.dim2->HCTL, bit_mask(HCTL_EN_BIT));
+@@ -782,7 +782,7 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
+ void dim_service_mlb_int_irq(void)
+ {
+ 	dimcb_io_write(&g.dim2->MS0, 0);
+-	dimcb_io_write(&g.dim2->MS1, 0);
++//	dimcb_io_write(&g.dim2->MS1, 0);
+ }
+ 
+ u16 dim_norm_ctrl_async_buffer_size(u16 buf_size)
+diff --git a/drivers/staging/most/hdm-dim2/dim2_hdm.c b/drivers/staging/most/hdm-dim2/dim2_hdm.c
+index 349eb66..2731398 100644
+--- a/drivers/staging/most/hdm-dim2/dim2_hdm.c
++++ b/drivers/staging/most/hdm-dim2/dim2_hdm.c
+@@ -53,7 +53,7 @@ MODULE_PARM_DESC(clock_speed, "MediaLB Clock Speed");
+  * The values 0, 1, 2, 3, 4, 5, 6 represent corresponding number of frames per
+  * sub-buffer 1, 2, 4, 8, 16, 32, 64.
+  */
+-static u8 fcnt = 4;  /* (1 << fcnt) frames per subbuffer */
++static u8 fcnt = 3;  /* (1 << fcnt) frames per subbuffer */
+ module_param(fcnt, byte, 0000);
+ MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a power of 2");
+ 
+diff --git a/drivers/staging/most/hdm-dim2/dim2_reg.h b/drivers/staging/most/hdm-dim2/dim2_reg.h
+index f7d9fbc..30a0f27 100644
+--- a/drivers/staging/most/hdm-dim2/dim2_reg.h
++++ b/drivers/staging/most/hdm-dim2/dim2_reg.h
+@@ -20,28 +20,28 @@
+ struct dim2_regs {
+ 	/* 0x00 */ u32 MLBC0;
+ 	/* 0x01 */ u32 rsvd0[1];
+-	/* 0x02 */ u32 MLBPC0;
++	/* 0x02 */ u32 MLBPC0;	/* no at R-Car3 */
+ 	/* 0x03 */ u32 MS0;
+ 	/* 0x04 */ u32 rsvd1[1];
+-	/* 0x05 */ u32 MS1;
++	/* 0x05 */ u32 MS1;	/* no at R-Car3 */
+ 	/* 0x06 */ u32 rsvd2[2];
+ 	/* 0x08 */ u32 MSS;
+ 	/* 0x09 */ u32 MSD;
+ 	/* 0x0A */ u32 rsvd3[1];
+ 	/* 0x0B */ u32 MIEN;
+ 	/* 0x0C */ u32 rsvd4[1];
+-	/* 0x0D */ u32 MLBPC2;
+-	/* 0x0E */ u32 MLBPC1;
++	/* 0x0D */ u32 MLBPC2;	/* no at R-Car3 */
++	/* 0x0E */ u32 MLBPC1;	/* no at R-Car3 */
+ 	/* 0x0F */ u32 MLBC1;
+ 	/* 0x10 */ u32 rsvd5[0x10];
+ 	/* 0x20 */ u32 HCTL;
+ 	/* 0x21 */ u32 rsvd6[1];
+ 	/* 0x22 */ u32 HCMR0;
+-	/* 0x23 */ u32 HCMR1;
++	/* 0x23 */ u32 HCMR1;	/* no at R-Car3 */
+ 	/* 0x24 */ u32 HCER0;
+-	/* 0x25 */ u32 HCER1;
++	/* 0x25 */ u32 HCER1;	/* no at R-Car3 */
+ 	/* 0x26 */ u32 HCBR0;
+-	/* 0x27 */ u32 HCBR1;
++	/* 0x27 */ u32 HCBR1;	/* no at R-Car3 */
+ 	/* 0x28 */ u32 rsvd7[8];
+ 	/* 0x30 */ u32 MDAT0;
+ 	/* 0x31 */ u32 MDAT1;
+@@ -57,9 +57,9 @@ struct dim2_regs {
+ 	/* 0xF0 */ u32 ACTL;
+ 	/* 0xF1 */ u32 rsvd9[3];
+ 	/* 0xF4 */ u32 ACSR0;
+-	/* 0xF5 */ u32 ACSR1;
++	/* 0xF5 */ u32 ACSR1;	/* no at R-Car3 */
+ 	/* 0xF6 */ u32 ACMR0;
+-	/* 0xF7 */ u32 ACMR1;
++	/* 0xF7 */ u32 ACMR1;	/* no at R-Car3 */
+ };
+ 
+ #define DIM2_MASK(n)  (~((~(u32)0) << (n)))
+-- 
+2.7.4
+

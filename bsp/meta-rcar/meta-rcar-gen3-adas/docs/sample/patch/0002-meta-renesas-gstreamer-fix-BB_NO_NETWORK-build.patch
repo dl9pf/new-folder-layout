@@ -1,0 +1,92 @@
+From 4babf852ffee2e08e5fd1c1097bd17c235cd78fa Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Sun, 17 Sep 2017 00:36:21 +0300
+Subject: [PATCH] meta-renesas: gstreamer: fix BB_NO_NETWORK build
+
+Use gitsm for submodule intiializeation. This will enable caching
+submodule gits into downloads.
+Later it is needed for build with BB_NO_NETWORK=1
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ .../gstreamer/gstreamer1.0-omx_1.2.0.bbappend             |  2 +-
+ .../gstreamer/gstreamer1.0-plugins-bad_1.6.3.bbappend     | 15 +--------------
+ .../gstreamer/gstreamer1.0-plugins-good_1.6.3.bbappend    | 15 +--------------
+ 3 files changed, 3 insertions(+), 29 deletions(-)
+
+diff --git a/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-omx_1.2.0.bbappend b/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-omx_1.2.0.bbappend
+index 9a30dd9..4606392 100644
+--- a/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-omx_1.2.0.bbappend
++++ b/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-omx_1.2.0.bbappend
+@@ -1,5 +1,5 @@
+ SRC_URI_remove = "http://gstreamer.freedesktop.org/src/gst-omx/gst-omx-${PV}.tar.xz"
+-SRC_URI_append = " git://github.com/renesas-rcar/gst-omx.git;branch=RCAR-GEN3/1.2.0"
++SRC_URI_append = " gitsm://github.com/renesas-rcar/gst-omx.git;branch=RCAR-GEN3/1.2.0"
+ 
+ DEPENDS += "omx-user-module mmngrbuf-user-module"
+ 
+diff --git a/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-bad_1.6.3.bbappend b/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-bad_1.6.3.bbappend
+index 73b5529..b44408c 100644
+--- a/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-bad_1.6.3.bbappend
++++ b/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-bad_1.6.3.bbappend
+@@ -1,5 +1,5 @@
+ SRC_URI_remove = "http://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-${PV}.tar.xz"
+-SRC_URI_append = " git://github.com/renesas-rcar/gst-plugins-bad.git;branch=RCAR-GEN3/1.6.3"
++SRC_URI_append = " gitsm://github.com/renesas-rcar/gst-plugins-bad.git;branch=RCAR-GEN3/1.6.3"
+ 
+ SRCREV = "e336b2dacf29a155dc8f6896ee0f3a89d87d805e"
+ 
+@@ -7,19 +7,6 @@ DEPENDS += "weston"
+ 
+ S = "${WORKDIR}/git"
+ 
+-# submodule is extracted before do_populate_lic
+-addtask do_init_submodule after do_unpack before do_patch
+-
+-do_init_submodule() {
+-    export http_proxy=${http_proxy}
+-    export https_proxy=${https_proxy}
+-    export HTTP_PROXY=${HTTP_PROXY}
+-    export HTTPS_PROXY=${HTTPS_PROXY}
+-    cd ${S}
+-    git submodule init
+-    git submodule update
+-}
+-
+ do_configure_prepend() {
+     cd ${S}
+     ./autogen.sh --noconfigure
+diff --git a/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-good_1.6.3.bbappend b/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-good_1.6.3.bbappend
+index 1d353ec..76a3979 100644
+--- a/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-good_1.6.3.bbappend
++++ b/meta-rcar-gen3/recipes-multimedia/gstreamer/gstreamer1.0-plugins-good_1.6.3.bbappend
+@@ -1,5 +1,5 @@
+ SRC_URI_remove = "http://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-${PV}.tar.xz"
+-SRC_URI_append = " git://github.com/renesas-rcar/gst-plugins-good.git;branch=RCAR-GEN3/1.6.3"
++SRC_URI_append = " gitsm://github.com/renesas-rcar/gst-plugins-good.git;branch=RCAR-GEN3/1.6.3"
+ 
+ SRCREV = "00beed48b36e0b7f2c92199806cc4cb9e0990166"
+ 
+@@ -12,19 +12,6 @@ EXTRA_OECONF_append = " \
+     --enable-ignore-fps-of-video-standard \
+ "
+ 
+-# submodule is extracted before do_populate_lic
+-addtask do_init_submodule after do_unpack before do_patch
+-
+-do_init_submodule() {
+-    export http_proxy=${http_proxy}
+-    export https_proxy=${https_proxy}
+-    export HTTP_PROXY=${HTTP_PROXY}
+-    export HTTPS_PROXY=${HTTPS_PROXY}
+-    cd ${S}
+-    git submodule init
+-    git submodule update
+-}
+-
+ do_configure_prepend() {
+     cd ${S}
+     ./autogen.sh --noconfigure
+-- 
+1.9.1
+

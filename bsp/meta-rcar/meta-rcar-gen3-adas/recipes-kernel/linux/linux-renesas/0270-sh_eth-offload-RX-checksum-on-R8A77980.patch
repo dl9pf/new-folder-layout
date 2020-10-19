@@ -1,0 +1,31 @@
+From 87b96e342f43398a7fdde613c1dc420dfd05faec Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 4 Feb 2019 21:10:32 +0300
+Subject: [PATCH 090/211] sh_eth: offload RX checksum on R8A77980
+
+The R-Car V3H (R8A77980) SoC manual describes the Ether MAC's RX checksum
+offload the same way as it's implemented in the EtherAVB MAC...
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit 0da843adeefb4953a1a73a24d5a8dfbbffcd9a47)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/ethernet/renesas/sh_eth.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ethernet/renesas/sh_eth.c b/drivers/net/ethernet/renesas/sh_eth.c
+index 63bf7ee..a08b800 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.c
++++ b/drivers/net/ethernet/renesas/sh_eth.c
+@@ -802,6 +802,7 @@ static struct sh_eth_cpu_data r8a77980_data = {
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+ 	.csmr		= 1,
++	.rx_csum	= 1,
+ 	.select_mii	= 1,
+ 	.magic		= 1,
+ 	.cexcr		= 1,
+-- 
+2.7.4
+

@@ -1,0 +1,30 @@
+From ab197e0f74638e62a8619cbf085055f438df5e5f Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 26 Oct 2018 19:14:40 +0300
+Subject: [PATCH 107/211] clk: renesas: r8a77970: cpg-mssr: Add IMR clocks
+
+This adds IMR clocks to R8A7790 CPG MSSR driver.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/r8a77970-cpg-mssr.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/clk/renesas/r8a77970-cpg-mssr.c b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+index cbac67e..ab847ee 100644
+--- a/drivers/clk/renesas/r8a77970-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+@@ -152,6 +152,10 @@ static const struct mssr_mod_clk r8a77970_mod_clks[] __initconst = {
+ 	DEF_MOD("vin1",			 810,	R8A77970_CLK_S2D1),
+ 	DEF_MOD("vin0",			 811,	R8A77970_CLK_S2D1),
+ 	DEF_MOD("etheravb",		 812,	R8A77970_CLK_S2D2),
++	DEF_MOD("imr3",			 820,	R8A77970_CLK_S2D1),
++	DEF_MOD("imr2",			 821,	R8A77970_CLK_S2D1),
++	DEF_MOD("imr1",			 822,	R8A77970_CLK_S2D1),
++	DEF_MOD("imr0",			 823,	R8A77970_CLK_S2D1),
+ 	DEF_MOD("gpio5",		 907,	R8A77970_CLK_CP),
+ 	DEF_MOD("gpio4",		 908,	R8A77970_CLK_CP),
+ 	DEF_MOD("gpio3",		 909,	R8A77970_CLK_CP),
+-- 
+2.7.4
+

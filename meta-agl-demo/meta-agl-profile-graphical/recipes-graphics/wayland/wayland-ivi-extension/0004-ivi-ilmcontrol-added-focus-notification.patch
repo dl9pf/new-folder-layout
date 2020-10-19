@@ -1,0 +1,29 @@
+diff --git a/ivi-layermanagement-api/ilmCommon/include/ilm_types.h b/ivi-layermanagement-api/ilmCommon/include/ilm_types.h
+index a88f2b0..12a2017 100644
+--- a/ivi-layermanagement-api/ilmCommon/include/ilm_types.h
++++ b/ivi-layermanagement-api/ilmCommon/include/ilm_types.h
+@@ -245,6 +245,7 @@ typedef enum
+     ILM_NOTIFICATION_CONTENT_AVAILABLE = ILM_BIT(6),
+     ILM_NOTIFICATION_CONTENT_REMOVED = ILM_BIT(7),
+     ILM_NOTIFICATION_CONFIGURED = ILM_BIT(8),
++    ILM_NOTIFICATION_FOCUS = ILM_BIT(9),
+     ILM_NOTIFICATION_ALL = 0xffff
+ } t_ilm_notification_mask;
+ 
+diff --git a/ivi-layermanagement-api/ilmControl/src/ilm_control_wayland_platform.c b/ivi-layermanagement-api/ilmControl/src/ilm_control_wayland_platform.c
+index a912e50..5166839 100644
+--- a/ivi-layermanagement-api/ilmControl/src/ilm_control_wayland_platform.c
++++ b/ivi-layermanagement-api/ilmControl/src/ilm_control_wayland_platform.c
+@@ -819,6 +819,12 @@ input_listener_input_focus(void *data,
+             surf_ctx->prop.focus |= device;
+         else
+             surf_ctx->prop.focus &= ~device;
++
++        if (surf_ctx->notification != NULL) {
++            surf_ctx->notification(surf_ctx->id_surface,
++                                    &surf_ctx->prop,
++                                    ILM_NOTIFICATION_FOCUS);
++        }
+     }
+ }
+ 

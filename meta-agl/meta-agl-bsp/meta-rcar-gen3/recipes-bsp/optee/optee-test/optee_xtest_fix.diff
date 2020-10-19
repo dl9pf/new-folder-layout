@@ -1,0 +1,13 @@
+diff --git a/host/xtest/regression_6000.c b/host/xtest/regression_6000.c
+index 336ea14..2379e43 100644
+--- a/host/xtest/regression_6000.c
++++ b/host/xtest/regression_6000.c
+@@ -82,6 +82,8 @@ static uint32_t fs_id_for_tee_storage_private(void)
+ 	return TEE_STORAGE_PRIVATE_REE;
+ #elif defined(CFG_RPMB_FS)
+ 	return TEE_STORAGE_PRIVATE_RPMB;
++#else
++    return TEE_STORAGE_PRIVATE;
+ #endif
+ }
+ 

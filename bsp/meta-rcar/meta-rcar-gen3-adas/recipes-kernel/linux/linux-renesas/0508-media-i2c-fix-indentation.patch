@@ -1,0 +1,46 @@
+From b6a59d9176b872d7247b5829f5d3112376fc4877 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 30 Apr 2020 11:05:05 +0300
+Subject: [PATCH] media: i2c: fix indentation
+
+Indentation fixes
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/fpdlink/ti9x4.c | 2 +-
+ drivers/media/i2c/soc_camera/gmsl/max96712.c | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c b/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c
+index a50201d..56b5ed8a 100644
+--- a/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c
++++ b/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c
+@@ -218,7 +218,7 @@ static void ti9x4_initial_setup(struct i2c_client *client)
+ #else
+ 	reg8_write(client, 0x19, 2 >> 8);			/* FrameSync high time MSB */
+ 	reg8_write(client, 0x1a, 2 & 0xff);			/* FrameSync high time LSB */
+-	reg8_write(client, 0x1b, priv->fs_time >> 8);			/* FrameSync low time MSB */
++	reg8_write(client, 0x1b, priv->fs_time >> 8);		/* FrameSync low time MSB */
+ 	reg8_write(client, 0x1c, priv->fs_time & 0xff);		/* FrameSync low time LSB */
+ 	reg8_write(client, 0x18, 0x00);				/* Disable FrameSync - must be enabled after all cameras are set up */
+ #endif
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max96712.c b/drivers/media/i2c/soc_camera/gmsl/max96712.c
+index 02ccc38..c4cdf0e 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max96712.c
++++ b/drivers/media/i2c/soc_camera/gmsl/max96712.c
+@@ -494,9 +494,9 @@ static int max96712_gmsl1_link_serializer_setup(struct max96712_priv *priv, int
+ 	/* GMSL setup */
+ 	ser_write(0x0d, 0x22 | MAXIM_I2C_I2C_SPEED);		/* disable artificial ACK, I2C speed set */
+ 	ser_write(0x07, (priv->hven ? 0x04 : 0) |		/* HS/VS encoding enable */
+-				       (priv->pclk_rising_edge ? 0 : 0x10) | /* PCLK edge */
+-				       (0x80) |				/* DBL=1 in serializer */
+-				       (priv->bws ? 0x20 : 0));		/* BWS 32/24-bit */
++			(priv->pclk_rising_edge ? 0 : 0x10) |	/* PCLK edge */
++			(0x80) |				/* DBL=1 in serializer */
++			(priv->bws ? 0x20 : 0));		/* BWS 32/24-bit */
+ 	usleep_range(2000, 2500);
+ 	ser_write(0x02, 0xff);					/* spread spectrum +-4%, pclk range automatic, Gbps automatic */
+ 	usleep_range(2000, 2500);
+-- 
+2.7.4
+

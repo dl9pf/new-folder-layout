@@ -1,0 +1,19 @@
+[Unit]
+Description=Multimedia Service socket for user %i
+Requires=afm-user-setup@%i.service
+After=afm-user-setup@%i.service
+
+[Socket]
+Priority=6
+Backlog=5
+ListenStream=/run/user/%i/pipewire-0
+Service=pipewire@%i.service
+SmackLabel=*
+SmackLabelIPIn=System
+SmackLabelIPOut=System
+SocketUser=%i
+SocketGroup=%i
+SocketMode=0660
+
+[Install]
+WantedBy=afm-user-session@%i.target

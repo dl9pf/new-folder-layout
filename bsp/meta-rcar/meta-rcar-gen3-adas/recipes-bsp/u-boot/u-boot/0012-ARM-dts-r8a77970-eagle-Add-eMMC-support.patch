@@ -1,0 +1,86 @@
+From 666df2f025fbaf1c82dfdb31d28be973833c6257 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 3 Aug 2019 00:49:38 +0300
+Subject: [PATCH 12/23] ARM: dts: r8a77970: eagle: Add eMMC support
+
+The Eagle platform supports an expansion board with
+the eMMC device on it. This Adds eMMC device node
+to Eagle device tree.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm/dts/r8a77970-eagle.dts | 44 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
+
+diff --git a/arch/arm/dts/r8a77970-eagle.dts b/arch/arm/dts/r8a77970-eagle.dts
+index b6d5332..49b3359 100644
+--- a/arch/arm/dts/r8a77970-eagle.dts
++++ b/arch/arm/dts/r8a77970-eagle.dts
+@@ -73,6 +73,24 @@
+ 			};
+ 		};
+ 	};
++
++	vcc_3v3: regulator0 {
++		compatible = "regulator-fixed";
++		regulator-name = "fixed-VCC3V3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-boot-on;
++		regulator-always-on;
++	};
++
++	vcc_vddq_vin0: regulator1 {
++		compatible = "regulator-fixed";
++		regulator-name = "VCC-VDDQ-VIN0";
++		regulator-min-microvolt = <1800000>;
++		regulator-max-microvolt = <1800000>;
++		regulator-boot-on;
++		regulator-always-on;
++	};
+ };
+ 
+ &avb {
+@@ -157,6 +175,20 @@
+ 	};
+ };
+ 
++&mmc0 {
++	/* used for on-board eMMC */
++	pinctrl-0 = <&mmc_pins>;
++	pinctrl-1 = <&mmc_pins_uhs>;
++	pinctrl-names = "default", "state_uhs";
++
++	vmmc-supply = <&vcc_3v3>;
++	vqmmc-supply = <&vcc_vddq_vin0>;
++	mmc-hs200-1_8v;
++	bus-width = <8>;
++	non-removable;
++	status = "okay";
++};
++
+ &pfc {
+ 	avb_pins: avb0 {
+ 		groups = "avb0_mdio", "avb0_rgmii", "avb0_txcrefclk";
+@@ -173,6 +205,18 @@
+ 		function = "i2c0";
+ 	};
+ 
++	mmc_pins: mmc {
++		groups = "mmc_data8", "mmc_ctrl";
++		function = "mmc";
++		power-source = <1800>;
++	};
++
++	mmc_pins_uhs: mmc_uhs {
++		groups = "mmc_data8", "mmc_ctrl";
++		function = "mmc";
++		power-source = <1800>;
++	};
++
+ 	scif0_pins: scif0 {
+ 		groups = "scif0_data";
+ 		function = "scif0";
+-- 
+2.7.4
+

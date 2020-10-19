@@ -1,0 +1,94 @@
+From 19fad1a4fa8bdc4f02aac4e169e7ff9cab18bdcd Mon Sep 17 00:00:00 2001
+From: George Kiagiadakis <george.kiagiadakis@collabora.com>
+Date: Tue, 19 Nov 2019 17:09:07 +0200
+Subject: [PATCH] module-access: add same-sec-label-mode
+
+This is a mode where the access module allows all clients that have
+the same security label as the pipewire daemon, and every other
+client is put on the restricted state.
+
+In systems that use SMACK security labels, such as AGL, this allows
+the session manager (which is spawned by pipewire, inheriting the
+same smack label) to have full access to all objects, while every
+other client is restricted and the session manager must decide
+what to do with it
+
+Note that while this option is configurable, there is no loss of
+security if this option is not set in the configuration. Clients
+that don't have the same security context will be considered to
+be flatpak clients because pipewire will not be able to open
+/proc/pid/cmdline. This however results in some unwanted error
+messages that may be confusing.
+
+Upstream-Status: Inappropriate [agl/smack specific]
+---
+ src/modules/module-access.c | 45 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/src/modules/module-access.c b/src/modules/module-access.c
+index 09dafa43..f75306d9 100644
+--- a/src/modules/module-access.c
++++ b/src/modules/module-access.c
+@@ -50,6 +50,30 @@ struct impl {
+ 	struct spa_hook module_listener;
+ };
+ 
++static int check_seclabel(const char *str)
++{
++	char attr[1024];
++	int fd, len;
++
++	fd = open("/proc/self/attr/current", O_RDONLY);
++	if (fd < 0)
++		return -errno;
++
++	if ((len = read(fd, attr, 1024)) <= 0) {
++		close(fd);
++		return -EIO;
++	}
++	attr[len] = '\0';
++
++	if (strcmp(attr, str) == 0) {
++		close(fd);
++		return 1;
++	}
++
++	close(fd);
++	return 0;
++}
++
+ static int check_cmdline(struct pw_client *client, int pid, const char *str)
+ {
+ 	char path[2048];
+@@ -121,8 +145,27 @@ core_check_access(void *data, struct pw_client *client)
+ 	const char *str;
+ 	int pid, res;
+ 
++	props = pw_client_get_properties(client);
++
++	if (impl->properties &&
++	    (str = pw_properties_get(impl->properties, "same-sec-label-mode")) != NULL &&
++	    strcmp(str, "1") == 0) {
++		if (props && (str = pw_properties_get(props, PW_KEY_SEC_LABEL)) != NULL) {
++			res = check_seclabel(str);
++			if (res == 1)
++				goto granted;
++			else if (res < 0)
++				pw_log_warn("module %p: client %p seclabel check failed: %s",
++					impl, client, spa_strerror(res));
++		}
++		pw_log_debug("module %p: seclabel restricted client %p added",
++			impl, client);
++		items[0] = SPA_DICT_ITEM_INIT(PW_KEY_ACCESS, "restricted");
++		goto wait_permissions;
++	}
++
+ 	pid = -EINVAL;
+-	if ((props = pw_client_get_properties(client)) != NULL) {
++	if (props != NULL) {
+ 		if ((str = pw_properties_get(props, PW_KEY_SEC_PID)) != NULL)
+ 			pid = atoi(str);
+ 	}
+-- 
+2.24.0
+

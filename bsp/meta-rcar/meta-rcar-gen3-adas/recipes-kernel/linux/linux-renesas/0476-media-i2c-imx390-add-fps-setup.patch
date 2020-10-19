@@ -1,0 +1,158 @@
+From a58b6fe91b46f2e06ad59e80768d5bf548d0b539 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 13 Feb 2020 16:47:36 +0300
+Subject: [PATCH] media: i2c: imx390: add fps setup
+
+This adds FPS setup support on IMX390 imager
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imx390.c | 69 +++++++++++++++++++++++++++++++++--
+ drivers/media/i2c/soc_camera/imx390.h |  9 +++--
+ 2 files changed, 72 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imx390.c b/drivers/media/i2c/soc_camera/imx390.c
+index 9d970b1..4f3d730 100644
+--- a/drivers/media/i2c/soc_camera/imx390.c
++++ b/drivers/media/i2c/soc_camera/imx390.c
+@@ -35,6 +35,8 @@ struct imx390_priv {
+ 	struct v4l2_ctrl_handler	hdl;
+ 	struct media_pad		pad;
+ 	struct v4l2_rect		rect;
++	int				fps_denominator;
++	int				fps_numerator;
+ 	int				init_complete;
+ 	u8				id[6];
+ 	int				exposure;
+@@ -46,6 +48,7 @@ struct imx390_priv {
+ 	int				port;
+ 	int				gpio_resetb;
+ 	int				gpio_fsin;
++	int				vts;
+ };
+ 
+ static inline struct imx390_priv *to_imx390(const struct i2c_client *client)
+@@ -208,6 +211,62 @@ static int imx390_g_mbus_config(struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
++static int imx390_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct imx390_priv *priv = to_imx390(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++
++	memset(cp, 0, sizeof(struct v4l2_captureparm));
++	cp->capability = V4L2_CAP_TIMEPERFRAME;
++	cp->timeperframe.numerator = priv->fps_numerator;
++	cp->timeperframe.denominator = priv->fps_denominator;
++
++	return 0;
++}
++
++static int imx390_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct imx390_priv *priv = to_imx390(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++	int ret = 0, timeout;
++	u8 val;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		priv->vts = (IMX390_SENSOR_HEIGHT + 29) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++
++		reg16_write(client, 0x0, 1);
++		for (timeout = 100; timeout > 0; timeout--) {
++			reg16_read(client, 0x5001, &val);
++			if (val == 1)
++				break;
++			mdelay(1);
++		}
++		if (!timeout)
++			dev_err(&client->dev, "timeout enter standby\n");
++
++		reg16_write(client, 0x2008, priv->vts & 0xff);
++		reg16_write(client, 0x2009, (priv->vts >> 8) & 0xff);
++		reg16_write(client, 0x200A, priv->vts >> 16);
++		ret = reg16_write(client, 0x0, 0);
++
++		priv->fps_numerator = cp->timeperframe.numerator;
++		priv->fps_denominator = cp->timeperframe.denominator;
++	}
++
++	return ret;
++}
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int imx390_g_register(struct v4l2_subdev *sd,
+ 			    struct v4l2_dbg_register *reg)
+@@ -299,9 +358,9 @@ static int imx390_s_ctrl(struct v4l2_ctrl *ctrl)
+ 		break;
+ 	case V4L2_CID_EXPOSURE:
+ 		val = 0xfff - ctrl->val;
+-		ret = reg16_write(client, 0x0c, val); /* LSB */
+-		ret |= reg16_write(client, 0x0d, val >> 8);
+-//		ret |= reg16_write(client, 0x0e, ctrl->val >> 16); /* MSB */
++		reg16_write(client, 0x0c, val); /* LSB */
++		reg16_write(client, 0x0d, val >> 8);
++		ret = reg16_write(client, 0x0e, val >> 16); /* MSB */
+ 		break;
+ 	case V4L2_CID_HFLIP:
+ 		/* hflip */
+@@ -349,6 +408,8 @@ static const struct v4l2_ctrl_ops imx390_ctrl_ops = {
+ static struct v4l2_subdev_video_ops imx390_video_ops = {
+ 	.s_stream	= imx390_s_stream,
+ 	.g_mbus_config	= imx390_g_mbus_config,
++	.g_parm		= imx390_g_parm,
++	.s_parm		= imx390_s_parm,
+ };
+ 
+ static const struct v4l2_subdev_pad_ops imx390_subdev_pad_ops = {
+@@ -509,6 +570,8 @@ static int imx390_probe(struct i2c_client *client,
+ 
+ 	v4l2_i2c_subdev_init(&priv->sd, client, &imx390_subdev_ops);
+ 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
++	priv->fps_numerator = 1;
++	priv->fps_denominator = 30;
+ 
+ 	priv->exposure = 0x100;
+ 	priv->gain = 0;
+diff --git a/drivers/media/i2c/soc_camera/imx390.h b/drivers/media/i2c/soc_camera/imx390.h
+index efd75a7..e9d9808 100644
+--- a/drivers/media/i2c/soc_camera/imx390.h
++++ b/drivers/media/i2c/soc_camera/imx390.h
+@@ -14,6 +14,9 @@
+ #define IMX390_MAX_WIDTH	1920
+ #define IMX390_MAX_HEIGHT	1080
+ 
++#define IMX390_SENSOR_WIDTH	1936
++#define IMX390_SENSOR_HEIGHT	1096
++
+ #define IMX390_DELAY		0xffff
+ #define IMX390_DT		0x2c /* MIPI Data Type RAW12 */
+ 
+@@ -244,9 +247,9 @@ static const struct imx390_reg imx390_regs_wizard[] = {
+ {0x2002, 0x55},
+ {0x2003, 0x05},
+ {0x2004, 0x02},
+-{0x2008, 0x65},
+-{0x2009, 0x04},
+-{0x200A, 0x00},
++{0x2008, (IMX390_SENSOR_HEIGHT + 29) & 0xff},
++{0x2009, ((IMX390_SENSOR_HEIGHT + 29) >> 8) & 0xff},
++{0x200A, (IMX390_SENSOR_HEIGHT + 29) >> 16},
+ {0x200C, 0x30},
+ {0x200D, 0x11},
+ {0x2010, 0x04},
+-- 
+2.7.4
+

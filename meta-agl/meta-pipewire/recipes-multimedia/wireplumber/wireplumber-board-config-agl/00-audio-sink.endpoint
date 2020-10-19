@@ -1,0 +1,10 @@
+[match-node]
+priority = 0
+properties = [
+  { name = "media.class", value = "Audio/Sink" },
+]
+
+[endpoint]
+type = "pw-audio-softdsp-endpoint"
+direction = "sink"
+streams = "playback.streams"

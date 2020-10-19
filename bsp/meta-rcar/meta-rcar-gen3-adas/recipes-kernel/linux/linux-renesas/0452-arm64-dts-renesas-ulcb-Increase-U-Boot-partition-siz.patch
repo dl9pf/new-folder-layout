@@ -1,0 +1,54 @@
+From b45d7c8d45ca94b4e0ac2ad6df8b4f9b56cf3b38 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 20 Dec 2019 14:09:00 +0300
+Subject: [PATCH 1/2] arm64: dts: renesas: ulcb: Increase U-Boot partition size
+
+Increase U-Boot partition size according to its actual size.
+This involves moving the "u-boot-env", "kernel", "dtb" and
+"user" partitions further by one sector which is safe
+at this point because they are not used yet. U-Boot
+environment is located on the eMMC flash.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/ulcb.dtsi | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/ulcb.dtsi b/arch/arm64/boot/dts/renesas/ulcb.dtsi
+index 4b22551..f33027c 100644
+--- a/arch/arm64/boot/dts/renesas/ulcb.dtsi
++++ b/arch/arm64/boot/dts/renesas/ulcb.dtsi
+@@ -455,21 +455,21 @@
+ 				read-only;
+ 			};
+ 			uboot@00640000 {
+-				reg = <0x00640000 0x0C0000>;
++				reg = <0x00640000 0x100000>;
+ 				read-only;
+ 			};
+-			uboot-env@00700000 {
+-				reg = <0x00700000 0x040000>;
++			uboot-env@00740000 {
++				reg = <0x00740000 0x040000>;
+ 				read-only;
+ 			};
+-			dtb@00740000 {
+-				reg = <0x00740000 0x080000>;
++			dtb@00780000 {
++				reg = <0x00780000 0x080000>;
+ 			};
+-			kernel@007C0000 {
+-				reg = <0x007C0000 0x1400000>;
++			kernel@00800000 {
++				reg = <0x00800000 0x1400000>;
+ 			};
+-			user@01BC0000 {
+-				reg = <0x01BC0000 0x2440000>;
++			user@01C00000 {
++				reg = <0x01C00000 0x2400000>;
+ 			};
+ 		};
+ 	};
+-- 
+2.7.4
+

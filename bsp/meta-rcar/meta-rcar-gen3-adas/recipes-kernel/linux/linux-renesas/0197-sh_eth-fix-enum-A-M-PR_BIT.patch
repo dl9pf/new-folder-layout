@@ -1,0 +1,62 @@
+From d511f84c6154eea75e1f00bc1806279a8aec4499 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 26 Jun 2018 18:42:33 +0300
+Subject: [PATCH 017/211] sh_eth: fix *enum* {A|M}PR_BIT
+
+The *enum* {A|M}PR_BIT were declared in the commit 86a74ff21a7a ("net:
+sh_eth: add support for  Renesas SuperH Ethernet") adding SH771x support,
+however the SH771x manual  doesn't have the APR/MPR registers described
+and the code writing to them for SH7710 was later removed by the commit
+380af9e390ec ("net: sh_eth: CPU dependency code collect to "struct
+sh_eth_cpu_data""). All the newer SoC manuals have these registers
+documented as having a 16-bit TIME parameter of the PAUSE frame, not
+1-bit -- update the *enum* accordingly, fixing up the APR/MPR writes...
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit 782e85c5f7aee0294cefb52a190b05e082c178d5)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/ethernet/renesas/sh_eth.c | 4 ++--
+ drivers/net/ethernet/renesas/sh_eth.h | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/ethernet/renesas/sh_eth.c b/drivers/net/ethernet/renesas/sh_eth.c
+index 981ea16..f11b12f 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.c
++++ b/drivers/net/ethernet/renesas/sh_eth.c
+@@ -1521,9 +1521,9 @@ static int sh_eth_dev_init(struct net_device *ndev)
+ 
+ 	/* mask reset */
+ 	if (mdp->cd->apr)
+-		sh_eth_write(ndev, APR_AP, APR);
++		sh_eth_write(ndev, 1, APR);
+ 	if (mdp->cd->mpr)
+-		sh_eth_write(ndev, MPR_MP, MPR);
++		sh_eth_write(ndev, 1, MPR);
+ 	if (mdp->cd->tpauser)
+ 		sh_eth_write(ndev, TPAUSER_UNLIMITED, TPAUSER);
+ 
+diff --git a/drivers/net/ethernet/renesas/sh_eth.h b/drivers/net/ethernet/renesas/sh_eth.h
+index a03d99f..140ad2c 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.h
++++ b/drivers/net/ethernet/renesas/sh_eth.h
+@@ -383,12 +383,12 @@ enum ECSIPR_STATUS_MASK_BIT {
+ 
+ /* APR */
+ enum APR_BIT {
+-	APR_AP = 0x00000001,
++	APR_AP = 0x0000ffff,
+ };
+ 
+ /* MPR */
+ enum MPR_BIT {
+-	MPR_MP = 0x00000001,
++	MPR_MP = 0x0000ffff,
+ };
+ 
+ /* TRSCER */
+-- 
+2.7.4
+

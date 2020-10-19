@@ -1,0 +1,36 @@
+From 3a5d6b62e7d8c993e3bad5594119519e54a73e3c Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 27 Oct 2018 00:20:52 +0300
+Subject: [PATCH 136/211] arm64: dts: renesas: v3hsk: Add mmngr and mmngrbuf
+ nodes
+
+This adds mmngr and mmngrbuf nodes.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index eb7f03a..4aa6b27 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -55,6 +55,15 @@
+ 		};
+ 	};
+ 
++	mmngr {
++		compatible = "renesas,mmngr";
++		memory-region = <&lossy_decompress>;
++	};
++
++	mmngrbuf {
++		compatible = "renesas,mmngrbuf";
++	};
++
+ 	hdmi-out {
+ 		compatible = "hdmi-connector";
+ 		type = "a";
+-- 
+2.7.4
+

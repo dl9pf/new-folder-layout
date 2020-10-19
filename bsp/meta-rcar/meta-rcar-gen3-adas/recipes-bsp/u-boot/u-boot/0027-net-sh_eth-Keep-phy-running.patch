@@ -1,0 +1,126 @@
+From 04b535af397c8302f306952e09d531fc96fe523e Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Wed, 27 Nov 2019 03:46:52 +0300
+Subject: [PATCH 1/4] net: sh_eth: Keep phy running
+
+This doesn't stop the PHY, and disable the clock once the Ethernet
+transfer is complete. We need PHY initialized for the "mii" console
+commands to work. This also reduces Ethernet start time since we
+don't have to reinitialize the PHY and restart auto-negotiation
+every time an Ethernet command is issued.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/sh_eth.c | 52 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 25 deletions(-)
+
+diff --git a/drivers/net/sh_eth.c b/drivers/net/sh_eth.c
+index be8c3d2..b120977 100644
+--- a/drivers/net/sh_eth.c
++++ b/drivers/net/sh_eth.c
+@@ -778,35 +778,17 @@ static int sh_eth_phy_config(struct udevice *dev)
+ static int sh_ether_start(struct udevice *dev)
+ {
+ 	struct sh_ether_priv *priv = dev_get_priv(dev);
+-	struct eth_pdata *pdata = dev_get_platdata(dev);
+ 	struct sh_eth_dev *eth = &priv->shdev;
++	struct sh_eth_info *port_info = &eth->port_info[eth->port];
+ 	int ret;
+ 
+-	ret = clk_enable(&priv->clk);
+-	if (ret)
+-		return ret;
+-
+-	ret = sh_eth_init_common(eth, pdata->enetaddr);
+-	if (ret)
+-		goto err_clk;
+-
+-	ret = sh_eth_phy_config(dev);
++	ret = phy_startup(port_info->phydev);
+ 	if (ret) {
+-		printf(SHETHER_NAME ": phy config timeout\n");
+-		goto err_start;
++		printf(SHETHER_NAME ": phy startup failure\n");
++		return ret;
+ 	}
+ 
+ 	ret = sh_eth_start_common(eth);
+-	if (ret)
+-		goto err_start;
+-
+-	return 0;
+-
+-err_start:
+-	sh_eth_tx_desc_free(eth);
+-	sh_eth_rx_desc_free(eth);
+-err_clk:
+-	clk_disable(&priv->clk);
+ 	return ret;
+ }
+ 
+@@ -815,7 +797,6 @@ static void sh_ether_stop(struct udevice *dev)
+ 	struct sh_ether_priv *priv = dev_get_priv(dev);
+ 
+ 	sh_eth_stop(&priv->shdev);
+-	clk_disable(&priv->clk);
+ }
+ 
+ static int sh_ether_probe(struct udevice *udev)
+@@ -857,7 +838,7 @@ static int sh_ether_probe(struct udevice *udev)
+ 
+ 	ret = mdio_register(mdiodev);
+ 	if (ret < 0)
+-		goto err_mdio_register;
++		goto err_mdio;
+ 
+ 	priv->bus = miiphy_get_dev_by_name(udev->name);
+ 
+@@ -866,9 +847,25 @@ static int sh_ether_probe(struct udevice *udev)
+ 	eth->port_info[eth->port].iobase =
+ 		(void __iomem *)(BASE_IO_ADDR + 0x800 * eth->port);
+ 
++	ret = clk_enable(&priv->clk);
++	if (ret)
++		goto err_mdio;
++
++	ret = sh_eth_init_common(eth, pdata->enetaddr);
++	if (ret)
++		goto err_clk;
++
++	ret = sh_eth_phy_config(udev);
++	if (ret) {
++		printf(SHETHER_NAME ": phy config timeout\n");
++		goto err_clk;
++	}
++
+ 	return 0;
+ 
+-err_mdio_register:
++err_clk:
++	clk_disable(&priv->clk);
++err_mdio:
+ 	mdio_free(mdiodev);
+ 	return ret;
+ }
+@@ -879,13 +876,18 @@ static int sh_ether_remove(struct udevice *udev)
+ 	struct sh_eth_dev *eth = &priv->shdev;
+ 	struct sh_eth_info *port_info = &eth->port_info[eth->port];
+ 
++	sh_eth_tx_desc_free(eth);
++	sh_eth_rx_desc_free(eth);
++
+ 	free(port_info->phydev);
++
+ 	mdio_unregister(priv->bus);
+ 	mdio_free(priv->bus);
+ 
+ 	if (dm_gpio_is_valid(&priv->reset_gpio))
+ 		dm_gpio_free(udev, &priv->reset_gpio);
+ 
++	clk_disable(&priv->clk);
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

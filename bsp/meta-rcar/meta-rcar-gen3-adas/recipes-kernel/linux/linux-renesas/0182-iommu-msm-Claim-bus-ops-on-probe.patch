@@ -1,0 +1,58 @@
+From feb15c008da506989868369195e3982ff8131fcd Mon Sep 17 00:00:00 2001
+From: Robin Murphy <robin.murphy@arm.com>
+Date: Tue, 9 Jan 2018 16:17:25 +0000
+Subject: [PATCH 002/211] iommu/msm: Claim bus ops on probe
+
+Since the MSM IOMMU driver now probes via DT exclusively rather than
+platform data, dependent masters should be deferred until the IOMMU
+itself is ready. Thus we can do away with the early initialisation
+hook to unconditionally claim the bus ops, and instead do that only
+once an IOMMU is actually probed. Furthermore, this should also make
+the driver safe for multiplatform kernels on non-MSM SoCs.
+
+Reviewed-by: Sricharan R <sricharan@codeaurora.org>
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+(cherry picked from commit 892d7aaddb24b0d3eaf05534ed29a264d3b52646)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/iommu/msm_iommu.c | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/iommu/msm_iommu.c b/drivers/iommu/msm_iommu.c
+index 92c8c83..350ed3d 100644
+--- a/drivers/iommu/msm_iommu.c
++++ b/drivers/iommu/msm_iommu.c
+@@ -817,6 +817,8 @@ static int msm_iommu_probe(struct platform_device *pdev)
+ 		goto fail;
+ 	}
+ 
++	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
++
+ 	pr_info("device mapped at %p, irq %d with %d ctx banks\n",
+ 		iommu->base, iommu->irq, iommu->ncb);
+ 
+@@ -869,19 +871,7 @@ static void __exit msm_iommu_driver_exit(void)
+ subsys_initcall(msm_iommu_driver_init);
+ module_exit(msm_iommu_driver_exit);
+ 
+-static int __init msm_iommu_init(void)
+-{
+-	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
+-	return 0;
+-}
+-
+-static int __init msm_iommu_of_setup(struct device_node *np)
+-{
+-	msm_iommu_init();
+-	return 0;
+-}
+-
+-IOMMU_OF_DECLARE(msm_iommu_of, "qcom,apq8064-iommu", msm_iommu_of_setup);
++IOMMU_OF_DECLARE(msm_iommu_of, "qcom,apq8064-iommu", NULL);
+ 
+ MODULE_LICENSE("GPL v2");
+ MODULE_AUTHOR("Stepan Moskovchenko <stepanm@codeaurora.org>");
+-- 
+2.7.4
+

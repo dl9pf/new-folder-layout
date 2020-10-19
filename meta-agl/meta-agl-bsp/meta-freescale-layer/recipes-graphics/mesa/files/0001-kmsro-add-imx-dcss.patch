@@ -1,0 +1,34 @@
+Add i.MX8MQ DCSS kmsro support
+
+Add required dummy entry for NXP's i.MX8MQ DCSS display controller DRM
+driver to the kmsro configuration so that the loader will not think it
+is a GPU.
+
+Upstream-Status: pending
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+---
+
+diff --git a/src/gallium/targets/dri/meson.build b/src/gallium/targets/dri/meson.build
+index ae25a21..17379c7 100644
+--- a/src/gallium/targets/dri/meson.build
++++ b/src/gallium/targets/dri/meson.build
+@@ -72,6 +72,7 @@ foreach d : [[with_gallium_kmsro, [
+                'hx8357d_dri.so',
+                'ili9225_dri.so',
+                'ili9341_dri.so',
++               'imx-dcss_dri.so',
+                'imx-drm_dri.so',
+                'ingenic-drm_dri.so',
+                'mcde_dri.so',
+diff --git a/src/gallium/targets/dri/target.c b/src/gallium/targets/dri/target.c
+index f71f690..41c5c75 100644
+--- a/src/gallium/targets/dri/target.c
++++ b/src/gallium/targets/dri/target.c
+@@ -97,6 +97,7 @@ DEFINE_LOADER_DRM_ENTRYPOINT(exynos)
+ DEFINE_LOADER_DRM_ENTRYPOINT(hx8357d)
+ DEFINE_LOADER_DRM_ENTRYPOINT(ili9225)
+ DEFINE_LOADER_DRM_ENTRYPOINT(ili9341)
++DEFINE_LOADER_DRM_ENTRYPOINT(imx_dcss)
+ DEFINE_LOADER_DRM_ENTRYPOINT(imx_drm)
+ DEFINE_LOADER_DRM_ENTRYPOINT(ingenic_drm)
+ DEFINE_LOADER_DRM_ENTRYPOINT(mcde)

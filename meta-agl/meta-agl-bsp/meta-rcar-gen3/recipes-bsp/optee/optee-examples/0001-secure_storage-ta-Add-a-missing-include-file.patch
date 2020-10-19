@@ -1,0 +1,29 @@
+From be7079678aeb1503e0f681d977c47c44fd7b4f8c Mon Sep 17 00:00:00 2001
+From: Pierre Marzin <pierre.marzin@iot.bzh>
+Date: Mon, 19 Aug 2019 09:33:17 +0000
+Subject: [PATCH] secure_storage: ta: Add a missing include file
+
+The commit 9890a50d3c26b377dcb27f5db680018e15a5a3de fix a size type by
+using a format macro contant 'PRIu32' into a printf. This needs the
+inttypes.h header file to build correctly with aarch64-linux-gnu-gcc.
+
+Signed-off-by: Pierre Marzin <pierre.marzin@iot.bzh>
+---
+ secure_storage/ta/secure_storage_ta.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/secure_storage/ta/secure_storage_ta.c b/secure_storage/ta/secure_storage_ta.c
+index 3ccc12d..cfdfbb6 100644
+--- a/secure_storage/ta/secure_storage_ta.c
++++ b/secure_storage/ta/secure_storage_ta.c
+@@ -28,6 +28,7 @@
+ #include <secure_storage_ta.h>
+ #include <tee_internal_api.h>
+ #include <tee_internal_api_extensions.h>
++#include <inttypes.h>
+ 
+ static TEE_Result delete_object(uint32_t param_types, TEE_Param params[4])
+ {
+-- 
+2.11.0
+

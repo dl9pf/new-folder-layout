@@ -1,0 +1,302 @@
+From ab485ee2d1076f9a7a0468227f2628b4eee54b23 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 8 Aug 2019 00:51:22 +0300
+Subject: [PATCH 21/23] arm: renesas: v3hsk: Add CPLD support
+
+This adds CPLD sysreset driver to the R-Car V3H SK board.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm/dts/r8a77980-v3hsk-u-boot.dts |   8 ++
+ arch/arm/dts/r8a77980-v3hsk.dts        |  13 +++
+ board/renesas/v3hsk/Makefile           |   3 +-
+ board/renesas/v3hsk/cpld.c             | 180 +++++++++++++++++++++++++++++++++
+ board/renesas/v3hsk/v3hsk.c            |   2 +
+ configs/r8a77980_v3hsk_defconfig       |   2 +
+ 6 files changed, 207 insertions(+), 1 deletion(-)
+ create mode 100644 board/renesas/v3hsk/cpld.c
+
+diff --git a/arch/arm/dts/r8a77980-v3hsk-u-boot.dts b/arch/arm/dts/r8a77980-v3hsk-u-boot.dts
+index 28090c5..d083df6 100644
+--- a/arch/arm/dts/r8a77980-v3hsk-u-boot.dts
++++ b/arch/arm/dts/r8a77980-v3hsk-u-boot.dts
+@@ -32,3 +32,11 @@
+ 		status = "okay";
+ 	};
+ };
++
++&i2c0 {
++	cpld {
++		compatible = "renesas,v3hsk-cpld";
++		reg = <0x70>;
++		u-boot,i2c-offset-len = <2>;
++	};
++};
+diff --git a/arch/arm/dts/r8a77980-v3hsk.dts b/arch/arm/dts/r8a77980-v3hsk.dts
+index 9042483..2da7776 100644
+--- a/arch/arm/dts/r8a77980-v3hsk.dts
++++ b/arch/arm/dts/r8a77980-v3hsk.dts
+@@ -75,6 +75,14 @@
+ 	};
+ };
+ 
++&i2c0 {
++	pinctrl-0 = <&i2c0_pins>;
++	pinctrl-names = "default";
++
++	status = "okay";
++	clock-frequency = <400000>;
++};
++
+ &mmc0 {
+ 	/* used for on-board eMMC */
+ 	pinctrl-0 = <&mmc_pins>;
+@@ -96,6 +104,11 @@
+ 		function = "gether";
+ 	};
+ 
++	i2c0_pins: i2c0 {
++		groups = "i2c0";
++		function = "i2c0";
++	};
++
+ 	mmc_pins: mmc {
+ 		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
+ 		function = "mmc";
+diff --git a/board/renesas/v3hsk/Makefile b/board/renesas/v3hsk/Makefile
+index f41c7ab..f187eb1 100644
+--- a/board/renesas/v3hsk/Makefile
++++ b/board/renesas/v3hsk/Makefile
+@@ -7,4 +7,5 @@
+ # SPDX-License-Identifier: GPL-2.0+
+ #
+ 
+-obj-y	:= v3hsk.o
++obj-y			:= v3hsk.o
++obj-$(CONFIG_SYSRESET)	+= cpld.o
+diff --git a/board/renesas/v3hsk/cpld.c b/board/renesas/v3hsk/cpld.c
+new file mode 100644
+index 0000000..7d57fe7
+--- /dev/null
++++ b/board/renesas/v3hsk/cpld.c
+@@ -0,0 +1,180 @@
++/*
++ * V3HSK board CPLD access support
++ *
++ * Copyright (C) 2019 Renesas Electronics Corporation
++ * Copyright (C) 2019 Cogent Embedded, Inc.
++ *
++ * SPDX-License-Identifier: GPL-2.0+
++ */
++
++#include <common.h>
++#include <dm.h>
++#include <errno.h>
++#include <i2c.h>
++#include <linux/err.h>
++#include <sysreset.h>
++
++#define CPLD_ADDR_PRODUCT_0		0x0000 /* R */
++#define CPLD_ADDR_PRODUCT_1		0x0001 /* R */
++#define CPLD_ADDR_PRODUCT_2		0x0002 /* R */
++#define CPLD_ADDR_PRODUCT_3		0x0003 /* R */
++#define CPLD_ADDR_CPLD_VERSION_D	0x0004 /* R */
++#define CPLD_ADDR_CPLD_VERSION_M	0x0005 /* R */
++#define CPLD_ADDR_CPLD_VERSION_Y_0	0x0006 /* R */
++#define CPLD_ADDR_CPLD_VERSION_Y_1	0x0007 /* R */
++#define CPLD_ADDR_MODE_SET_0		0x0008 /* R */
++#define CPLD_ADDR_MODE_SET_1		0x0009 /* R */
++#define CPLD_ADDR_MODE_SET_2		0x000A /* R */
++#define CPLD_ADDR_MODE_SET_3		0x000B /* R */
++#define CPLD_ADDR_MODE_SET_4		0x000C /* R */
++#define CPLD_ADDR_MODE_LAST_0		0x0018 /* R */
++#define CPLD_ADDR_MODE_LAST_1		0x0019 /* R */
++#define CPLD_ADDR_MODE_LAST_2		0x001A /* R */
++#define CPLD_ADDR_MODE_LAST_3		0x001B /* R */
++#define CPLD_ADDR_MODE_LAST_4		0x001C /* R */
++#define CPLD_ADDR_DIPSW4		0x0020 /* R */
++#define CPLD_ADDR_DIPSW5		0x0021 /* R */
++#define CPLD_ADDR_RESET			0x0024 /* R/W */
++#define CPLD_ADDR_POWER_CFG		0x0025 /* R/W */
++#define CPLD_ADDR_PERI_CFG_0		0x0030 /* R/W */
++#define CPLD_ADDR_PERI_CFG_1		0x0031 /* R/W */
++#define CPLD_ADDR_PERI_CFG_2		0x0032 /* R/W */
++#define CPLD_ADDR_PERI_CFG_3		0x0033 /* R/W */
++#define CPLD_ADDR_LEDS			0x0034 /* R/W */
++#define CPLD_ADDR_LEDS_CFG		0x0035 /* R/W */
++#define CPLD_ADDR_UART_CFG		0x0036 /* R/W */
++#define CPLD_ADDR_UART_STATUS		0x0037 /* R */
++
++#define CPLD_ADDR_PCB_VERSION_0		0x1000 /* R */
++#define CPLD_ADDR_PCB_VERSION_1		0x1001 /* R */
++#define CPLD_ADDR_SOC_VERSION_0		0x1002 /* R */
++#define CPLD_ADDR_SOC_VERSION_1		0x1003 /* R */
++#define CPLD_ADDR_PCB_SN_0		0x1004 /* R */
++#define CPLD_ADDR_PCB_SN_1		0x1005 /* R */
++
++static u16 cpld_read(struct udevice *dev, u16 addr)
++{
++	u8 data[2];
++
++	/* Random flash reads require 2 reads: first read is unreliable */
++	if (addr >= CPLD_ADDR_PCB_VERSION_0)
++		dm_i2c_read(dev, addr, data, 2);
++
++	/* Only the second byte read is valid */
++	dm_i2c_read(dev, addr, data, 2);
++	return data[1];
++}
++
++static void cpld_write(struct udevice *dev, u16 addr, u8 data)
++{
++	dm_i2c_write(dev, addr, &data, 1);
++}
++
++static int do_cpld(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
++{
++	struct udevice *dev;
++	u16 addr, val;
++	int ret;
++
++	ret = uclass_get_device_by_driver(UCLASS_SYSRESET,
++					  DM_GET_DRIVER(sysreset_renesas_v3hsk),
++					  &dev);
++	if (ret)
++		return ret;
++
++	if (argc == 2 && strcmp(argv[1], "info") == 0) {
++		printf("Product:                0x%08x\n",
++		       (cpld_read(dev, CPLD_ADDR_PRODUCT_3) << 24) |
++		       (cpld_read(dev, CPLD_ADDR_PRODUCT_2) << 16) |
++		       (cpld_read(dev, CPLD_ADDR_PRODUCT_1) << 8) |
++		       cpld_read(dev, CPLD_ADDR_PRODUCT_0));
++		printf("CPLD version:           0x%08x\n",
++		       (cpld_read(dev, CPLD_ADDR_CPLD_VERSION_Y_1) << 24) |
++		       (cpld_read(dev, CPLD_ADDR_CPLD_VERSION_Y_0) << 16) |
++		       (cpld_read(dev, CPLD_ADDR_CPLD_VERSION_M) << 8) |
++		       cpld_read(dev, CPLD_ADDR_CPLD_VERSION_D));
++		printf("Mode setting (MD0..26): 0x%08x\n",
++		       (cpld_read(dev, CPLD_ADDR_MODE_LAST_3) << 24) |
++		       (cpld_read(dev, CPLD_ADDR_MODE_LAST_2) << 16) |
++		       (cpld_read(dev, CPLD_ADDR_MODE_LAST_1) << 8) |
++		       cpld_read(dev, CPLD_ADDR_MODE_LAST_0));
++		printf("DIPSW (SW4, SW5):       0x%02x, 0x%x\n",
++		       cpld_read(dev, CPLD_ADDR_DIPSW4) ^ 0xff,
++		       (cpld_read(dev, CPLD_ADDR_DIPSW5) ^ 0xff) & 0xf);
++		printf("Power config:           0x%08x\n",
++		       cpld_read(dev, CPLD_ADDR_POWER_CFG));
++		printf("Periferals config:      0x%08x\n",
++		       (cpld_read(dev, CPLD_ADDR_PERI_CFG_3) << 24) |
++		       (cpld_read(dev, CPLD_ADDR_PERI_CFG_2) << 16) |
++		       (cpld_read(dev, CPLD_ADDR_PERI_CFG_1) << 8) |
++		       cpld_read(dev, CPLD_ADDR_PERI_CFG_0));
++		printf("PCB version:            %d.%d\n",
++		       cpld_read(dev, CPLD_ADDR_PCB_VERSION_1),
++		       cpld_read(dev, CPLD_ADDR_PCB_VERSION_0));
++		printf("SOC version:            %d.%d\n",
++		       cpld_read(dev, CPLD_ADDR_SOC_VERSION_1),
++		       cpld_read(dev, CPLD_ADDR_SOC_VERSION_0));
++		printf("PCB S/N:                %d\n",
++		       (cpld_read(dev, CPLD_ADDR_PCB_SN_1) << 8) |
++		       cpld_read(dev, CPLD_ADDR_PCB_SN_0));
++		return 0;
++	}
++
++	if (argc < 3)
++		return CMD_RET_USAGE;
++
++	addr = simple_strtoul(argv[2], NULL, 16);
++	if (!(addr >= CPLD_ADDR_PRODUCT_0 && addr <= CPLD_ADDR_UART_STATUS)) {
++		printf("cpld invalid addr\n");
++		return CMD_RET_USAGE;
++	}
++
++	if (argc == 3 && strcmp(argv[1], "read") == 0) {
++		printf("0x%x\n", cpld_read(dev, addr));
++	} else if (argc == 4 && strcmp(argv[1], "write") == 0) {
++		val = simple_strtoul(argv[3], NULL, 16);
++		cpld_write(dev, addr, val);
++	}
++
++	return 0;
++}
++
++U_BOOT_CMD(
++	cpld, 4, 1, do_cpld,
++	"CPLD access",
++	"info\n"
++	"cpld read addr\n"
++	"cpld write addr val\n"
++);
++
++static int renesas_v3hsk_sysreset_request(struct udevice *dev, enum sysreset_t type)
++{
++	cpld_write(dev, CPLD_ADDR_RESET, 1);
++
++	return -EINPROGRESS;
++}
++
++static int renesas_v3hsk_sysreset_probe(struct udevice *dev)
++{
++	if (device_get_uclass_id(dev->parent) != UCLASS_I2C)
++		return -EPROTONOSUPPORT;
++
++	return 0;
++}
++
++static struct sysreset_ops renesas_v3hsk_sysreset = {
++	.request	= renesas_v3hsk_sysreset_request,
++};
++
++static const struct udevice_id renesas_v3hsk_sysreset_ids[] = {
++	{ .compatible = "renesas,v3hsk-cpld" },
++	{ /* sentinel */ }
++};
++
++U_BOOT_DRIVER(sysreset_renesas_v3hsk) = {
++	.name		= "renesas_v3hsk_sysreset",
++	.id		= UCLASS_SYSRESET,
++	.ops		= &renesas_v3hsk_sysreset,
++	.probe		= renesas_v3hsk_sysreset_probe,
++	.of_match	= renesas_v3hsk_sysreset_ids,
++};
+diff --git a/board/renesas/v3hsk/v3hsk.c b/board/renesas/v3hsk/v3hsk.c
+index 05c62d2..91467e3 100644
+--- a/board/renesas/v3hsk/v3hsk.c
++++ b/board/renesas/v3hsk/v3hsk.c
+@@ -84,6 +84,7 @@ int dram_init_banksize(void)
+ 	return 0;
+ }
+ 
++#if !CONFIG_IS_ENABLED(SYSRESET)
+ #define RST_BASE	0xE6160000
+ #define RST_CA57RESCNT	(RST_BASE + 0x40)
+ #define RST_CA53RESCNT	(RST_BASE + 0x44)
+@@ -105,3 +106,4 @@ void reset_cpu(ulong addr)
+ 	else
+ 		hang();
+ }
++#endif
+diff --git a/configs/r8a77980_v3hsk_defconfig b/configs/r8a77980_v3hsk_defconfig
+index f52f813..a90240e 100644
+--- a/configs/r8a77980_v3hsk_defconfig
++++ b/configs/r8a77980_v3hsk_defconfig
+@@ -42,6 +42,7 @@ CONFIG_CLK_RENESAS=y
+ CONFIG_DM_GPIO=y
+ CONFIG_RCAR_GPIO=y
+ CONFIG_DM_I2C=y
++CONFIG_SYS_I2C_RCAR_I2C=y
+ CONFIG_SYS_I2C_RCAR_IIC=y
+ CONFIG_DM_MMC=y
+ CONFIG_MMC_IO_VOLTAGE=y
+@@ -67,6 +68,7 @@ CONFIG_SCIF_CONSOLE=y
+ CONFIG_SPI=y
+ CONFIG_DM_SPI=y
+ CONFIG_RENESAS_RPC_SPI=y
++CONFIG_SYSRESET=y
+ CONFIG_USB=y
+ CONFIG_DM_USB=y
+ CONFIG_USB_XHCI_HCD=y
+-- 
+2.7.4
+

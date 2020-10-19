@@ -1,0 +1,70 @@
+From 088954dd3b295ef6401f58e694456c782e57ef39 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 10 Feb 2020 21:10:06 +0300
+Subject: [PATCH] media: i2c: soc_camera: fix compilation warnings
+
+Fix compilation warnings
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0143.c  | 2 +-
+ drivers/media/i2c/soc_camera/ar0147.c  | 2 +-
+ drivers/media/i2c/soc_camera/ov106xx.c | 3 +++
+ drivers/media/i2c/soc_camera/ox01d10.c | 1 -
+ 4 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0143.c b/drivers/media/i2c/soc_camera/ar0143.c
+index de4ca3c..7d55afb 100644
+--- a/drivers/media/i2c/soc_camera/ar0143.c
++++ b/drivers/media/i2c/soc_camera/ar0143.c
+@@ -349,7 +349,7 @@ static int ar0143_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+ 		priv->fps_denominator = cp->timeperframe.numerator;
+ 		priv->fps_denominator = cp->timeperframe.denominator;
+ 	}
+-out:
++
+ 	return ret;
+ }
+ 
+diff --git a/drivers/media/i2c/soc_camera/ar0147.c b/drivers/media/i2c/soc_camera/ar0147.c
+index e3ecec2..a444700 100644
+--- a/drivers/media/i2c/soc_camera/ar0147.c
++++ b/drivers/media/i2c/soc_camera/ar0147.c
+@@ -366,7 +366,7 @@ static int ar0147_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
+ 		priv->fps_numerator = cp->timeperframe.numerator;
+ 		priv->fps_denominator = cp->timeperframe.denominator;
+ 	}
+-out:
++
+ 	return ret;
+ }
+ 
+diff --git a/drivers/media/i2c/soc_camera/ov106xx.c b/drivers/media/i2c/soc_camera/ov106xx.c
+index 841861c..cf97f28 100644
+--- a/drivers/media/i2c/soc_camera/ov106xx.c
++++ b/drivers/media/i2c/soc_camera/ov106xx.c
+@@ -243,6 +243,9 @@ static int ov106xx_remove(struct i2c_client *client)
+ 	case ID_IMX390:
+ 		imx390_remove(client);
+ 		break;
++	case ID_OX01D10:
++		ox01d10_remove(client);
++		break;
+ 	case ID_OX03A:
+ 		ox03a_remove(client);
+ 		break;
+diff --git a/drivers/media/i2c/soc_camera/ox01d10.c b/drivers/media/i2c/soc_camera/ox01d10.c
+index 3ea3fef..082e88c 100644
+--- a/drivers/media/i2c/soc_camera/ox01d10.c
++++ b/drivers/media/i2c/soc_camera/ox01d10.c
+@@ -388,7 +388,6 @@ static DEVICE_ATTR(otp_id_ox01d10, S_IRUGO, ox01d10_otp_id_show, NULL);
+ static int ox01d10_initialize(struct i2c_client *client)
+ {
+ 	struct ox01d10_priv *priv = to_ox01d10(client);
+-	char chip_name[10] = "unknown";
+ 	u8 val = 0;
+ 	u16 pid;
+ 	int ret = 0;
+-- 
+2.7.4
+

@@ -1,0 +1,193 @@
+From 34941d2c45e323bb07c613148fbaff31b955017b Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 7 Nov 2018 15:27:06 +0300
+Subject: [PATCH 170/211] arm64: dts: renesas: r8a77980 v3hsk vb 4ch and 8ch:
+ fix csi labels.
+
+---
+ .../boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts     | 14 ++++++-------
+ .../boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts     | 24 +++++++++++-----------
+ 2 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index 76855c4..d281871 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -112,7 +112,7 @@
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+-		csi2_40_ep: endpoint {
++		csi40_ep: endpoint {
+ 			clock-lanes = <0>;
+ 			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1500>;
+@@ -127,7 +127,7 @@
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+-		csi2_41_ep: endpoint {
++		csi41_ep: endpoint {
+ 			clock-lanes = <0>;
+ 			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1500>;
+@@ -270,7 +270,7 @@
+ 				port@1 {
+ 					ti9x4_csi0ep0: endpoint {
+ 						csi-rate = <1500>;
+-						remote-endpoint = <&csi2_40_ep>;
++						remote-endpoint = <&csi40_ep>;
+ 					};
+ 				};
+ 			};
+@@ -529,7 +529,7 @@
+ 		};
+ 		port@1 {
+ 			csi0ep0: endpoint {
+-				remote-endpoint = <&csi2_40_ep>;
++				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -557,7 +557,7 @@
+ 		};
+ 		port@1 {
+ 			csi0ep1: endpoint {
+-				remote-endpoint = <&csi2_40_ep>;
++				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -585,7 +585,7 @@
+ 		};
+ 		port@1 {
+ 			csi1ep2: endpoint {
+-				remote-endpoint = <&csi2_41_ep>;
++				remote-endpoint = <&csi41_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -613,7 +613,7 @@
+ 		};
+ 		port@1 {
+ 			csi1ep3: endpoint {
+-				remote-endpoint = <&csi2_41_ep>;
++				remote-endpoint = <&csi41_ep>;
+ 			};
+ 		};
+ 		port@2 {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index f8657ed..e5a8a18 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -112,7 +112,7 @@
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+-		csi2_40_ep: endpoint {
++		csi40_ep: endpoint {
+ 			clock-lanes = <0>;
+ 			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1450>;
+@@ -127,7 +127,7 @@
+ 		#address-cells = <1>;
+ 		#size-cells = <0>;
+ 
+-		csi2_41_ep: endpoint {
++		csi41_ep: endpoint {
+ 			clock-lanes = <0>;
+ 			data-lanes = <1 2 3 4>;
+ 			csi-rate = <1450>;
+@@ -268,7 +268,7 @@
+ 				port@1 {
+ 					ti9x4_csi0ep0: endpoint {
+ 						csi-rate = <1450>;
+-						remote-endpoint = <&csi2_40_ep>;
++						remote-endpoint = <&csi40_ep>;
+ 					};
+ 				};
+ 			};
+@@ -426,7 +426,7 @@
+ 				port@1 {
+ 					ti9x4_csi1ep0: endpoint {
+ 						csi-rate = <1450>;
+-						remote-endpoint = <&csi2_41_ep>;
++						remote-endpoint = <&csi41_ep>;
+ 					};
+ 				};
+ 			};
+@@ -689,7 +689,7 @@
+ 		};
+ 		port@1 {
+ 			csi0ep0: endpoint {
+-				remote-endpoint = <&csi2_40_ep>;
++				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -717,7 +717,7 @@
+ 		};
+ 		port@1 {
+ 			csi0ep1: endpoint {
+-				remote-endpoint = <&csi2_40_ep>;
++				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -745,7 +745,7 @@
+ 		};
+ 		port@1 {
+ 			csi0ep2: endpoint {
+-				remote-endpoint = <&csi2_40_ep>;
++				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -773,7 +773,7 @@
+ 		};
+ 		port@1 {
+ 			csi0ep3: endpoint {
+-				remote-endpoint = <&csi2_40_ep>;
++				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -801,7 +801,7 @@
+ 		};
+ 		port@1 {
+ 			csi1ep0: endpoint {
+-				remote-endpoint = <&csi2_41_ep>;
++				remote-endpoint = <&csi41_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -829,7 +829,7 @@
+ 		};
+ 		port@1 {
+ 			csi1ep1: endpoint {
+-				remote-endpoint = <&csi2_41_ep>;
++				remote-endpoint = <&csi41_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -857,7 +857,7 @@
+ 		};
+ 		port@1 {
+ 			csi1ep2: endpoint {
+-				remote-endpoint = <&csi2_41_ep>;
++				remote-endpoint = <&csi41_ep>;
+ 			};
+ 		};
+ 		port@2 {
+@@ -885,7 +885,7 @@
+ 		};
+ 		port@1 {
+ 			csi1ep3: endpoint {
+-				remote-endpoint = <&csi2_41_ep>;
++				remote-endpoint = <&csi41_ep>;
+ 			};
+ 		};
+ 		port@2 {
+-- 
+2.7.4
+

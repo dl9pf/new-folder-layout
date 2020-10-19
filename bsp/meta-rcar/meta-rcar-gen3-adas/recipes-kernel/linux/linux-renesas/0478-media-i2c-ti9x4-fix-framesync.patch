@@ -1,0 +1,40 @@
+From 08a1910dd33fa0b5628d641854db8fb3200272f6 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 19 Feb 2020 01:49:42 +0300
+Subject: [PATCH] media: i2c: ti9x4: fix framesync
+
+This fixes frames syncronization.
+Cameras must start (fsinc start) simultaneously, hence enable
+framesync when all cameras are set up
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ti9x4.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ti9x4.c b/drivers/media/i2c/soc_camera/ti9x4.c
+index b671736..9004bb1 100644
+--- a/drivers/media/i2c/soc_camera/ti9x4.c
++++ b/drivers/media/i2c/soc_camera/ti9x4.c
+@@ -218,8 +218,7 @@ static void ti9x4_initial_setup(struct i2c_client *client)
+ 	reg8_write(client, 0x1a, 2 & 0xff);			/* FrameSync high time LSB */
+ 	reg8_write(client, 0x1b, priv->fs_time >> 8);			/* FrameSync low time MSB */
+ 	reg8_write(client, 0x1c, priv->fs_time & 0xff);		/* FrameSync low time LSB */
+-	reg8_write(client, 0x18, 0x01);				/* Enable FrameSync, HI/LO mode, Frame clock from port0 */
+-//	reg8_write(client, 0x18, 0x80);				/* Enable FrameSync, HI/LO mode, Frame clock from port0 */
++	reg8_write(client, 0x18, 0x00);				/* Disable FrameSync - must be enabled after all cameras are set up */
+ #endif
+ }
+ 
+@@ -415,6 +414,8 @@ static int ti9x4_registered_async(struct v4l2_subdev *sd)
+ 	struct i2c_client *client = priv->client;
+ 
+ 	reg8_write(client, 0x33, ((priv->lanes - 1) ^ 0x3) << 4 | 0x1); /* enable CSI output, set CSI lane count, non-continuous CSI mode */
++	reg8_write(client, 0x18, 0x01);					/* Enable FrameSync, HI/LO mode, Frame clock from port0 */
++//	reg8_write(client, 0x18, 0x80);					/* Enable FrameSync, Frame clock is external */
+ 
+ 	return 0;
+ }
+-- 
+2.7.4
+

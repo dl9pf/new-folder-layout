@@ -1,0 +1,90 @@
+Below are the environment variables that can be set in the u-boot console to boot the Renesas Gen3 ULCB boards.
+
+Adjust board type with the following identifiers:
+
+* 'm3ulcb' for Renesas Gen3 Starter Kit Pro
+* 'h3ulcb' for Renesas Gen3 Starter Kit Premium
+
+################## Common options #####################
+# these options are common to all configurations:
+
+##### board info
+
+# choose board
+setenv board m3ulcb
+setenv soc r8a7796
+# or
+setenv board h3ulcb
+setenv soc r8a7795
+
+##### boot mode
+# choose bootmode:
+# netboot
+setenv bootmode net
+# or sdcard
+setenv bootmode sd
+# or sdcard with initrd
+setenv bootmode sdi
+
+##### sdcard options
+# which sdcard slot to use
+setenv bootmmc '0:1'
+
+##### netboot options
+# replace <IP> and <NUM> by appropriate addresses
+setenv ipaddr '<board_IP>'
+setenv serverip '<server_IP>'
+setenv ethact ravb
+setenv ethaddr DE:AD:C0:FF:EE:<NUM>
+
+################## Internal variables #####################
+
+# kernel file
+setenv set_bootkfile 'setenv bootkfile Image'
+setenv bootkaddr 0x48080000
+
+# dtb file
+setenv set_bootdfile 'setenv bootdfile Image-${soc}-${board}.dtb'
+setenv bootdaddr 0x48000000
+
+# initrd
+setenv set_bootifile 'setenv bootifile initramfs-netboot-image-${board}.ext4.gz'
+setenv bootiaddr 0x5C3F9520
+setenv bootisize 3A6AB6
+
+# kernel args
+setenv bootargs_console 'console=ttySC0,115200 ignore_loglevel'
+setenv bootargs_video 'vmalloc=384M video=HDMI-A-1:1920x1080-32@60'
+setenv bootargs_extra 'rw rootfstype=ext4 rootwait rootdelay=2'
+
+# final boot command
+setenv bootcmd 'run bootcmd_${bootmode}'
+
+################ Boot on MMC (SDcard) #################
+
+setenv bootkload_sd 'ext4load mmc ${bootmmc} ${bootkaddr} boot/${bootkfile}'
+setenv bootiload_sd 'ext4load mmc ${bootmmc} ${bootiaddr} boot/${bootifile}'
+setenv bootdload_sd 'ext4load mmc ${bootmmc} ${bootdaddr} boot/${bootdfile}'
+
+# without initrd
+setenv bootargs_root_sd 'root=/dev/mmcblk1p1'
+setenv bootload_sd 'run set_bootkfile; run bootkload_sd; run set_bootdfile; run bootdload_sd'
+setenv bootcmd_sd 'setenv bootargs ${bootargs_console} ${bootargs_video} ${bootargs_root_sd} ${bootargs_extra}; run bootload_sd; booti ${bootkaddr} - ${bootdaddr}'
+
+# with initrd
+setenv bootargs_root_sdi 'root=/dev/ram0 ramdisk_size=16384'
+setenv bootload_sdi 'run set_bootkfile; run bootkload_sd; run set_bootdfile; run bootdload_sd; run set_bootifile; run bootiload_sd'
+setenv bootcmd_sdi 'setenv bootargs ${bootargs_console} ${bootargs_video} ${bootargs_root_sdi} ${bootargs_extra}; run bootload_sdi; booti ${bootkaddr} ${bootiaddr}:${bootisize} ${bootdaddr}'
+
+################ Netboot through TFTP+NBD ##################
+
+setenv bootkload_net 'tftp ${bootkaddr} ${board}/${bootkfile}'
+setenv bootdload_net 'tftp ${bootdaddr} ${board}/${bootdfile}'
+setenv bootiload_net 'tftp ${bootiaddr} ${board}/${bootifile}'
+
+setenv bootargs_root_net 'root=/dev/ram0 ramdisk_size=16384 ip=dhcp'
+setenv bootload_net 'run set_bootkfile; run bootkload_net; run set_bootdfile; run bootdload_net; run set_bootifile; run bootiload_net'
+
+setenv bootcmd_net 'setenv bootargs ${bootargs_console} ${bootargs_video} ${bootargs_root_net} ${bootargs_extra} nbd.server=${serverip}; run bootload_net; booti ${bootkaddr} ${bootiaddr}:${bootisize} ${bootdaddr}'
+
+

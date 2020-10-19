@@ -1,0 +1,45 @@
+537bb3cc027eed14500fe5724ab30f Mon Sep 17 00:00:00 2001
+From: Laszlo Agocs <laszlo.agocs@qt.io>
+Date: Fri, 14 Dec 2018 10:48:43 +0100
+Subject: eglfs: avoid breaking builds without EGL_EXT_platform_base
+
+Change-Id: I9183e17b42c00435f20c00a414e1f20aa3972351
+Fixes: QTBUG-72559
+Reviewed-by: Johan Helsing <johan.helsing@qt.io>
+---
+ .../eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp     | 1 -
+ .../eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmwindow.cpp          | 4 ++++
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+(limited to 'src/plugins/platforms/eglfs/deviceintegration/eglfs_kms')
+
+diff --git a/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp b/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp
+index 1e4f4e72c8..f154520669 100644
+--- a/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp
++++ b/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp
+@@ -63,7 +63,6 @@ QEglFSKmsGbmIntegration::QEglFSKmsGbmIntegration()
+ 
+ #ifndef EGL_EXT_platform_base
+ typedef EGLDisplay (EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC) (EGLenum platform, void *native_display, const EGLint *attrib_list);
+-typedef EGLSurface (EGLAPIENTRYP PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC) (EGLDisplay dpy, EGLConfig config, void *native_window, const EGLint *attrib_list);
+ #endif
+ 
+ #ifndef EGL_PLATFORM_GBM_KHR
+diff --git a/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmwindow.cpp b/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmwindow.cpp
+index 65a7c4f38a..a93762e5b4 100644
+--- a/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmwindow.cpp
++++ b/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmwindow.cpp
+@@ -45,6 +45,10 @@
+ 
+ QT_BEGIN_NAMESPACE
+ 
++#ifndef EGL_EXT_platform_base
++typedef EGLSurface (EGLAPIENTRYP PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC) (EGLDisplay dpy, EGLConfig config, void *native_window, const EGLint *attrib_list);
++#endif
++
+ void QEglFSKmsGbmWindow::resetSurface()
+ {
+     QEglFSKmsGbmScreen *gbmScreen = static_cast<QEglFSKmsGbmScreen *>(screen());
+-- 
+cgit v1.2.1
+

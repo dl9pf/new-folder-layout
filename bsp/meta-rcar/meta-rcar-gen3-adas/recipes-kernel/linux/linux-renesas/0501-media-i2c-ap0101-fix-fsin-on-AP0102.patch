@@ -1,0 +1,52 @@
+From 7bb14f5fe5ab6c00c48dc879767b3def79bcef17 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 27 Apr 2020 18:55:09 +0300
+Subject: [PATCH] media: i2c: ap0101: fix fsin on AP0102
+
+AP0101 and AP0102 hav different FSIN setup
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ap0101_ar014x.c | 9 ++++++++-
+ drivers/media/i2c/soc_camera/ap0101_ar014x.h | 8 ++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ap0101_ar014x.c b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+index 8a2d2a6..55cff3f 100644
+--- a/drivers/media/i2c/soc_camera/ap0101_ar014x.c
++++ b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+@@ -477,7 +477,14 @@ static int ap0101_initialize(struct i2c_client *client)
+ 	priv->max_height = AP0101_MAX_HEIGHT;
+ #endif
+ 	/* Program wizard registers */
+-	ap0101_set_regs(client, ap0101_regs_wizard, ARRAY_SIZE(ap0101_regs_wizard));
++	switch (pid) {
++	case AP0101_VERSION_REG:
++		ap0101_set_regs(client, ap0101_regs_wizard, ARRAY_SIZE(ap0101_regs_wizard));
++		break;
++	case AP0102_VERSION_REG:
++		ap0101_set_regs(client, ap0102_regs_wizard, ARRAY_SIZE(ap0102_regs_wizard));
++		break;
++	}
+ 	/* Read OTP IDs */
+ 	ap0101_otp_id_read(client);
+ 
+diff --git a/drivers/media/i2c/soc_camera/ap0101_ar014x.h b/drivers/media/i2c/soc_camera/ap0101_ar014x.h
+index 16599a1..d72ebfe 100644
+--- a/drivers/media/i2c/soc_camera/ap0101_ar014x.h
++++ b/drivers/media/i2c/soc_camera/ap0101_ar014x.h
+@@ -26,3 +26,11 @@ static const struct ap0101_reg ap0101_regs_wizard[] = {
+ {0x0040, 0x8100},
+ {AP0101_DELAY, 100},
+ };
++
++static const struct ap0101_reg ap0102_regs_wizard[] = {
++/* enable FSIN */
++{0xc890, 0x0303},
++{0xfc00, 0x2800},
++{0x0040, 0x8100},
++{AP0101_DELAY, 100},
++};
+-- 
+2.7.4
+

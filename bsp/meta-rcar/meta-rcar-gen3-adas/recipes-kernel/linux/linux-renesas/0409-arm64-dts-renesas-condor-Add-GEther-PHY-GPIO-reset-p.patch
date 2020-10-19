@@ -1,0 +1,28 @@
+From 96c4aea87df924d7430957b9c37eac5f200e382a Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 13 Aug 2019 23:04:03 +0300
+Subject: [PATCH 2/3] arm64: dts: renesas: condor: Add GEther PHY GPIO reset
+ pin support
+
+This adds "reset-gpios" property to the GEther PHY device tree node.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index e21dadd..f98a25e 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -145,6 +145,7 @@
+ 		reg = <0>;
+ 		interrupt-parent = <&gpio1>;
+ 		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
++		reset-gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
+ 	};
+ };
+ 
+-- 
+2.7.4
+

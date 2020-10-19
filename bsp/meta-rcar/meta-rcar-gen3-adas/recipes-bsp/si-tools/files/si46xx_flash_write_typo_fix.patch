@@ -1,0 +1,19 @@
+si46xx.c: Fix a typo in si46xx_flash_write
+
+Don't use uninitialized "ret" variable
+when we need to read a 4-byte status.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+
+diff -pruN a/si46xx.c b/si46xx.c
+--- a/si46xx.c	2017-10-31 10:08:42.000000000 +0300
++++ b/si46xx.c	2018-03-15 19:37:05.216279837 +0300
+@@ -1265,7 +1265,7 @@ int si46xx_flash_write(int offset, char
+ 	i += size;
+ 
+ 	si46xx_write_data(SI46XX_FLASH_LOAD, data, i);
+-	return si46xx_read(NULL, ret);
++	return si46xx_read(NULL, 4);
+ }
+ 
+ int si46xx_flash_load(int offset)

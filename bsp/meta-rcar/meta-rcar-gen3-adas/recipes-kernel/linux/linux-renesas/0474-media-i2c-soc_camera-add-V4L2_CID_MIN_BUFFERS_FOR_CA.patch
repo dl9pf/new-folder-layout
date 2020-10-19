@@ -1,0 +1,82 @@
+From 6c0c041b3bbfec436e96fe09fdbf5072688b7ad2 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 12 Feb 2020 01:24:14 +0300
+Subject: [PATCH] media: i2c: soc_camera: add V4L2_CID_MIN_BUFFERS_FOR_CAPTURE
+
+Add V4L2_CID_MIN_BUFFERS_FOR_CAPTURE for isx016 and ap0101
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ap0101_ar014x.c | 8 ++++++++
+ drivers/media/i2c/soc_camera/isx016.c        | 8 ++++++++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/drivers/media/i2c/soc_camera/ap0101_ar014x.c b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+index 4df5793..c458044 100644
+--- a/drivers/media/i2c/soc_camera/ap0101_ar014x.c
++++ b/drivers/media/i2c/soc_camera/ap0101_ar014x.c
+@@ -347,6 +347,9 @@ static int ap0101_s_ctrl(struct v4l2_ctrl *ctrl)
+ 		reg16_write16(client, 0xfc00, 0x2800);
+ 		ret = reg16_write16(client, 0x0040, 0x8100);
+ 		break;
++	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
++		ret = 0;
++		break;
+ 	}
+ 
+ 	return ret;
+@@ -552,6 +555,7 @@ static int ap0101_probe(struct i2c_client *client,
+ 		       const struct i2c_device_id *did)
+ {
+ 	struct ap0101_priv *priv;
++	struct v4l2_ctrl *ctrl;
+ 	int ret;
+ 
+ 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+@@ -587,6 +591,10 @@ static int ap0101_probe(struct i2c_client *client,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ap0101_ctrl_ops,
+ 			  V4L2_CID_VFLIP, 0, 1, 1, 1);
++	ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov490_ctrl_ops,
++			  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, 1, 32, 1, 9);
++	if (ctrl)
++		ctrl->flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
+ 	priv->sd.ctrl_handler = &priv->hdl;
+ 
+ 	ret = priv->hdl.error;
+diff --git a/drivers/media/i2c/soc_camera/isx016.c b/drivers/media/i2c/soc_camera/isx016.c
+index a9f137c..3001df9 100644
+--- a/drivers/media/i2c/soc_camera/isx016.c
++++ b/drivers/media/i2c/soc_camera/isx016.c
+@@ -319,6 +319,9 @@ static int isx016_s_ctrl(struct v4l2_ctrl *ctrl)
+ 	case V4L2_CID_HFLIP:
+ 	case V4L2_CID_VFLIP:
+ 		break;
++	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
++		ret = 0;
++		break;
+ 	}
+ 
+ 	return ret;
+@@ -519,6 +522,7 @@ static int isx016_probe(struct i2c_client *client,
+ 		       const struct i2c_device_id *did)
+ {
+ 	struct isx016_priv *priv;
++	struct v4l2_ctrl *ctrl;
+ 	int ret;
+ 
+ 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+@@ -554,6 +558,10 @@ static int isx016_probe(struct i2c_client *client,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 1);
+ 	v4l2_ctrl_new_std(&priv->hdl, &isx016_ctrl_ops,
+ 			  V4L2_CID_VFLIP, 0, 1, 1, 0);
++	ctrl = v4l2_ctrl_new_std(&priv->hdl, &ov490_ctrl_ops,
++			  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE, 1, 32, 1, 9);
++	if (ctrl)
++		ctrl->flags &= ~V4L2_CTRL_FLAG_READ_ONLY;
+ 	priv->sd.ctrl_handler = &priv->hdl;
+ 
+ 	ret = priv->hdl.error;
+-- 
+2.7.4
+

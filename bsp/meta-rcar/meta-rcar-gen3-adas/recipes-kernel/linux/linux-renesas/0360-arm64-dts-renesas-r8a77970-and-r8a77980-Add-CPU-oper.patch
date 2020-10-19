@@ -1,0 +1,206 @@
+From e8eee5077c2068cc04972378abcf836d08d7831d Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Tue, 13 Nov 2018 19:11:14 +0300
+Subject: [PATCH 180/211] arm64: dts: renesas: r8a77970 and r8a77980: Add CPU
+ operation points.
+
+This adds CPU operation points and enables cpufreq driver
+for the V3M/V3H SoCs. This is based on the original patch
+by Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>.
+Slight modifications have been done to the Z2 CPG quirk
+definitions.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970.dtsi | 13 +++++++++++++
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 15 +++++++++++++++
+ drivers/clk/renesas/r8a77970-cpg-mssr.c   |  1 +
+ drivers/clk/renesas/r8a77980-cpg-mssr.c   |  1 +
+ drivers/clk/renesas/rcar-gen3-cpg.c       | 27 +++++++++++++++++++++++++--
+ drivers/cpufreq/cpufreq-dt-platdev.c      |  2 ++
+ 6 files changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970.dtsi b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+index 35000a7..090122c 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+@@ -44,6 +44,7 @@
+ 			power-domains = <&sysc R8A77970_PD_CA53_CPU0>;
+ 			next-level-cache = <&L2_CA53>;
+ 			enable-method = "psci";
++			operating-points-v2 = <&cluster0_opp_tb0>;
+ 		};
+ 
+ 		a53_1: cpu@1 {
+@@ -54,6 +55,7 @@
+ 			power-domains = <&sysc R8A77970_PD_CA53_CPU1>;
+ 			next-level-cache = <&L2_CA53>;
+ 			enable-method = "psci";
++			operating-points-v2 = <&cluster0_opp_tb0>;
+ 		};
+ 
+ 		L2_CA53: cache-controller {
+@@ -64,6 +66,17 @@
+ 		};
+ 	};
+ 
++	cluster0_opp_tb0: opp_table0 {
++		compatible = "operating-points-v2";
++		opp-shared;
++
++		opp@800000000 {
++			opp-hz = /bits/ 64 <800000000>;
++			opp-microvolt = <850000>;
++			clock-latency-ns = <300000>;
++		};
++	};
++
+ 	extal_clk: extal {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index e0d2213..24edddb 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -46,6 +46,7 @@
+ 			power-domains = <&sysc R8A77980_PD_CA53_CPU0>;
+ 			next-level-cache = <&L2_CA53>;
+ 			enable-method = "psci";
++			operating-points-v2 = <&cluster0_opp_tb0>;
+ 		};
+ 
+ 		a53_1: cpu@1 {
+@@ -56,6 +57,7 @@
+ 			power-domains = <&sysc R8A77980_PD_CA53_CPU1>;
+ 			next-level-cache = <&L2_CA53>;
+ 			enable-method = "psci";
++			operating-points-v2 = <&cluster0_opp_tb0>;
+ 		};
+ 
+ 		a53_2: cpu@2 {
+@@ -66,6 +68,7 @@
+ 			power-domains = <&sysc R8A77980_PD_CA53_CPU2>;
+ 			next-level-cache = <&L2_CA53>;
+ 			enable-method = "psci";
++			operating-points-v2 = <&cluster0_opp_tb0>;
+ 		};
+ 
+ 		a53_3: cpu@3 {
+@@ -76,6 +79,7 @@
+ 			power-domains = <&sysc R8A77980_PD_CA53_CPU3>;
+ 			next-level-cache = <&L2_CA53>;
+ 			enable-method = "psci";
++			operating-points-v2 = <&cluster0_opp_tb0>;
+ 		};
+ 
+ 		L2_CA53: cache-controller {
+@@ -86,6 +90,17 @@
+ 		};
+ 	};
+ 
++	cluster0_opp_tb0: opp_table0 {
++		compatible = "operating-points-v2";
++		opp-shared;
++
++		opp@1000000000 {
++			opp-hz = /bits/ 64 <1000000000>;
++			opp-microvolt = <850000>; /* TBD; section 87.2 */
++			clock-latency-ns = <300000>;
++		};
++	};
++
+ 	extal_clk: extal {
+ 		compatible = "fixed-clock";
+ 		#clock-cells = <0>;
+diff --git a/drivers/clk/renesas/r8a77970-cpg-mssr.c b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+index 29833b6..1e3f6f8 100644
+--- a/drivers/clk/renesas/r8a77970-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+@@ -79,6 +79,7 @@ static const struct cpg_core_clk r8a77970_core_clks[] __initconst = {
+ 	DEF_FIXED(".pll1_div4",	CLK_PLL1_DIV4,	CLK_PLL1_DIV2,	2, 1),
+ 
+ 	/* Core Clock Outputs */
++	DEF_GEN3_Z("z2",	R8A77970_CLK_Z2,    CLK_TYPE_GEN3_Z2, CLK_PLL1_DIV4, 1),
+ 	DEF_FIXED("ztr",	R8A77970_CLK_ZTR,   CLK_PLL1_DIV2,  6, 1),
+ 	DEF_FIXED("ztrd2",	R8A77970_CLK_ZTRD2, CLK_PLL1_DIV2, 12, 1),
+ 	DEF_FIXED("zt",		R8A77970_CLK_ZT,    CLK_PLL1_DIV2,  4, 1),
+diff --git a/drivers/clk/renesas/r8a77980-cpg-mssr.c b/drivers/clk/renesas/r8a77980-cpg-mssr.c
+index 5371c27..4a61b585 100644
+--- a/drivers/clk/renesas/r8a77980-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77980-cpg-mssr.c
+@@ -75,6 +75,7 @@ static const struct cpg_core_clk r8a77980_core_clks[] __initconst = {
+ 		 R8A77980_CLK_RPC),
+ 
+ 	/* Core Clock Outputs */
++	DEF_GEN3_Z("z2",	R8A77980_CLK_Z2,    CLK_TYPE_GEN3_Z2, CLK_PLL2, 2),
+ 	DEF_FIXED("ztr",	R8A77980_CLK_ZTR,   CLK_PLL1_DIV2,  6, 1),
+ 	DEF_FIXED("ztrd2",	R8A77980_CLK_ZTRD2, CLK_PLL1_DIV2, 12, 1),
+ 	DEF_FIXED("zt",		R8A77980_CLK_ZT,    CLK_PLL1_DIV2,  4, 1),
+diff --git a/drivers/clk/renesas/rcar-gen3-cpg.c b/drivers/clk/renesas/rcar-gen3-cpg.c
+index c73b269..5993dbd 100644
+--- a/drivers/clk/renesas/rcar-gen3-cpg.c
++++ b/drivers/clk/renesas/rcar-gen3-cpg.c
+@@ -45,6 +45,13 @@ static u32 cpg_quirks;
+ #define RCKCR_CKSEL		BIT(1)	/* Resverd RCLK clock soruce select */
+ #define Z2FC_BIT_MASK_SFT_8	BIT(2)	/* Use Z2FC bit mask range to [12:8] */
+ #define ZG_PARENT_PLL0		BIT(3)	/* Use PLL0 as ZG clock parent */
++/*
++ * Z2: SYS-CPU divider 2 on V3H seems to be fixed to 1/2 and 1 on V3M.
++ * It is not 100% clear from the User's Manual but at least
++ * FRQCRC register is missed on V3x.
++ */
++#define Z2_SYSCPU_1		BIT(4)  /* Z2 is fixed with SYS-CPU divider 2 set to 1   - V3M */
++#define Z2_SYSCPU_2		BIT(5)  /* Z2 is fixed with SYS-CPU divider 2 set to 1/2 - V3H */
+ 
+ static spinlock_t cpg_lock;
+ 
+@@ -247,8 +254,16 @@ static unsigned long cpg_z_clk_recalc_rate(struct clk_hw *hw,
+ 	unsigned int mult;
+ 	u32 val;
+ 
+-	val = readl(zclk->reg) & zclk->mask;
+-	mult = 32 - (val >> __ffs(zclk->mask));
++	if (cpg_quirks & Z2_SYSCPU_1) {
++		/* SYS-CPU divider 2 is 1 == 32/32) */
++		mult = 32;
++	} else if (cpg_quirks & Z2_SYSCPU_2) {
++		/* SYS-CPU divider 2 is 1/2 == 16/32) */
++		mult = 16;
++	} else {
++		val = readl(zclk->reg) & zclk->mask;
++		mult = 32 - (val >> __ffs(zclk->mask));
++	}
+ 
+ 	return Z_CLK_ROUND(prate * mult / 32);
+ }
+@@ -827,6 +842,14 @@ static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
+ 		.soc_id = "r8a77990",
+ 		.data = (void *)(Z2FC_BIT_MASK_SFT_8 | ZG_PARENT_PLL0),
+ 	},
++	{
++		.soc_id = "r8a77970",
++		.data = (void *)(Z2_SYSCPU_1),
++	},
++	{
++		.soc_id = "r8a77980",
++		.data = (void *)(Z2_SYSCPU_2),
++	},
+ 	{ /* sentinel */ }
+ };
+ 
+diff --git a/drivers/cpufreq/cpufreq-dt-platdev.c b/drivers/cpufreq/cpufreq-dt-platdev.c
+index 9e0aa76..6adb4a1 100644
+--- a/drivers/cpufreq/cpufreq-dt-platdev.c
++++ b/drivers/cpufreq/cpufreq-dt-platdev.c
+@@ -69,6 +69,8 @@ static const struct of_device_id whitelist[] __initconst = {
+ 	{ .compatible = "renesas,r8a7794", },
+ 	{ .compatible = "renesas,r8a7795", },
+ 	{ .compatible = "renesas,r8a7796", },
++	{ .compatible = "renesas,r8a77970", },
++	{ .compatible = "renesas,r8a77980", },
+ 	{ .compatible = "renesas,sh73a0", },
+ 
+ 	{ .compatible = "rockchip,rk2928", },
+-- 
+2.7.4
+

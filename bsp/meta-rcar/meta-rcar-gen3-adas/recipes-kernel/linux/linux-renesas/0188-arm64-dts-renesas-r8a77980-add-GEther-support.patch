@@ -1,0 +1,47 @@
+From a58a7ac394a82da1eec426fa9c016f686bb1767e Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Fri, 18 May 2018 22:45:36 +0300
+Subject: [PATCH 008/211] arm64: dts: renesas: r8a77980: add GEther support
+
+Define the generic R8A77980 part of the GEther device node.
+
+Based on the original (and large) patch by Vladimir Barinov.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+[simon: add resets property]
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+
+(cherry picked from commit 87bea6780b952dac7f58ed2395d2eaa434deb0fb)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index 1920b86..188f7e7 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -480,6 +480,18 @@
+ 			dma-channels = <16>;
+ 		};
+ 
++		gether: ethernet@e7400000 {
++			compatible = "renesas,gether-r8a77980";
++			reg = <0 0xe7400000 0 0x1000>;
++			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 813>;
++			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
++			resets = <&cpg 813>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			status = "disabled";
++		};
++
+ 		mmc0: mmc@ee140000 {
+ 			compatible = "renesas,sdhi-r8a77980",
+ 				     "renesas,rcar-gen3-sdhi";
+-- 
+2.7.4
+

@@ -1,0 +1,54 @@
+From d181283b4a17b6109aff85b02952f49642ec63e0 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Sun, 10 Jun 2018 21:22:46 +0300
+Subject: [PATCH 019/211] dt-bindings: phy: Renesas R-Car Gen3 PCIe PHY
+ bindings
+
+This PHY is  still  mostly undocumented --  the only documented registers
+exist on R-Car V3H (R8A77980) SoC.  Add the corresponding device tree
+bindings.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Simon Horman <horms+renesas@verge.net.au>
+Reviewed-by: Rob Herring <robh@kernel.org>
+Signed-off-by: Kishon Vijay Abraham I <kishon@ti.com>
+(cherry picked from commit 4fa88cd3370ed33119863747a4db7f5e3f1dc308)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ .../devicetree/bindings/phy/rcar-gen3-phy-pcie.txt | 24 ++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/phy/rcar-gen3-phy-pcie.txt
+
+diff --git a/Documentation/devicetree/bindings/phy/rcar-gen3-phy-pcie.txt b/Documentation/devicetree/bindings/phy/rcar-gen3-phy-pcie.txt
+new file mode 100644
+index 0000000..63853b3
+--- /dev/null
++++ b/Documentation/devicetree/bindings/phy/rcar-gen3-phy-pcie.txt
+@@ -0,0 +1,24 @@
++* Renesas R-Car generation 3 PCIe PHY
++
++This file provides information on what the device node for the R-Car
++generation 3 PCIe PHY contains.
++
++Required properties:
++- compatible: "renesas,r8a77980-pcie-phy" if the device is a part of the
++	      R8A77980 SoC.
++- reg: offset and length of the register block.
++- clocks: clock phandle and specifier pair.
++- power-domains: power domain phandle and specifier pair.
++- resets: reset phandle and specifier pair.
++- #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
++
++Example (R-Car V3H):
++
++	pcie-phy@e65d0000 {
++		compatible = "renesas,r8a77980-pcie-phy";
++		reg = <0 0xe65d0000 0 0x8000>;
++		#phy-cells = <0>;
++		clocks = <&cpg CPG_MOD 319>;
++		power-domains = <&sysc 32>;
++		resets = <&cpg 319>;
++	};
+-- 
+2.7.4
+

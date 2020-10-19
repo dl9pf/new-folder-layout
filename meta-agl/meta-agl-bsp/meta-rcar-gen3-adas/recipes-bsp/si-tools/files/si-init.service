@@ -1,0 +1,10 @@
+[Unit]
+Description=Initialize Si468x radio
+ConditionPathExists=/sys/firmware/devicetree/base/si468x@0/compatible
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/si_init
+
+[Install]
+WantedBy=sysinit.target

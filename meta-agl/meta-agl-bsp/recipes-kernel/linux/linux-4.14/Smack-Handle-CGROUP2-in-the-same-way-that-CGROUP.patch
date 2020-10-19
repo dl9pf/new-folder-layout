@@ -1,0 +1,40 @@
+From 63f5acdf097b7baca8d0f7056a037f8811b48aaa Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jos=C3=A9=20Bollo?= <jose.bollo@iot.bzh>
+Date: Tue, 27 Feb 2018 17:06:21 +0100
+Subject: [PATCH] Smack: Handle CGROUP2 in the same way that CGROUP
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The new file system CGROUP2 isn't actually handled
+by smack. This changes makes Smack treat equally
+CGROUP and CGROUP2 items.
+
+Signed-off-by: José Bollo <jose.bollo@iot.bzh>
+---
+ security/smack/smack_lsm.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/security/smack/smack_lsm.c b/security/smack/smack_lsm.c
+index 03fdecba93bb..5d77ed04422c 100644
+--- a/security/smack/smack_lsm.c
++++ b/security/smack/smack_lsm.c
+@@ -3431,6 +3431,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
+ 	if (opt_dentry->d_parent == opt_dentry) {
+ 		switch (sbp->s_magic) {
+ 		case CGROUP_SUPER_MAGIC:
++		case CGROUP2_SUPER_MAGIC:
+ 			/*
+ 			 * The cgroup filesystem is never mounted,
+ 			 * so there's no opportunity to set the mount
+@@ -3474,6 +3475,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
+ 	switch (sbp->s_magic) {
+ 	case SMACK_MAGIC:
+ 	case CGROUP_SUPER_MAGIC:
++	case CGROUP2_SUPER_MAGIC:
+ 		/*
+ 		 * Casey says that it's a little embarrassing
+ 		 * that the smack file system doesn't do
+-- 
+2.14.3
+

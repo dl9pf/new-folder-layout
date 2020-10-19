@@ -1,0 +1,30 @@
+From e4b81946baf2d8c08de87088c01a1d87ae4f03d9 Mon Sep 17 00:00:00 2001
+From: George Kiagiadakis <george.kiagiadakis@collabora.com>
+Date: Mon, 24 Jun 2019 12:19:20 +0300
+Subject: [PATCH] arm: build with -mno-unaligned-access
+
+Upstream-Status: Inappropriate [workaround]
+See also https://gitlab.freedesktop.org/pipewire/pipewire/issues/161
+---
+ meson.build | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/meson.build b/meson.build
+index c9da6b4d..5c121339 100644
+--- a/meson.build
++++ b/meson.build
+@@ -52,6 +52,11 @@ if cc.get_id() == 'gcc'
+ 			language : 'c')
+ endif
+ 
++if host_machine.cpu_family() == 'arm'
++  add_global_arguments('-mno-unaligned-access',
++    language: 'c')
++endif
++
+ sse_args = '-msse'
+ sse2_args = '-msse2'
+ ssse3_args = '-mssse3'
+-- 
+2.24.0
+

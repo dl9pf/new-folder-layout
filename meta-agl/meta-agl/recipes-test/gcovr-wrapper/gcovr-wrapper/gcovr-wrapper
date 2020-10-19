@@ -1,0 +1,320 @@
+#!/bin/bash
+#
+# Copyright (C) 2020 Konsulko Group
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# gcovr wrapper for generating coverage reports against AGL bindings
+# on target.  With a given binding name or coverage widget file, the
+# coverage version will be installed, and the pyagl tests for the
+# binding run before generating a report with gcovr.  The afm-test
+# test widget or a user-supplied command may be run instead of the
+# pyagl tests, see usage below, or run with "--help".
+#
+
+usage() {
+    cat <<-EOF
+	Usage:
+	  $(basename $0) [options] <binding name | widget file>
+
+	Options:
+	  -h, --help
+	    Print this help and exit
+
+	  -k, --keep
+	    Do not remove temporary files/directories
+
+	  -o, --gcovr-options
+	    Additional gcovr options, multiple options should be quoted
+
+	  -w, --workdir
+	    gcov/gcovr temporary working directory, defaults to /tmp/gcov
+	    The directory will be removed after running without --keep if it
+	    is empty, use caution if specifying existing system directories!
+
+	  --pyagl
+	    Run pyagl tests for binding, enabled by default
+
+	  --afm-test
+	    Run afm-test test widget tests for binding.
+	    If specified, disables pyagl tests; note that the last argument in
+	    the command-line will take precedence.
+
+	  -c, --command
+	    Test command to use in place of pyagl or afm-test, should be quote
+	    If specified, disables pyagl and afm-test tests.
+
+	EOF
+}
+
+# Helper to validate widget install dir
+check_wgt_install() {
+    if [ ! \( -d $1 -o -f $1/config.xml \) ]; then
+        echo "ERROR: No widget install at $1"
+        exit 1
+    elif [ ! -d $1/src ]; then
+        echo "ERROR: No source in $1/src"
+        exit 1
+    fi
+}
+
+# Helper to run gcovr inside mount namespace environment
+gcovr_runner() {
+    wgt_install_dir=/var/local/lib/afm/applications/$1
+    check_wgt_install ${wgt_install_dir}
+
+    if [ ! -d $workdir/$1 ]; then
+        echo "ERROR: No coverage data in $workdir/$1"
+        exit 1
+    fi
+
+    # Get original source path
+    gcno=$(cd $workdir/$1 && find -name '*.gcno' | head -n 1 | cut -d/ -f2-)
+    if [ -z "$gcno" ]; then
+        echo "ERROR: no gcno file found in $workdir/$1"
+        exit 1
+    fi
+    srcfile=$(strings $workdir/$1/${gcno} | grep "$(basename ${gcno%.gcno})$" | uniq)
+    srcdir=$(echo $srcfile | sed "s|/${gcno%%/*}/.*$||")
+
+    # Set up mounts for chroot to run gcovr in
+    # NOTE: We do not unmount these later, as we assume we are in a
+    #       private mount namespace and they will go away on exit from
+    #       it.
+    echo "Setting up mounts"
+    tmpdir=$(mktemp -d)
+    echo $tmpdir > $workdir/.runner_tmpdir
+    mkdir -p $tmpdir/{lower,upper,work,merged}
+    # NOTE: Could potentially use rbind here, but explicitly mounting
+    #        just what we need seems safer
+    mount --bind / $tmpdir/lower
+    mount -t overlay -o lowerdir=$tmpdir/lower,upperdir=$tmpdir/upper,workdir=$tmpdir/work overlay $tmpdir/merged
+    mount --bind /proc $tmpdir/merged/proc
+    mount --bind /sys $tmpdir/merged/sys
+    mount --bind /dev $tmpdir/merged/dev
+    mount --bind /tmp $tmpdir/merged/tmp
+    # Bind in the data files
+    # NOTE: $workdir is bound instead of specifically just $workdir/$1,
+    #       so that e.g. html output to another directory in /tmp will
+    #       work as expected.  A determined user may be able to shoot
+    #       themselves in the foot, but for now the trade off seems
+    #       acceptable.
+    mkdir -p $tmpdir/merged/$workdir
+    mount --bind $workdir $tmpdir/merged/$workdir
+    # Bind the source files to their expected location
+    mkdir -p $tmpdir/merged/$srcdir
+    mount --bind ${wgt_install_dir}/src $tmpdir/merged/$srcdir
+
+    echo "Entering chroot"
+    echo
+    exec chroot $tmpdir/merged \
+        /usr/bin/gcovr -r $srcdir --object-directory $workdir/$1 --gcov-filter-source-errors -s ${GCOV_RUNNER_GCOVR_OPTIONS}
+}
+
+# Helper to clean up after runner
+gcovr_runner_cleanup() {
+    rm -rf $workdir/$1
+    if [ -f $workdir/.runner_tmpdir ]; then
+        tmpdir=$(cat $workdir/.runner_tmpdir)
+        rm -rf $tmpdir
+        rm -f $workdir/.runner_tmpdir
+    fi
+    if [ "$workdir" != "/tmp" ]; then
+        rmdir $workdir 2>/dev/null || true
+    fi
+}
+
+# Parse arguments
+OPTS=$(getopt -o +hko:pw:c: --longoptions gcovr-runner,afm-test,command:,help,keep,gcovr-options:,pyagl,workdir: -n "$(basename $0)" -- "$@")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+eval set -- "$OPTS"
+
+runner=false
+keep=false
+wgt=""
+cmd=""
+options=""
+afmtest=false
+pyagl=true
+workdir="/tmp/gcov"
+
+while true; do
+    case "$1" in
+        --gcovr-runner) runner=true; shift;;
+        --afm-test) afmtest=true; pyagl=false; shift;;
+        -c|--command) cmd="$2"; shift; shift;;
+        -h|--help) usage; exit 0;;
+        -k|--keep) keep=true; shift;;
+        -o|--gcovr-options) options="$2"; shift; shift;;
+        -p|--pyagl) pyagl=true; afmtest=false; shift;;
+        -w|--workdir) workdir="$2"; shift; shift;;
+        --) shift; break;;
+        *) break;;
+    esac
+done
+
+# Encode the assumption that a specified command means it runs instead
+# of any other tests.
+if [ -s "$cmd" ]; then
+    pyagl=false
+    afmtest=false
+fi
+
+if [ $# -ne 1 ]; then
+    # Always expect widget name as single non-option argument
+    usage
+    exit 1
+fi
+
+# Rationalize workdir just in case
+workdir=$(realpath "$workdir")
+
+if [ "$runner" = "true" ]; then
+    if [ "${GCOV_RUNNER_READY}" != "true" ]; then
+        echo "ERROR: gcovr environment not ready!"
+        exit 1
+    fi
+    gcovr_runner $1
+    # If we get here, it'd be an error, so return 1
+    exit 1
+fi
+
+binding=$1
+if [ "${1%.wgt}" != "$1" ]; then
+    # User has specified path to a widget file
+    wgt=$(realpath $1)
+    binding=$(basename "${1%-coverage.wgt}")
+else
+    wgt=/usr/AGL/apps/coverage/${binding}-coverage.wgt
+fi
+if [ ! -f $wgt ]; then
+    echo "ERROR: No widget $wgt"
+    exit 1
+elif [ "$afmtest" = "true" -a ! -f /usr/AGL/apps/test/${binding}-test.wgt ]; then
+    echo "ERROR: No test widget for $binding"
+    exit 1
+fi
+
+# Determine starting systemd unit name
+service=$(systemctl --all |grep afm-service-$binding |sed 's/^[ *] \([^ ]*\).*/\1/')
+if [ -z "$service" ]; then
+    echo "ERROR: Could not determine systemd service unit for $binding"
+    exit 1
+fi
+
+# Install coverage widget
+echo "Removing $binding widget"
+systemctl stop $service
+afm-util remove $binding
+echo
+echo "Installing $binding coverage widget"
+afm-util install $wgt
+echo
+
+wgt_install_dir=/var/local/lib/afm/applications/$binding
+check_wgt_install ${wgt_install_dir}
+gcov_src=${wgt_install_dir}/coverage
+if [ ! -d ${gcov_src} ]; then
+	echo "ERROR: No coverage information in ${gcov_src}"
+	exit 1
+elif [ ! -f ${gcov_src}/gcov.env ]; then
+	echo "ERROR: No gcov environment file at ${gcov_src}/gcov.env"
+	exit 1
+fi
+
+#
+# NOTE: In theory, the coverage data collection could be done inside
+#       the mount namespace / chroot, but the potential for issues
+#       when doing that seems higher than just running gcovr there,
+#       so a conservative approach is taken.
+#
+
+# Set up things for the binary to write out gcda data files
+#
+# Having the matching build directory hierarchy in place and
+# writeable by the target binary before any restart and testing is
+# key to things working.
+#
+# As well, the environment file with the GCOV_PREFIX and
+# GCOV_PREFIX_STRIP values needs to be present before running so the
+# gcda files will get written into the relocated build hierarchy.
+#
+echo "Installing coverage information for $binding"
+mkdir -p $workdir
+rm -rf $workdir/$binding
+cp -dr ${gcov_src} $workdir/$binding
+chsmack -r -a System::Log $workdir
+chmod -R go+w $workdir
+
+# Install the gcov environment file
+mkdir -p /etc/afm/widget.env.d/$binding
+if [ "${workdir}" = "/tmp/gcov" ]; then
+    cp ${gcov_src}/gcov.env /etc/afm/widget.env.d/$binding/gcov
+else
+    # Update GCOV_PREFIX to point into workdir
+    sed "s|^GCOV_PREFIX=.*|GCOV_PREFIX=${workdir}/$binding|" ${gcov_src}/gcov.env > /etc/afm/widget.env.d/$binding/gcov
+fi
+chsmack -r -a _ /etc/afm/widget.env.d/$binding
+
+# Determine new systemd unit name (version may now be different)
+service=$(systemctl --all |grep afm-service-$binding |sed 's/^[ *] \([^ ]*\).*/\1/')
+if [ -z "$service" ]; then
+    echo "ERROR: Could not determine systemd service unit for $binding"
+    exit 1
+fi
+
+# Restart the binding
+systemctl start $service
+echo
+
+# Run tests or given command
+if [ -n "$cmd" ]; then
+    echo "Running command: $cmd"
+    export AGL_AVAILABLE_INTERFACES=${AGL_AVAILABLE_INTERFACES:-ethernet}
+    eval $cmd
+elif [ "$pyagl" = "true" ]; then
+    echo "Running $binding pyagl tests"
+    export AGL_AVAILABLE_INTERFACES=${AGL_AVAILABLE_INTERFACES:-ethernet}
+    pytest -k "${binding#agl-service-} and not hwrequired" /usr/lib/python3.?/site-packages/pyagl
+else
+    echo "Running $binding test widget"
+    # NOTE: su to agl-driver is required here to avoid fallout from
+    #       the "afm-util run" in afm-test seemingly triggering the
+    #       start of other per-user bindings for the root user.
+    su -l -c "/usr/bin/afm-test /usr/AGL/apps/test/${binding}-test.wgt" agl-driver
+fi
+
+# Restart again to trigger data file writing
+systemctl restart $service
+echo
+
+# Run ourselves in gcovr runner mode inside a private mount namespace
+export GCOV_RUNNER_READY=true
+# NOTE: Passing gcovr options in the environment to avoid quoting hassles
+export GCOV_RUNNER_GCOVR_OPTIONS="$options"
+runner_options="--workdir ${workdir}"
+unshare -m $0 --gcovr-runner ${runner_options} $binding
+rc=$?
+
+if [ "$keep" != "true" ]; then
+    # Clean up after ourselves
+    gcovr_runner_cleanup $1
+    rm -f /etc/afm/widget.env.d/$1/gcov
+    rmdir /etc/afm/widget.env.d/$1 2>/dev/null || true
+fi
+
+exit $rc
+

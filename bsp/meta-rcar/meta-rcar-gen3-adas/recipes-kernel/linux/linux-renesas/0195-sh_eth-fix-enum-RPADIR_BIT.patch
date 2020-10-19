@@ -1,0 +1,38 @@
+From adad896f249ec55add54183120256250224caa11 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 25 Jun 2018 23:36:21 +0300
+Subject: [PATCH 015/211] sh_eth: fix *enum* RPADIR_BIT
+
+The *enum*  RPADIR_BIT  was declared in the commit 86a74ff21a7a ("net:
+sh_eth: add support for Renesas SuperH Ethernet") adding SH771x support,
+however the SH771x manual doesn't have the RPADIR register described and,
+moreover, tells why the padding insertion must not be used. The newer SoC
+manuals do have RPADIR documented, though with somewhat different layout --
+update the *enum* according to these manuals...
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit b13ca098fd35bb0cfbe027f2415a17a6ceb6f47f)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/ethernet/renesas/sh_eth.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/renesas/sh_eth.h b/drivers/net/ethernet/renesas/sh_eth.h
+index 726c55a..ae3ef5d 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.h
++++ b/drivers/net/ethernet/renesas/sh_eth.h
+@@ -403,8 +403,7 @@ enum DESC_I_BIT {
+ 
+ /* RPADIR */
+ enum RPADIR_BIT {
+-	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
+-	RPADIR_PADR = 0x0003f,
++	RPADIR_PADS = 0x1f0000, RPADIR_PADR = 0xffff,
+ };
+ 
+ /* FDR */
+-- 
+2.7.4
+

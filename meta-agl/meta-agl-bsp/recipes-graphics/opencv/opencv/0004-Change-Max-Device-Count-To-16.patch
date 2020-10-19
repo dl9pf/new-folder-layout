@@ -1,0 +1,13 @@
+diff --git a/modules/videoio/src/cap_v4l.cpp b/modules/videoio/src/cap_v4l.cpp
+index c36a619a56..0040e4574e 100644
+--- a/modules/videoio/src/cap_v4l.cpp
++++ b/modules/videoio/src/cap_v4l.cpp
+@@ -256,7 +256,7 @@ make & enjoy!
+ #define DEFAULT_V4L_HEIGHT 480
+ #define DEFAULT_V4L_FPS 30
+ 
+-#define MAX_CAMERAS 8
++#define MAX_CAMERAS 16
+ 
+ // default and maximum number of V4L buffers, not including last, 'special' buffer
+ #define MAX_V4L_BUFFERS 10

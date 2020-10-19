@@ -1,0 +1,33 @@
+From 777db7fda6f37341c0fca7afd0973c2196229453 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Fri, 31 Aug 2018 22:54:42 +0300
+Subject: [PATCH 025/211] arm64: enable CMT/TMU support for Renesas SoC
+
+Renesas R-Car gen3 SoCs have both CMT and TMU timers, so we have to enable
+building them in Kconfig.platforms (as they don't normally have the prompts
+in Kconfig).
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit c1801ad028456267dde2111e470ac43f7882debf)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/Kconfig.platforms | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm64/Kconfig.platforms b/arch/arm64/Kconfig.platforms
+index 20ef69a..aba998f 100644
+--- a/arch/arm64/Kconfig.platforms
++++ b/arch/arm64/Kconfig.platforms
+@@ -171,6 +171,8 @@ config ARCH_RENESAS
+ 	select PM_GENERIC_DOMAINS
+ 	select RENESAS_IRQC
+ 	select SOC_BUS
++	select SYS_SUPPORTS_SH_CMT
++	select SYS_SUPPORTS_SH_TMU
+ 	help
+ 	  This enables support for the ARMv8 based Renesas SoCs.
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,42 @@
+From 45aef5d9296221a0b69e6159db30ea704710d780 Mon Sep 17 00:00:00 2001
+From: Sergii Boryshchenko <sergii.boryshchenko@globallogic.com>
+Date: Thu, 30 Nov 2017 14:53:52 +0200
+Subject: [PATCH 2/5] kingfisher: reboot: fix power-off on reset
+
+Method cpld_reset_cpu of bl31 is called from the Linux kernel and uses
+GPIO6, GPIO2 pins as SPI bus lines to control the CPLD device. But in the
+kernel GPIO6_8 pin are initialized to work in interrupt mode instead of
+the input/output mode. This leads to the fact that the SPI bus becomes
+non-functional. In this patch we switch the GPIO6_8 pin back to the
+input-output mode.
+
+Signed-off-by: Sergii Boryshchenko <sergii.boryshchenko@globallogic.com>
+---
+ plat/renesas/rcar/drivers/cpld/ulcb_cpld.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/plat/renesas/rcar/drivers/cpld/ulcb_cpld.c b/plat/renesas/rcar/drivers/cpld/ulcb_cpld.c
+index 1c3c750..b3ba4b6 100644
+--- a/plat/renesas/rcar/drivers/cpld/ulcb_cpld.c
++++ b/plat/renesas/rcar/drivers/cpld/ulcb_cpld.c
+@@ -26,6 +26,9 @@
+ #define GPIO_INOUTSEL2		0xE6052004
+ #define GPIO_INOUTSEL6		0xE6055404
+ 
++/* General IO/Interrupt Switching Register */
++#define GPIO_IOINTSEL6		0xE6055400
++
+ /* GPIO/perihperal function select */
+ #define PFC_GPSR2		0xE6060108
+ #define PFC_GPSR6		0xE6060118
+@@ -92,6 +95,7 @@ static void cpld_init(void)
+ 	gpio_pfc(PFC_GPSR2, SSTBZ);
+ 	gpio_pfc(PFC_GPSR6, MOSI);
+ 
++	gpio_set_value(GPIO_IOINTSEL6, SCLK, 0);
+ 	gpio_set_value(GPIO_OUTDT6, SCLK, 0);
+ 	gpio_set_value(GPIO_OUTDT2, SSTBZ, 1);
+ 	gpio_set_value(GPIO_OUTDT6, MOSI, 0);
+-- 
+2.7.4
+

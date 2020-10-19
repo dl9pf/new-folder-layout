@@ -1,0 +1,128 @@
+From 6a414c0d01edc607fee65f5f026011d8d57ffc22 Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Thu, 10 Aug 2017 16:29:01 +0300
+Subject: [PATCH 047/122] ASoC: add dummy device for WL18xx PCM audio
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ sound/soc/codecs/Kconfig  |  3 ++
+ sound/soc/codecs/Makefile |  2 ++
+ sound/soc/codecs/wl18xx.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+)
+ create mode 100644 sound/soc/codecs/wl18xx.c
+
+diff --git a/sound/soc/codecs/Kconfig b/sound/soc/codecs/Kconfig
+index 8d52af2..bf4f606 100644
+--- a/sound/soc/codecs/Kconfig
++++ b/sound/soc/codecs/Kconfig
+@@ -682,6 +682,9 @@ config SND_SOC_PCM3168A_SPI
+ config SND_SOC_SI468X
+ 	tristate "Dummy sound driver for Si468x radio"
+ 
++config SND_SOC_WL18XX
++	tristate "Dummy sound driver for WL18xx BT"
++
+ config SND_SOC_PCM5102A
+ 	tristate
+ 
+diff --git a/sound/soc/codecs/Makefile b/sound/soc/codecs/Makefile
+index 79b4386..57e81a9 100644
+--- a/sound/soc/codecs/Makefile
++++ b/sound/soc/codecs/Makefile
+@@ -140,6 +140,7 @@ snd-soc-sigmadsp-i2c-objs := sigmadsp-i2c.o
+ snd-soc-sigmadsp-regmap-objs := sigmadsp-regmap.o
+ snd-soc-si476x-objs := si476x.o
+ snd-soc-si468x-objs := si468x.o
++snd-soc-wl18xx-objs := wl18xx.o
+ snd-soc-sirf-audio-codec-objs := sirf-audio-codec.o
+ snd-soc-sn95031-objs := sn95031.o
+ snd-soc-spdif-tx-objs := spdif_transmitter.o
+@@ -379,6 +380,7 @@ obj-$(CONFIG_SND_SOC_SIGMADSP_I2C)	+= snd-soc-sigmadsp-i2c.o
+ obj-$(CONFIG_SND_SOC_SIGMADSP_REGMAP)	+= snd-soc-sigmadsp-regmap.o
+ obj-$(CONFIG_SND_SOC_SI476X)	+= snd-soc-si476x.o
+ obj-$(CONFIG_SND_SOC_SI468X)	+= snd-soc-si468x.o
++obj-$(CONFIG_SND_SOC_WL18XX)	+= snd-soc-wl18xx.o
+ obj-$(CONFIG_SND_SOC_SN95031)	+=snd-soc-sn95031.o
+ obj-$(CONFIG_SND_SOC_SPDIF)	+= snd-soc-spdif-rx.o snd-soc-spdif-tx.o
+ obj-$(CONFIG_SND_SOC_SIRF_AUDIO_CODEC) += sirf-audio-codec.o
+diff --git a/sound/soc/codecs/wl18xx.c b/sound/soc/codecs/wl18xx.c
+new file mode 100644
+index 0000000..6e52b0f
+--- /dev/null
++++ b/sound/soc/codecs/wl18xx.c
+@@ -0,0 +1,72 @@
++/*
++ * Dummy sound driver for wl18xx BT modules
++ * Copyright 2016 Andrey Gusakov <andrey.gusakov@cogentembedded.com>
++ *
++ * Based on: Driver for the DFBM-CS320 bluetooth module
++ * Copyright 2011 Lars-Peter Clausen <lars@metafoo.de>
++ *
++ *  This program is free software; you can redistribute  it and/or modify it
++ *  under  the terms of  the GNU General  Public License as published by the
++ *  Free Software Foundation;  either version 2 of the  License, or (at your
++ *  option) any later version.
++ *
++ */
++
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/platform_device.h>
++
++#include <sound/soc.h>
++
++static struct snd_soc_dai_driver wl18xx_dai = {
++	.name = "wl18xx-pcm",
++	.capture = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_48000,
++		.formats = SNDRV_PCM_FMTBIT_S16_LE,
++	},
++	.playback = {
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_48000,
++		.formats = SNDRV_PCM_FMTBIT_S16_LE,
++	},
++};
++
++static struct snd_soc_codec_driver soc_codec_dev_wl18xx;
++
++static int wl18xx_probe(struct platform_device *pdev)
++{
++	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wl18xx,
++			&wl18xx_dai, 1);
++}
++
++static int wl18xx_remove(struct platform_device *pdev)
++{
++	snd_soc_unregister_codec(&pdev->dev);
++
++	return 0;
++}
++
++static const struct of_device_id wl18xx_of_match[] = {
++	{ .compatible = "ti,wl18xx-pcm", },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, wl18xx_of_match);
++
++static struct platform_driver wl18xx_driver = {
++	.driver = {
++		.name = "wl18xx-codec",
++		.of_match_table = wl18xx_of_match,
++		.owner = THIS_MODULE,
++	},
++	.probe = wl18xx_probe,
++	.remove = wl18xx_remove,
++};
++
++module_platform_driver(wl18xx_driver);
++
++MODULE_AUTHOR("Andrey Gusakov <andrey.gusakov@cogentembedded.com>");
++MODULE_DESCRIPTION("ASoC wl18xx driver");
++MODULE_LICENSE("GPL");
+-- 
+2.7.4
+

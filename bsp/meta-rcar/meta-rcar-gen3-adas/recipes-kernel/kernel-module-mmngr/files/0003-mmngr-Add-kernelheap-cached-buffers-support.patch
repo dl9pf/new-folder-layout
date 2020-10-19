@@ -1,0 +1,102 @@
+From 66d841fe8fdbc74a39aaaf4aed0c6ebf84aaab45 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 14 Feb 2018 17:12:01 +0300
+Subject: [PATCH] mmngr: Add kernelheap cached buffers support.
+
+---
+ .../mmngr/mmngr-module/files/mmngr/drv/mmngr_drv.c   | 20 ++++++++++++++++----
+ .../files/mmngr/include/mmngr_private_cmn.h          |  7 +++++++
+ .../files/mmngr/include/mmngr_public_cmn.h           |  1 +
+ 3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/mmngr_drv/mmngr/mmngr-module/files/mmngr/drv/mmngr_drv.c b/mmngr_drv/mmngr/mmngr-module/files/mmngr/drv/mmngr_drv.c
+index 6ae00e9..74d8a0c 100644
+--- a/mmngr_drv/mmngr/mmngr-module/files/mmngr/drv/mmngr_drv.c
++++ b/mmngr_drv/mmngr/mmngr-module/files/mmngr/drv/mmngr_drv.c
+@@ -862,7 +862,7 @@ static int close(struct inode *inode, struct file *file)
+ 	int		entry = 0;
+ 
+ 	if (p) {
+-		if ((p->flag == MM_KERNELHEAP)
++		if ((p->flag == MM_KERNELHEAP || p->flag == MM_KERNELHEAP_CACHED)
+ 		&& (p->kernel_virt_addr != 0)) {
+ 			pr_err("%s MMD kernelheap ERROR\n", __func__);
+ 			mm_dev = mm_drvdata->mm_dev;
+@@ -906,6 +906,7 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 	int		ercd;
+ 	int		ret;
+ 	struct MM_PARAM	*p = file->private_data;
++	struct MM_CACHE_PARAM *cachep;
+ 	struct device	*mm_dev;
+ 
+ 	mm_dev = mm_drvdata->mm_dev;
+@@ -957,6 +958,14 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 			goto exit;
+ 		}
+ 		break;
++	case MM_IOC_FLUSH:
++		cachep = (struct MM_CACHE_PARAM *) arg;
++		dma_sync_single_for_device(mm_dev, p->hard_addr + cachep->offset, cachep->len, DMA_FROM_DEVICE);
++		break;
++	case MM_IOC_INVAL:
++		cachep = (struct MM_CACHE_PARAM *) arg;
++		dma_sync_single_for_cpu(mm_dev, p->hard_addr + cachep->offset, cachep->len, DMA_TO_DEVICE);
++		break;
+ 	default:
+ 		pr_err("%s MMD CMD EFAULT\n", __func__);
+ 		ret = -EFAULT;
+@@ -1081,9 +1090,12 @@ static int mmap(struct file *filp, struct vm_area_struct *vma)
+ 	off += start;
+ 	vma->vm_pgoff = off >> PAGE_SHIFT;
+ 
+-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+-
+-	vma->vm_flags |= (VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
++	if (p->flag != MM_KERNELHEAP_CACHED) {
++		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
++		vma->vm_flags |= (VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
++	} else {
++		vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP);
++	}
+ 
+ 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+ 			    vma->vm_end - vma->vm_start, vma->vm_page_prot))
+diff --git a/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_private_cmn.h b/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_private_cmn.h
+index f731ab6..5f137c6 100644
+--- a/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_private_cmn.h
++++ b/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_private_cmn.h
+@@ -72,6 +72,11 @@ struct MM_PARAM {
+ 	unsigned int flag;
+ };
+ 
++struct MM_CACHE_PARAM {
++	size_t offset;
++	size_t len;
++};
++
+ #define MM_IOC_MAGIC 'm'
+ #define MM_IOC_ALLOC	_IOWR(MM_IOC_MAGIC, 0, struct MM_PARAM)
+ #define MM_IOC_FREE	_IOWR(MM_IOC_MAGIC, 1, struct MM_PARAM)
+@@ -80,5 +85,7 @@ struct MM_PARAM {
+ #define MM_IOC_ALLOC_CO	_IOWR(MM_IOC_MAGIC, 4, struct MM_PARAM)
+ #define MM_IOC_FREE_CO	_IOWR(MM_IOC_MAGIC, 5, struct MM_PARAM)
+ #define MM_IOC_SHARE	_IOWR(MM_IOC_MAGIC, 6, struct MM_PARAM)
++#define MM_IOC_FLUSH	_IOWR(MM_IOC_MAGIC, 7, struct MM_CACHE_PARAM)
++#define MM_IOC_INVAL	_IOWR(MM_IOC_MAGIC, 8, struct MM_CACHE_PARAM)
+ 
+ #endif	/* __MMNGR_PRIVATE_CMN_H__ */
+diff --git a/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_public_cmn.h b/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_public_cmn.h
+index dce81a1..a668019 100644
+--- a/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_public_cmn.h
++++ b/mmngr_drv/mmngr/mmngr-module/files/mmngr/include/mmngr_public_cmn.h
+@@ -62,6 +62,7 @@
+ #define __MMNGR_PUBLIC_CMN_H__
+ 
+ #define MM_KERNELHEAP	0
++#define MM_KERNELHEAP_CACHED	5
+ #define MM_CARVEOUT	1
+ #define MM_CARVEOUT_SSP	3
+ #define MM_CARVEOUT_LOSSY	4
+-- 
+2.7.4
+

@@ -1,0 +1,21 @@
+LayerManagerControl: add error exit status
+
+Tweak to add a non-zero exit status on errors.  This is useful for
+scripting, and allows writing a simple loop to detect Weston readiness.
+
+Upstream-Status: Pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/ivi-layermanagement-examples/LayerManagerControl/src/main.cpp b/ivi-layermanagement-examples/LayerManagerControl/src/main.cpp
+index 8ee0546..210e21e 100644
+--- a/ivi-layermanagement-examples/LayerManagerControl/src/main.cpp
++++ b/ivi-layermanagement-examples/LayerManagerControl/src/main.cpp
+@@ -45,6 +45,7 @@ int main(int argc, char* argv[])
+     if (CommandSuccess != interpreter.interpretCommand(userCommand))
+     {
+         cerr << "Interpreter error: " << interpreter.getLastError() << endl;
++        return 1;
+     }
+ 
+     return 0;

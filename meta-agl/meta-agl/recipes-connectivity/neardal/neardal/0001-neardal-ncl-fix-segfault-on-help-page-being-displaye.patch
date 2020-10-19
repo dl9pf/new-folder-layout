@@ -1,0 +1,27 @@
+From 795308b2452ee617da4096914b53ba3a1142e3db Mon Sep 17 00:00:00 2001
+From: Matt Ranostay <matt.ranostay@konsulko.com>
+Date: Fri, 6 Jul 2018 17:19:09 -0700
+Subject: [PATCH] neardal: ncl: fix segfault on help page being displayed
+
+LISTCMD_NAME is declared as a const char due to being defined in a
+macro so g_strdup it to stop proceeding operations from segfaulting.
+
+Signed-off-by: Matt Ranostay <matt.ranostay@konsulko.com>
+
+---
+ ncl/ncl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ncl/ncl.c b/ncl/ncl.c
+index 590d13b..f4165b7 100644
+--- a/ncl/ncl.c
++++ b/ncl/ncl.c
+@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
+ 		g_io_channel_unref(gNclCtx.channel);
+ 
+ 		if (show_help)
+-			ncl_exec(LISTCMD_NAME);
++			ncl_exec(g_strdup(LISTCMD_NAME));
+ 
+ 		rl_callback_handler_install(NCL_PROMPT, ncl_parse_line);
+ 

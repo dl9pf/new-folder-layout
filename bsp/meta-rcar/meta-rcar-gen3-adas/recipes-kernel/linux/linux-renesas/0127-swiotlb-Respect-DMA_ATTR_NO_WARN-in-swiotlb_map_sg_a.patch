@@ -1,0 +1,33 @@
+From 33342c77defd9f19b91269521f6eda34fdf0410b Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 2 Mar 2019 01:18:25 +0300
+Subject: [PATCH 076/122] swiotlb: Respect DMA_ATTR_NO_WARN in
+ swiotlb_map_sg_attrs
+
+If DMA_ATTR_NO_WARN attribute is set, do not call swiotlb_full()
+to print a "swiotlb full" warning. The function is actually removed
+altogether in the later kernels since all properly written drivers
+have error handling in the dma_map_single / dma_map_page callers.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ lib/swiotlb.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/swiotlb.c b/lib/swiotlb.c
+index 20df2fd..7b5666d 100644
+--- a/lib/swiotlb.c
++++ b/lib/swiotlb.c
+@@ -995,7 +995,8 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
+ 			if (map == SWIOTLB_MAP_ERROR) {
+ 				/* Don't panic here, we expect map_sg users
+ 				   to do proper error handling. */
+-				swiotlb_full(hwdev, sg->length, dir, 0);
++				if (!(attrs & DMA_ATTR_NO_WARN))
++					swiotlb_full(hwdev, sg->length, dir, 0);
+ 				attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+ 				swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
+ 						       attrs);
+-- 
+2.7.4
+

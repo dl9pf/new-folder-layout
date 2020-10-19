@@ -1,0 +1,114 @@
+From fa7923d1b823ee09defaf2f6740955f709f0f419 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:34:32 +0300
+Subject: [PATCH 149/211] arm64: dts: renesas: Add r8a77970-v3mzf support
+
+This adds r8a77970-v3mzf device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile           |  1 +
+ arch/arm64/boot/dts/renesas/r8a77970-v3mzf.dts | 34 +++++++++++++++-----------
+ 2 files changed, 21 insertions(+), 14 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 1679e8c..7698983d 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -40,5 +40,6 @@ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-view.dtb r8a77970-es1-v3msk-view.d
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-kf.dtb r8a77970-es1-v3msk-kf.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm.dtb r8a77970-es1-v3msk-vbm.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm-v2.dtb r8a77970-es1-v3msk-vbm-v2.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3mzf.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3mzf.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3mzf.dts
+index 2087364..71a765a 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3mzf.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3mzf.dts
+@@ -13,8 +13,8 @@
+ #include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+-	model = "Renesas V3MZF board based on r8a7797";
+-	compatible = "renesas,v3mzf", "renesas,r8a7797";
++	model = "Renesas V3MZF board based on r8a77970";
++	compatible = "renesas,v3mzf", "renesas,r8a77970";
+ 
+ 	aliases {
+ 		serial0 = &scif0;
+@@ -22,7 +22,6 @@
+ 	};
+ 
+ 	chosen {
+-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
+ 		stdout-path = "serial0:115200n8";
+ 	};
+ 
+@@ -87,7 +86,7 @@
+ 
+ 		port {
+ 			lvds_in: endpoint {
+-				remote-endpoint = <&du_out_lvds0>;
++				remote-endpoint = <&lvds0_out>;
+ 			};
+ 		};
+ 	};
+@@ -188,15 +187,10 @@
+ };
+ 
+ &du {
++	clocks = <&cpg CPG_MOD 724>,
++		 <&dclkin_p0>;
++	clock-names = "du.0", "dclkin.0";
+ 	status = "okay";
+-
+-	ports {
+-		port@0 {
+-			endpoint {
+-				remote-endpoint = <&lvds_in>;
+-			};
+-		};
+-	};
+ };
+ 
+ &extal_clk {
+@@ -306,6 +300,18 @@
+ 	};
+ };
+ 
++&lvds0 {
++	status = "okay";
++
++	ports {
++		port@1 {
++			lvds0_out: endpoint {
++				remote-endpoint = <&lvds_in>;
++			};
++		};
++	};
++};
++
+ &msiof2 {
+ 	pinctrl-0 = <&msiof2_pins>;
+ 	pinctrl-names = "default";
+@@ -395,7 +401,7 @@
+ 	status = "okay";
+ };
+ 
+-&sdhi2 {
++&mmc0 {
+ 	/* used for on-board eMMC */
+ 	pinctrl-0 = <&sdhi2_pins_3v3>;
+ 	pinctrl-names = "default";
+@@ -437,6 +443,6 @@
+ 	};
+ };
+ 
+-&wdt0 {
++&rwdt {
+ 	status = "okay";
+ };
+-- 
+2.7.4
+

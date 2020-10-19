@@ -1,0 +1,189 @@
+From 73714bd64b9beb6af9a4e00b85a4d2e6d8933143 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 29 Apr 2020 01:27:08 +0300
+Subject: [PATCH 1/3] media: i2c: max96712: add MIPI GMSL2 support
+
+This adds MIPI stream from serializer
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/gmsl/max9295.h  | 10 ++++
+ drivers/media/i2c/soc_camera/gmsl/max96712.c | 75 ++++++++++++++++------------
+ drivers/media/i2c/soc_camera/gmsl/max96712.h |  6 +--
+ 3 files changed, 57 insertions(+), 34 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max9295.h b/drivers/media/i2c/soc_camera/gmsl/max9295.h
+index cf12d3c..864c441 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max9295.h
++++ b/drivers/media/i2c/soc_camera/gmsl/max9295.h
+@@ -27,3 +27,13 @@
+ #define MAX9295_VIDEO_TX_BASE(n)	(0x100 + (0x8 * n))
+ #define MAX9295_VIDEO_TX0(n)		(MAX9295_VIDEO_TX_BASE(n) + 0)
+ #define MAX9295_VIDEO_TX1(n)		(MAX9295_VIDEO_TX_BASE(n) + 1)
++
++#define MAX9295_FRONTTOP_0		0x308
++#define MAX9295_FRONTTOP_9		0x311
++#define MAX9295_FRONTTOP_12		0x314
++#define MAX9295_FRONTTOP_13		0x315
++
++#define MAX9295_MIPI_RX0		0x330
++#define MAX9295_MIPI_RX1		0x331
++#define MAX9295_MIPI_RX2		0x332
++#define MAX9295_MIPI_RX3		0x333
+\ No newline at end of file
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max96712.c b/drivers/media/i2c/soc_camera/gmsl/max96712.c
+index af5e1d7..02ccc38 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max96712.c
++++ b/drivers/media/i2c/soc_camera/gmsl/max96712.c
+@@ -94,7 +94,7 @@ static int gmsl = MODE_GMSL2;
+ module_param(gmsl, int, 0644);
+ MODULE_PARM_DESC(gmsl, " GMSL mode (default: 2 - GMSL2)");
+ 
+-static char *mbus = "dvp";
++static char *mbus = mbus_default;
+ module_param(mbus, charp, 0644);
+ MODULE_PARM_DESC(mbus, " Interfaces mipi,dvp (default: dvp)");
+ 
+@@ -161,7 +161,7 @@ static void max96712_reset_oneshot(struct max96712_priv *priv, int mask)
+ 		if (!(reg & mask))
+ 			break;
+ 
+-		msleep(1);
++		mdelay(1);
+ 	}
+ 
+ 	if (reg & mask)
+@@ -741,9 +741,12 @@ static int max96712_gmsl2_reverse_channel_setup(struct max96712_priv *priv, int
+ 	des_write(MAX96712_REG6, 0xf0 | BIT(link_n));		/* GMSL2 mode, enable GMSL link# */
+ 	max96712_reset_oneshot(priv, BIT(link_n));
+ 
+-	/* wait 100ms for link to be established, indicated when status bit LOCKED goes high */
+-	while ((!max96712_gmsl2_get_link_lock(priv, link_n)) && (--timeout))
+-		msleep(1);
++	/* wait the link to be established, indicated when status bit LOCKED goes high */
++	for (; timeout > 0; timeout--) {
++		if (max96712_gmsl2_get_link_lock(priv, link_n))
++			break;
++		mdelay(1);
++	}
+ 
+ 	if (!timeout) {
+ 		ret = -ETIMEDOUT;
+@@ -781,36 +784,42 @@ static int max96712_gmsl2_link_serializer_setup(struct max96712_priv *priv, int
+ 	struct max96712_link *link = priv->link[link_n];
+ 	int i;
+ 
+-	//ser_write(MAX9295_CTRL0, 0x31);		/* link reset */
+-	//msleep(100);
+-	ser_write(MAX9295_REG2, 0x03);			/* disable all pipes */
+-
+ 	if (strcmp(priv->mbus, "dvp") == 0) {
+-		ser_write(MAX9295_VIDEO_TX0(0),  BIT(6) |	/* line CRC enable */
++		ser_write(MAX9295_VIDEO_TX0(0), BIT(6) |	/* line CRC enable */
+ 						(priv->hven ? BIT(5) : 0)); /* HS/VS encoding */
+ 		ser_write(MAX9295_VIDEO_TX1(0), 0x0a);	/* BPP = 10 */
+ 		ser_write(MAX9295_REG7, 0x07);		/* DVP stream, enable HS/VS, rising edge */
+-	}
+-
+-	ser_write(MAX9295_REG2, 0x13);			/* enable Pipe X */
+ 
+-	switch (priv->dt) {
+-	case MIPI_DT_YUV8:
+-	case MIPI_DT_RAW12:
+-		/* setup crossbar: strait DVP mapping */
+-		ser_write(MAX9295_CROSS(0), priv->cb[0]);
+-		ser_write(MAX9295_CROSS(1), priv->cb[1]);
+-		ser_write(MAX9295_CROSS(2), priv->cb[2]);
+-		ser_write(MAX9295_CROSS(3), priv->cb[3]);
+-		ser_write(MAX9295_CROSS(4), priv->cb[4]);
+-		ser_write(MAX9295_CROSS(5), priv->cb[5]);
+-		ser_write(MAX9295_CROSS(6), priv->cb[6]);
+-		ser_write(MAX9295_CROSS(7), priv->cb[7]);
+-		ser_write(MAX9295_CROSS(8), priv->cb[8]);
+-		ser_write(MAX9295_CROSS(9), priv->cb[9]);
+-		ser_write(MAX9295_CROSS(10), priv->cb[10]);
+-		ser_write(MAX9295_CROSS(11), priv->cb[11]);
+-		break;
++		switch (priv->dt) {
++		case MIPI_DT_YUV8:
++		case MIPI_DT_RAW12:
++			/* setup crossbar: strait DVP mapping */
++			ser_write(MAX9295_CROSS(0), priv->cb[0]);
++			ser_write(MAX9295_CROSS(1), priv->cb[1]);
++			ser_write(MAX9295_CROSS(2), priv->cb[2]);
++			ser_write(MAX9295_CROSS(3), priv->cb[3]);
++			ser_write(MAX9295_CROSS(4), priv->cb[4]);
++			ser_write(MAX9295_CROSS(5), priv->cb[5]);
++			ser_write(MAX9295_CROSS(6), priv->cb[6]);
++			ser_write(MAX9295_CROSS(7), priv->cb[7]);
++			ser_write(MAX9295_CROSS(8), priv->cb[8]);
++			ser_write(MAX9295_CROSS(9), priv->cb[9]);
++			ser_write(MAX9295_CROSS(10), priv->cb[10]);
++			ser_write(MAX9295_CROSS(11), priv->cb[11]);
++			break;
++		}
++	} else {
++		/* defaults:
++		 *  REG2	- video enable Pipex X,Z
++		 *  MIPI_RX0	- 1x4 mode (1-port x 4-lanes)
++		 *  MIPI_RX1	- 4-lanes
++		 *  MIPI_RX2, MIPI_RX3 - merge PHY1,PHY2 to 1x4-mode
++		 *  FRONTTOP_9	- start Pipes X,Z from CSI_A,CSI_B
++		 */
++
++		ser_write(MAX9295_FRONTTOP_0, 0x71);			/* enable Pipe X from from CSI_A,CSI_B */
++		ser_write(MAX9295_FRONTTOP_12, BIT(6) | priv->dt);	/* primary DT for Pipe X */
++		ser_write(MAX9295_FRONTTOP_13, BIT(6) | MIPI_DT_EMB);	/* secondary DT for Pipe X */
+ 	}
+ 
+ 	for (i = 0; i < 11; i++) {
+@@ -852,7 +861,9 @@ static struct {
+ } gmsl2_pipe_maps[] = {
+ 	{0x00,		0x00},		/* FS */
+ 	{0x01,		0x01},		/* FE */
+-	{MIPI_DT_YUV8,	MIPI_DT_YUV8}	/* payload data */
++	{MIPI_DT_YUV8,	MIPI_DT_YUV8},	/* payload data */
++	{MIPI_DT_RAW8,	MIPI_DT_RAW8},
++	{MIPI_DT_RAW12,	MIPI_DT_RAW12},
+ };
+ 
+ static void max96712_gmsl2_pipe_set_source(struct max96712_priv *priv, int pipe, int phy, int in_pipe)
+@@ -1193,6 +1204,8 @@ static int max96712_parse_dt(struct i2c_client *client)
+ 		priv->gpio[7] = gpio7;
+ 	if (gpio8 >= 0)
+ 		priv->gpio[8] = gpio8;
++	if (strcmp(mbus, "dvp"))
++		priv->mbus = mbus;
+ 
+ 	/* parse serializer crossbar setup */
+ 	for (i = 0; i < 16; i++) {
+diff --git a/drivers/media/i2c/soc_camera/gmsl/max96712.h b/drivers/media/i2c/soc_camera/gmsl/max96712.h
+index 2976027..b648bdc 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/max96712.h
++++ b/drivers/media/i2c/soc_camera/gmsl/max96712.h
+@@ -236,11 +236,11 @@ static inline int max96712_ser_write(struct max96712_link *link, int reg, int va
+ 	return ret;
+ }
+ 
+-static inline int max96712_ser_read(struct max96712_link *link, int reg, u8 *val)
++static inline int max96712_ser_read(struct max96712_link *link, int reg, int *val)
+ {
+ 	int ret;
+ 
+-	ret = regmap_read(link->regmap, reg, (int *)val);
++	ret = regmap_read(link->regmap, reg, val);
+ 	if (ret)
+ 		dev_dbg(&link->client->dev, "read register 0x%04x failed (%d)\n", reg, ret);
+ 
+@@ -258,6 +258,6 @@ static inline int max96712_ser_update_bits(struct max96712_link *link, int reg,
+ 	return ret;
+ }
+ 
+-#define ser_read(reg, val)			max96712_ser_read(link, reg, val)
++#define ser_read(reg, val)			max96712_ser_read(link, reg, (int *)val)
+ #define ser_write(reg, val)			max96712_ser_write(link, reg, val)
+ #define ser_update_bits(reg, mask, bits)	max96712_ser_update_bits(link, reg, mask, bits)
+-- 
+2.7.4
+

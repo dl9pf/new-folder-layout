@@ -1,0 +1,29 @@
+From 9162f7d4cfeec7103474e8703218b3679ca9ed10 Mon Sep 17 00:00:00 2001
+From: Ronan Le Martret <ronan.lemartret@iot.bzh>
+Date: Tue, 18 Apr 2017 13:53:26 +0200
+Subject: [PATCH] Change socket mode:add rw for group
+
+Signed-off-by: Ronan Le Martret <ronan.lemartret@iot.bzh>
+[Updated for 1.18.0 to remove fuzz]
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+---
+ src/wayland-server.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/wayland-server.c b/src/wayland-server.c
+index 3f48dfe..fbccb45 100644
+--- a/src/wayland-server.c
++++ b/src/wayland-server.c
+@@ -1528,7 +1528,10 @@ _wl_display_add_socket(struct wl_display *display, struct wl_socket *s)
+ 		wl_log("bind() failed with error: %s\n", strerror(errno));
+ 		return -1;
+ 	}
+-
++	if (chmod(s->addr.sun_path, 0660) < 0) {
++		wl_log("chmod() failed with error: %m\n");
++		return -1;
++	}
+ 	if (listen(s->fd, 128) < 0) {
+ 		wl_log("listen() failed with error: %s\n", strerror(errno));
+ 		return -1;

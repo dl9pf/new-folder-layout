@@ -1,0 +1,95 @@
+From 3e52f48ee3314fef332d057cb0c869aec7f9ed26 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Tue, 6 Nov 2018 18:26:49 +0300
+Subject: [PATCH 162/211] arm64: dts: r8a77970: Videobox Mini V3 board support.
+
+---
+ arch/arm64/boot/dts/renesas/Makefile               |  1 +
+ .../boot/dts/renesas/r8a77970-es1-v3msk-vbm-v3.dts | 17 ++++++++++
+ .../boot/dts/renesas/r8a77970-v3msk-vbm-v3.dts     | 38 ++++++++++++++++++++++
+ 3 files changed, 56 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/renesas/r8a77970-es1-v3msk-vbm-v3.dts
+ create mode 100644 arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm-v3.dts
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 222df3d..4ccf641 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -40,6 +40,7 @@ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-view.dtb r8a77970-es1-v3msk-view.d
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-kf.dtb r8a77970-es1-v3msk-kf.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm.dtb r8a77970-es1-v3msk-vbm.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm-v2.dtb r8a77970-es1-v3msk-vbm-v2.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm-v3.dtb r8a77970-es1-v3msk-vbm-v3.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3mzf.dtb
+ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vbm.dtb
+ dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vbm-v2.dtb
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-es1-v3msk-vbm-v3.dts b/arch/arm64/boot/dts/renesas/r8a77970-es1-v3msk-vbm-v3.dts
+new file mode 100644
+index 0000000..32ace13
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/r8a77970-es1-v3msk-vbm-v3.dts
+@@ -0,0 +1,17 @@
++/*
++ * Device Tree Source for the V3MSK Videobox Mini V2 board on r8a7797 ES1.0
++ *
++ * Copyright (C) 2018 Renesas Electronics Corp.
++ * Copyright (C) 2018 Cogent Embedded, Inc.
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include "r8a77970-v3msk-vbm-v3.dts"
++#include "r8a77970-es1.dtsi"
++
++/ {
++	model = "Renesas V3MSK Videobox Mini V3 board based on r8a7797 ES1.0";
++};
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm-v3.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm-v3.dts
+new file mode 100644
+index 0000000..e4d8362
+--- /dev/null
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm-v3.dts
+@@ -0,0 +1,38 @@
++/*
++ * Device Tree Source for the V3MSK Videobox Mini board V3 on r8a7797
++ *
++ * Copyright (C) 2018 Cogent Embedded, Inc.
++ *
++ * This file is licensed under the terms of the GNU General Public License
++ * version 2.  This program is licensed "as is" without any warranty of any
++ * kind, whether express or implied.
++ */
++
++#include "r8a77970-v3msk-vbm-v2.dts"
++
++
++/ {
++	model = "Renesas V3MSK Videobox Mini board V3 based on r8a7797";
++};
++
++&gpio0 {
++	can0_load {
++		gpio-hog;
++		gpios = <19 GPIO_ACTIVE_HIGH>;
++		output-low;
++		line-name = "can0_120R_load";
++	};
++};
++
++&gpio1 {
++	ex_v3m {
++		gpio-hog;
++		gpios = <19 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "ExV3M";
++	};
++};
++
++&gpio2 {
++	/delete-node/can0_load;
++};
+-- 
+2.7.4
+

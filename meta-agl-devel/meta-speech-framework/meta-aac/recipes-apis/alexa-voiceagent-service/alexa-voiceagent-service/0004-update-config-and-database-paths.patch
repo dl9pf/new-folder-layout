@@ -1,0 +1,124 @@
+alexa-voiceagent-service: update config and database file paths
+
+Tweak getDataRootPath in the AASBConfigProviderImpl class to use the
+AFM_WORKDIR environment variable as the basis for the path, which
+moves things from the binding installation hierarchy into the app
+framework's provided application data directory. This avoids the
+permissions problems stemming from the new security model of running
+as non-root. Also reworked the main configuration JSON file location
+logic to use a new helper member function that checks for the file
+in /etc/xdg/AGL and then in AFM_WORKDIR (app-data directory), before
+falling back to the original location in var/config under the binding
+installation directory. The local copy of GetBindingDirPath has been
+removed, as it seems to be working fine now that the binding is being
+built with AFB_BINDING_VERSION = 3.
+
+Upstream-Status: Pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp b/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp
+index b51185c..5d5c3ba 100644
+--- a/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp
++++ b/src/plugins/aasb-client/config/AASBConfigProviderImpl.cpp
+@@ -19,6 +19,7 @@
+ #include <iostream>
+ #include <sstream>
+ #include <unistd.h>
++#include <sys/stat.h>
+ 
+ #include <rapidjson/document.h>
+ #include <rapidjson/istreamwrapper.h>
+@@ -36,6 +37,9 @@ using Level = agl::common::interfaces::ILogger::Level;
+ /// Logging tag for this file.
+ static std::string TAG = "agl::alexa::AASBConfigProviderImpl";
+ 
++/// Directory where user over-ride alexa json configuration may be.
++static std::string ALEXA_CONFIG_FILE_OVERRIDE_DIR = "/etc/xdg/AGL/";
++
+ /// File name where alexa json configuration is stored.
+ static std::string ALEXA_CONFIG_FILE_NAME = "AlexaAutoCoreEngineConfig.json";
+ 
+@@ -64,8 +68,7 @@ AASBConfigProviderImpl::AASBConfigProviderImpl(std::shared_ptr<agl::common::inte
+         m_enableLocalVoiceControl(false) {
+     m_LocalVoiceControlConfiguration = std::unique_ptr<LVCConfiguration>(new LVCConfiguration());
+     m_carControlConfiguration = std::unique_ptr<CarControlConfiguration>(new CarControlConfiguration());
+-    std::string alexaConfigFile = getDataRootPath() + ALEXA_CONFIG_FILE_NAME;
+-    initConfigFromFile(alexaConfigFile);
++    initConfigFromFile(getAlexaConfigPath());
+     logCurrentConfiguration();
+ }
+ 
+@@ -520,32 +523,25 @@ void AASBConfigProviderImpl::initConfigFromFile(const std::string& fileName) {
+     }
+ }
+ 
+-// GetBindingDirPath() method provided by AGL SDK crashes every single time.
+-// It turns out that on latest AGL platforms, GetBindingDirPath(afb_api_t) version
+-// is supposed to be the correct version. However when we include filescan-utils.h
+-// it compiles a version without "afb_api_t" parameter. For now, I have made a
+-// copy of this method here which accepts "afb_api_t" parameter.
+-// TODO: Fix it
+-std::string GetBindingDirectoryPath(afb_api_t api) {
+-    // A file description should not be greater than 999.999.999
+-    char fd_link[CONTROL_MAXPATH_LEN];
+-    char retdir[CONTROL_MAXPATH_LEN];
+-    ssize_t len;
+-    sprintf(fd_link, "/proc/self/fd/%d", afb_dynapi_rootdir_get_fd(api));
+-
+-    if ((len = readlink(fd_link, retdir, sizeof(retdir) - 1)) == -1) {
+-        perror("lstat");
+-        strncpy(retdir, "/tmp", CONTROL_MAXPATH_LEN - 1);
+-    } else {
+-       retdir[len] = '\0';
+-    }
+-
+-    return std::string(retdir);
++std::string AASBConfigProviderImpl::getDataRootPath() {
++    std::string workDir(getenv("AFM_WORKDIR"));
++    return workDir + "/";
+ }
+ 
+-std::string AASBConfigProviderImpl::getDataRootPath() {
+-    std::string bindingDir(GetBindingDirectoryPath(m_api));
+-    return bindingDir + "/var/config/";
++std::string AASBConfigProviderImpl::getAlexaConfigPath() {
++    struct stat statbuf;
++
++    // Look in over-ride directory first
++    std::string configPath = ALEXA_CONFIG_FILE_OVERRIDE_DIR + ALEXA_CONFIG_FILE_NAME;
++    if(stat(configPath.c_str(), &statbuf) != 0) {
++        // Look in work directory (app-data) next
++        configPath = getDataRootPath() + ALEXA_CONFIG_FILE_NAME;
++        if(stat(configPath.c_str(), &statbuf) != 0) {
++            // Fall back to default version in widget
++            configPath = std::string(GetBindingDirPath(m_api)) + "/var/config/" + ALEXA_CONFIG_FILE_NAME;
++        }
++    }
++    return configPath;
+ }
+ 
+ void AASBConfigProviderImpl::logCurrentConfiguration() {
+diff --git a/src/plugins/aasb-client/config/AASBConfigProviderImpl.h b/src/plugins/aasb-client/config/AASBConfigProviderImpl.h
+index 6b79994..e32f7b7 100644
+--- a/src/plugins/aasb-client/config/AASBConfigProviderImpl.h
++++ b/src/plugins/aasb-client/config/AASBConfigProviderImpl.h
+@@ -87,6 +87,11 @@ private:
+      */
+     std::string getDataRootPath();
+ 
++    /**
++     * Provides the path where alexa json config resides.
++     */
++    std::string getAlexaConfigPath();
++
+     /**
+      * Logs the current configuration loaded by this object.
+      */
+@@ -139,4 +144,4 @@ private:
+ }  // namespace alexa
+ }  // namespace agl
+ 
+-#endif  // AGL_ALEXA_SVC_AASB_CONFIG_PROVIDER_IMPL_H_
+\ No newline at end of file
++#endif  // AGL_ALEXA_SVC_AASB_CONFIG_PROVIDER_IMPL_H_

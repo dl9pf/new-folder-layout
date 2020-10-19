@@ -1,0 +1,197 @@
+From 5dc710a5cfcaf038155e2a6c6c1a5becfb684a41 Mon Sep 17 00:00:00 2001
+From: Petr Nechaev <petr.nechaev@cogentembedded.com>
+Date: Thu, 3 Oct 2019 14:04:23 +0300
+Subject: [PATCH] media: i2c: imx390: add user defined size for register access
+
+This adds user defined size during VIDIOC_DBG_G/S_REGISTER
+
+Signed-off-by: Petr Nechaev <petr.nechaev@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/imx390.c  | 20 +++++++----
+ drivers/media/i2c/soc_camera/max9286.h | 61 ++++++++++++++++++++++++++++++++++
+ drivers/media/i2c/soc_camera/ti9x4.h   | 48 ++++++++++++++++++++++++++
+ 3 files changed, 123 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imx390.c b/drivers/media/i2c/soc_camera/imx390.c
+index 87279d0..b1df1ba 100644
+--- a/drivers/media/i2c/soc_camera/imx390.c
++++ b/drivers/media/i2c/soc_camera/imx390.c
+@@ -213,16 +213,18 @@ static int imx390_g_register(struct v4l2_subdev *sd,
+ 			    struct v4l2_dbg_register *reg)
+ {
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	u32 s = reg->size;
+ 	int ret;
+-	u8 val = 0;
+ 
+-	ret = reg16_read(client, (u16)reg->reg, &val);
++	if (!s)
++		s = 4;
++	if (s > sizeof(reg->val))
++		s = sizeof(reg->val);
++
++	ret = reg16_read_n(client, (u16)reg->reg, (u8*)&reg->val, s);
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	reg->val = val;
+-	reg->size = sizeof(u8);
+-
+ 	return 0;
+ }
+ 
+@@ -230,8 +232,14 @@ static int imx390_s_register(struct v4l2_subdev *sd,
+ 			    const struct v4l2_dbg_register *reg)
+ {
+ 	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	u32 s = reg->size;
++
++	if (!s)
++		s = 4;
++	if (s > sizeof(reg->val))
++		s = sizeof(reg->val);
+ 
+-	return reg16_write(client, (u16)reg->reg, (u8)reg->val);
++	return reg16_write_n(client, (u16)reg->reg, (u8*)&reg->val, s);
+ }
+ #endif
+ 
+diff --git a/drivers/media/i2c/soc_camera/max9286.h b/drivers/media/i2c/soc_camera/max9286.h
+index 2875b3c..b53ac27 100644
+--- a/drivers/media/i2c/soc_camera/max9286.h
++++ b/drivers/media/i2c/soc_camera/max9286.h
+@@ -131,6 +131,67 @@ static inline int reg16_write(struct i2c_client *client, u16 reg, u8 val)
+ 	return ret < 0 ? ret : 0;
+ }
+ 
++static inline int reg16_read_n(struct i2c_client *client, u16 reg, u8 *val, int n)
++{
++	int ret, retries;
++	u8 buf[2] = {reg >> 8, reg & 0xff};
++
++	for (retries = REG16_NUM_RETRIES; retries; retries--) {
++		ret = i2c_master_send(client, buf, 2);
++		if (ret == 2) {
++			ret = i2c_master_recv(client, val, n);
++			if (ret == n)
++				break;
++		}
++	}
++
++	if (ret < 0) {
++		dev_dbg(&client->dev,
++			"read fail: chip 0x%x registers 0x%x-0x%x: %d\n",
++			client->addr, reg, reg + n, ret);
++	}
++
++	return ret < 0 ? ret : 0;
++}
++
++static inline int reg16_write_n(struct i2c_client *client, u16 reg, const u8* val, int n)
++{
++	int ret, retries;
++	u8 buf[2 + n];
++
++	buf[0] = reg >> 8;
++	buf[1] = reg & 0xff;
++	memcpy(&buf[2], val, n);
++
++	for (retries = REG16_NUM_RETRIES; retries; retries--) {
++		ret = i2c_master_send(client, buf, 2 + n);
++		if (ret == 2 + n)
++			break;
++	}
++
++	if (ret < 0) {
++		dev_dbg(&client->dev,
++			"write fail: chip 0x%x register 0x%x-0x%x: %d\n",
++			client->addr, reg, reg + n, ret);
++	} else {
++#ifdef WRITE_VERIFY
++		u8 val2[n];
++		ret = reg16_read_n(client, reg, val2, n);
++		if (ret < 0)
++			return ret;
++
++		if (memcmp(val, val2, n)) {
++			dev_err(&client->dev,
++				"write verify mismatch: chip 0x%x reg=0x%x-0x%x "
++				"'%*phN'->'%*phN'\n", client->addr, reg, reg + n,
++				n, val, n, val2);
++				ret = -EBADE;
++		}
++#endif
++	}
++
++	return ret < 0 ? ret : 0;
++}
+ 
+ static inline int reg16_read16(struct i2c_client *client, u16 reg, u16 *val)
+ {
+diff --git a/drivers/media/i2c/soc_camera/ti9x4.h b/drivers/media/i2c/soc_camera/ti9x4.h
+index b53b4c6..6825f8a 100644
+--- a/drivers/media/i2c/soc_camera/ti9x4.h
++++ b/drivers/media/i2c/soc_camera/ti9x4.h
+@@ -109,6 +109,53 @@ static inline int reg16_write(struct i2c_client *client, u16 reg, u8 val)
+ 	return ret < 0 ? ret : 0;
+ }
+ 
++static inline int reg16_read_n(struct i2c_client *client, u16 reg, u8 *val, int n)
++{
++	int ret, retries;
++	u8 buf[2] = {reg >> 8, reg & 0xff};
++
++	for (retries = MAXIM_NUM_RETRIES; retries; retries--) {
++		ret = i2c_master_send(client, buf, 2);
++		if (ret == 2) {
++			ret = i2c_master_recv(client, val, n);
++			if (ret == n)
++				break;
++		}
++	}
++
++	if (ret < 0) {
++		dev_dbg(&client->dev,
++			"read fail: chip 0x%x registers 0x%x-0x%x: %d\n",
++			client->addr, reg, reg + n, ret);
++	}
++
++	return ret < 0 ? ret : 0;
++}
++
++static inline int reg16_write_n(struct i2c_client *client, u16 reg, const u8* val, int n)
++{
++	int ret, retries;
++	u8 buf[2 + n];
++
++	buf[0] = reg >> 8;
++	buf[1] = reg & 0xff;
++	memcpy(&buf[2], val, n);
++
++	for (retries = MAXIM_NUM_RETRIES; retries; retries--) {
++		ret = i2c_master_send(client, buf, 2 + n);
++		if (ret == 2 + n)
++			break;
++	}
++
++	if (ret < 0) {
++		dev_dbg(&client->dev,
++			"write fail: chip 0x%x register 0x%x-0x%x: %d\n",
++			client->addr, reg, reg + n, ret);
++	}
++
++	return ret < 0 ? ret : 0;
++}
++
+ static inline int reg16_read16(struct i2c_client *client, u16 reg, u16 *val)
+ {
+ 	int ret, retries;
+@@ -154,3 +201,4 @@ static inline int reg16_write16(struct i2c_client *client, u16 reg, u16 val)
+ 	return ret < 0 ? ret : 0;
+ }
+ #endif /* _TI9X4_H */
++
+-- 
+2.7.4
+

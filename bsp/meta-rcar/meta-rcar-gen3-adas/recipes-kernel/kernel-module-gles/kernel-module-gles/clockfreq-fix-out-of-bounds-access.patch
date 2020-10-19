@@ -1,0 +1,23 @@
+diff -pruN '--exclude=*~' '--exclude=binary*' rogue_km/build/linux/r8a7795_linux/Makefile rogue_km.new/build/linux/r8a7795_linux/Makefile
+--- rogue_km/build/linux/r8a7795_linux/Makefile	2016-08-03 23:17:38.000000000 -0700
++++ rogue_km.new/build/linux/r8a7795_linux/Makefile	2016-11-01 07:02:27.887988779 -0700
+@@ -91,6 +91,7 @@ endif
+ SYSROOT := $(SDKTARGETSYSROOT)
+ 
+ SUPPORT_WRAPEXTMEM ?= 1
++SUPPORT_PVRTL := 1
+ 
+ SUPPORT_EXTENSION_REL ?= 1
+ ifeq ($(SUPPORT_EXTENSION_REL),1)
+diff -pruN '--exclude=*~' '--exclude=binary*' rogue_km/services/server/devices/rgx/rgxdevice.h rogue_km.new/services/server/devices/rgx/rgxdevice.h
+--- rogue_km/services/server/devices/rgx/rgxdevice.h	2016-08-03 23:14:20.000000000 -0700
++++ rogue_km.new/services/server/devices/rgx/rgxdevice.h	2016-11-22 02:23:56.136282383 -0800
+@@ -81,7 +81,7 @@ typedef struct {
+  *****************************************************************************/
+ 
+ #define RGX_GPU_DVFS_TABLE_SIZE            100                      /* DVFS Table size */
+-#define RGX_GPU_DVFS_GET_INDEX(clockfreq)  ((clockfreq) / 10000000) /* Assuming different GPU clocks are separated by at least 10MHz
++#define RGX_GPU_DVFS_GET_INDEX(clockfreq)  (((clockfreq) / 10000000) % RGX_GPU_DVFS_TABLE_SIZE) /* Assuming different GPU clocks are separated by at least 10MHz
+                                                                      * WARNING: this macro must be used only with nominal values of
+                                                                      * the GPU clock speed (the ones provided by the customer code) */
+ #define RGX_GPU_DVFS_FIRST_CALIBRATION_TIME_US       25000          /* Time required to calibrate a clock frequency the first time */

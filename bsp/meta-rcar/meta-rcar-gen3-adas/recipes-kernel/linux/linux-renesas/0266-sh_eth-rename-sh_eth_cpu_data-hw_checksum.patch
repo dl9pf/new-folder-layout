@@ -1,0 +1,104 @@
+From 3f271260224b6f9a242f4c9541f8d676e4cbbac8 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 4 Feb 2019 21:05:55 +0300
+Subject: [PATCH 086/211] sh_eth: rename sh_eth_cpu_data::hw_checksum
+
+Commit 62e04b7e0e3c ("sh_eth: rename 'sh_eth_cpu_data::hw_crc'") renamed
+the field to 'hw_checksum' for the Ether DMAC "intelligent checksum",
+however some Ether MACs implement a simpler checksumming scheme, so that
+name now seems misleading. Rename that field to 'csmr' as the "intelligent
+checksum" is always controlled by the CSMR register.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit 2c2ab5af7d1470d7ba56525cc0c3eebe5ee2bad0)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/ethernet/renesas/sh_eth.c | 14 +++++++-------
+ drivers/net/ethernet/renesas/sh_eth.h |  2 +-
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/net/ethernet/renesas/sh_eth.c b/drivers/net/ethernet/renesas/sh_eth.c
+index f11b12f..61b9fcb 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.c
++++ b/drivers/net/ethernet/renesas/sh_eth.c
+@@ -561,7 +561,7 @@ static int sh_eth_soft_reset_gether(struct net_device *ndev)
+ 	sh_eth_write(ndev, 0, RDFFR);
+ 
+ 	/* Reset HW CRC register */
+-	if (mdp->cd->hw_checksum)
++	if (mdp->cd->csmr)
+ 		sh_eth_write(ndev, 0, CSMR);
+ 
+ 	/* Select MII mode */
+@@ -625,7 +625,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
+ 	.no_trimd	= 1,
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+-	.hw_checksum	= 1,
++	.csmr		= 1,
+ 	.tsu		= 1,
+ 	.no_tx_cntrs	= 1,
+ };
+@@ -674,7 +674,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
+ 	.no_trimd	= 1,
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+-	.hw_checksum	= 1,
++	.csmr		= 1,
+ 	.tsu		= 1,
+ 	.select_mii	= 1,
+ 	.magic		= 1,
+@@ -799,7 +799,7 @@ static struct sh_eth_cpu_data r8a77980_data = {
+ 	.no_trimd	= 1,
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+-	.hw_checksum	= 1,
++	.csmr		= 1,
+ 	.select_mii	= 1,
+ 	.magic		= 1,
+ 	.cexcr		= 1,
+@@ -1016,7 +1016,7 @@ static struct sh_eth_cpu_data sh7734_data = {
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+ 	.tsu		= 1,
+-	.hw_checksum	= 1,
++	.csmr		= 1,
+ 	.select_mii	= 1,
+ 	.magic		= 1,
+ 	.cexcr		= 1,
+@@ -1604,7 +1604,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
+ 		 * the RFS bits are from bit 25 to bit 16. So, the
+ 		 * driver needs right shifting by 16.
+ 		 */
+-		if (mdp->cd->hw_checksum)
++		if (mdp->cd->csmr)
+ 			desc_status >>= 16;
+ 
+ 		skb = mdp->rx_skbuff[entry];
+@@ -2144,7 +2144,7 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
+ 	add_reg(MAFCR);
+ 	if (cd->rtrate)
+ 		add_reg(RTRATE);
+-	if (cd->hw_checksum)
++	if (cd->csmr)
+ 		add_reg(CSMR);
+ 	if (cd->select_mii)
+ 		add_reg(RMII_MII);
+diff --git a/drivers/net/ethernet/renesas/sh_eth.h b/drivers/net/ethernet/renesas/sh_eth.h
+index 140ad2c..1e73433 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.h
++++ b/drivers/net/ethernet/renesas/sh_eth.h
+@@ -510,7 +510,7 @@ struct sh_eth_cpu_data {
+ 	unsigned no_ade:1;	/* E-DMAC DOES NOT have ADE bit in EESR */
+ 	unsigned no_xdfar:1;	/* E-DMAC DOES NOT have RDFAR/TDFAR */
+ 	unsigned xdfar_rw:1;	/* E-DMAC has writeable RDFAR/TDFAR */
+-	unsigned hw_checksum:1;	/* E-DMAC has CSMR */
++	unsigned csmr:1;	/* E-DMAC has CSMR */
+ 	unsigned select_mii:1;	/* EtherC has RMII_MII (MII select register) */
+ 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
+ 	unsigned rtrate:1;	/* EtherC has RTRATE register */
+-- 
+2.7.4
+

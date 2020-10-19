@@ -1,0 +1,118 @@
+From afbb91288b32731dcf5249dcddeee019994364e2 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 29 Apr 2020 02:33:17 +0300
+Subject: [PATCH] media: i2c: gmsl: parse gmsl_mode from deserializer
+
+The gmsl1/2 mode needs to be parsed from deserizlier to
+access 16 or 8 bit remote serializer. If not done then
+imager may try to make 16 bit writes to 8 bit serizlier and
+hence it will change it's address at reg=0
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/gmsl/common.h           | 13 +++++++++++--
+ drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c |  2 +-
+ drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c |  2 +-
+ drivers/media/i2c/soc_camera/imagers/ov10635.c       |  2 +-
+ drivers/media/i2c/soc_camera/imagers/ov2311.c        |  2 +-
+ drivers/media/i2c/soc_camera/imagers/ov490.c         |  2 +-
+ 6 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/gmsl/common.h b/drivers/media/i2c/soc_camera/gmsl/common.h
+index 98bb1c0..346db3ca 100644
+--- a/drivers/media/i2c/soc_camera/gmsl/common.h
++++ b/drivers/media/i2c/soc_camera/gmsl/common.h
+@@ -473,14 +473,23 @@ static inline int get_des_addr(struct i2c_client *client)
+ 	return to_i2c_client(mux_priv->muxc->dev)->addr;
+ }
+ 
+-static inline void setup_i2c_translator(struct i2c_client *client, int ser_addr, int sensor_addr, int gmsl_mode)
++static inline void setup_i2c_translator(struct i2c_client *client, int ser_addr, int sensor_addr)
+ {
++	int gmsl_mode = MODE_GMSL2;
++
+ 	switch (get_des_id(client)) {
+ 	case MAX9286_ID:
+ 	case MAX9288_ID:
+-	case MAX9296A_ID:
+ 	case MAX96706_ID:
++		reg8_write_addr(client, ser_addr, 0x09, client->addr << 1);	/* Sensor translated I2C address */
++		reg8_write_addr(client, ser_addr, 0x0A, sensor_addr << 1);	/* Sensor native I2C address */
++		break;
++	case MAX9296A_ID:
+ 	case MAX96712_ID:
++		/* parse gmsl mode from deserializer */
++		reg16_read_addr(client, get_des_addr(client), 6, &gmsl_mode);
++		gmsl_mode = !!(gmsl_mode & BIT(7)) + 1;
++
+ 		if (gmsl_mode == MODE_GMSL1) {
+ 			reg8_write_addr(client, ser_addr, 0x09, client->addr << 1);	/* Sensor translated I2C address */
+ 			reg8_write_addr(client, ser_addr, 0x0A, sensor_addr << 1);	/* Sensor native I2C address */
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c b/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c
+index 1df3f3b..d2a6ff9 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c
++++ b/drivers/media/i2c/soc_camera/imagers/ap0101_ar014x.c
+@@ -409,7 +409,7 @@ static int ap0101_initialize(struct i2c_client *client)
+ 	int i;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(ap0101_i2c_addr); i++) {
+-		setup_i2c_translator(client, priv->ser_addr, ap0101_i2c_addr[i], MODE_GMSL1);
++		setup_i2c_translator(client, priv->ser_addr, ap0101_i2c_addr[i]);
+ 
+ 		/* check model ID */
+ 		reg16_read16(client, AP0101_PID_REG, &pid);
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+index 35169b8..7b274ce 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
++++ b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+@@ -405,7 +405,7 @@ static int ap0201_initialize(struct i2c_client *client)
+ 	int i;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(ap0201_i2c_addr); i++) {
+-		setup_i2c_translator(client, priv->ser_addr, ap0201_i2c_addr[i], MODE_GMSL2);
++		setup_i2c_translator(client, priv->ser_addr, ap0201_i2c_addr[i]);
+ 
+ 		/* check product ID */
+ 		reg16_read16(client, AP0201_PID_REG, &pid);
+diff --git a/drivers/media/i2c/soc_camera/imagers/ov10635.c b/drivers/media/i2c/soc_camera/imagers/ov10635.c
+index b9813f7..d21d357 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ov10635.c
++++ b/drivers/media/i2c/soc_camera/imagers/ov10635.c
+@@ -506,7 +506,7 @@ static int ov10635_initialize(struct i2c_client *client)
+ 	u8 val = 0;
+ 	u16 pid = 0;
+ 
+-	setup_i2c_translator(client, priv->ser_addr, OV10635_I2C_ADDR, MODE_GMSL1);
++	setup_i2c_translator(client, priv->ser_addr, OV10635_I2C_ADDR);
+ 	udelay(100);
+ 
+ 	reg16_read(client, OV10635_PID_REGA, &val);
+diff --git a/drivers/media/i2c/soc_camera/imagers/ov2311.c b/drivers/media/i2c/soc_camera/imagers/ov2311.c
+index 764c261..d49ca96 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ov2311.c
++++ b/drivers/media/i2c/soc_camera/imagers/ov2311.c
+@@ -395,7 +395,7 @@ static int ov2311_initialize(struct i2c_client *client)
+ 	u8 val = 0, rev = 0;
+ 	int ret = 0;
+ 
+-	setup_i2c_translator(client, priv->ser_addr, OV2311_I2C_ADDR, MODE_GMSL2);
++	setup_i2c_translator(client, priv->ser_addr, OV2311_I2C_ADDR);
+ 
+ 	reg16_read(client, OV2311_PIDA_REG, &val);
+ 	pid = val;
+diff --git a/drivers/media/i2c/soc_camera/imagers/ov490.c b/drivers/media/i2c/soc_camera/imagers/ov490.c
+index 3c47398..ff0d122 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ov490.c
++++ b/drivers/media/i2c/soc_camera/imagers/ov490.c
+@@ -767,7 +767,7 @@ static int ov490_initialize(struct i2c_client *client)
+ 	u16 pid = 0;
+ 	int timeout, retry_timeout = 3;
+ 
+-	setup_i2c_translator(client, priv->ser_addr, OV490_I2C_ADDR, MODE_GMSL1);
++	setup_i2c_translator(client, priv->ser_addr, OV490_I2C_ADDR);
+ 
+ 	reg16_write(client, 0xFFFD, 0x80);
+ 	reg16_write(client, 0xFFFE, 0x80);
+-- 
+2.7.4
+

@@ -1,0 +1,90 @@
+From a9fc14847d14cb2dabad47064b1821928e8a743a Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 6 Nov 2019 15:17:50 +0300
+Subject: [PATCH] media: i2c: ov106xx: change order
+
+Put OV2775, OX03A tail becase they force change serilzier gpios.
+Becase of this chagne the further autodetection becomes broken.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov106xx.c | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov106xx.c b/drivers/media/i2c/soc_camera/ov106xx.c
+index c7f1bbe..624f0be 100644
+--- a/drivers/media/i2c/soc_camera/ov106xx.c
++++ b/drivers/media/i2c/soc_camera/ov106xx.c
+@@ -79,6 +79,12 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
++        ret = ap0101_probe(client, did);
++        if (!ret) {
++                chip_id = ID_AP0101_AR014X;
++                goto out;
++        }
++
+ 	ret = ov495_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_OV495_OV2775;
+@@ -139,12 +145,6 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
+-	ret = ap0101_probe(client, did);
+-	if (!ret) {
+-		chip_id = ID_AP0101_AR014X;
+-		goto out;
+-	}
+-
+ 	ret = gw4200_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_GW4200_AR014X;
+@@ -157,33 +157,33 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
+-	ret = ov2775_probe(client, did);
++	ret = imx390_probe(client, did);
+ 	if (!ret) {
+-		chip_id = ID_OV2775;
++		chip_id = ID_IMX390;
+ 		goto out;
+ 	}
+ 
+-	ret = imx390_probe(client, did);
++	ret = isx016_probe(client, did);
+ 	if (!ret) {
+-		chip_id = ID_IMX390;
++		chip_id = ID_ISX016;
+ 		goto out;
+ 	}
+ 
+-	ret = ox03a_probe(client, did);
++	ret = isx019_probe(client, did);
+ 	if (!ret) {
+-		chip_id = ID_OX03A;
++		chip_id = ID_ISX019;
+ 		goto out;
+ 	}
+ 
+-	ret = isx016_probe(client, did);
++	ret = ov2775_probe(client, did);
+ 	if (!ret) {
+-		chip_id = ID_ISX016;
++		chip_id = ID_OV2775;
+ 		goto out;
+ 	}
+ 
+-	ret = isx019_probe(client, did);
++	ret = ox03a_probe(client, did);
+ 	if (!ret) {
+-		chip_id = ID_ISX019;
++		chip_id = ID_OX03A;
+ 		goto out;
+ 	}
+ 
+-- 
+2.7.4
+

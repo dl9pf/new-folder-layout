@@ -1,0 +1,32 @@
+From c3f40e9d9ab4794ad3bf74fa50a82a7bd08c7a80 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 4 Feb 2019 21:08:54 +0300
+Subject: [PATCH 089/211] sh_eth: offload RX checksum on R8A7740
+
+The R-Mobile A1 (R8A7740) SoC manual describes the Ether MAC's RX checksum
+offload the same way as it's implemented in the EtherAVB MAC...
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Tested-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit 040c16fd5974a947bcfb2fe2e66fe4f42eeef08a)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/ethernet/renesas/sh_eth.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ethernet/renesas/sh_eth.c b/drivers/net/ethernet/renesas/sh_eth.c
+index e1ec382..63bf7ee 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.c
++++ b/drivers/net/ethernet/renesas/sh_eth.c
+@@ -676,6 +676,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+ 	.csmr		= 1,
++	.rx_csum	= 1,
+ 	.tsu		= 1,
+ 	.select_mii	= 1,
+ 	.magic		= 1,
+-- 
+2.7.4
+

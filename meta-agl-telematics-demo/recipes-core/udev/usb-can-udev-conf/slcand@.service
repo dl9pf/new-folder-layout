@@ -1,0 +1,13 @@
+[Unit]
+Description=Serial CAN daemon (can-utils)
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=forking
+StopWhenUnneeded=yes
+Environment=SLCAND_OPTS="-o -c -s6" SLCAND_DEV=can0
+EnvironmentFile=-/etc/default/slcand
+EnvironmentFile=-/etc/sysconfig/slcand
+ExecStart=/usr/bin/slcand $SLCAND_OPTS %I $SLCAND_DEV
+ExecStartPost=/bin/sh -c '/bin/sleep 3; /sbin/ip link set $SLCAND_DEV up'

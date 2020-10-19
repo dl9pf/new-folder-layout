@@ -1,0 +1,30 @@
+From 18f60135619bf95bd51d4bb98a86cd5d00bb0513 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Sat, 27 Oct 2018 00:26:01 +0300
+Subject: [PATCH 142/211] arm64: dts: renesas: condor: Add vspm_if node
+
+This adds vspm_if node.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index 9965b75..5bd0640 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -66,6 +66,10 @@
+ 		compatible = "renesas,mmngrbuf";
+ 	};
+ 
++	vspm_if {
++		compatible = "renesas,vspm_if";
++	};
++
+ 	d3_3v: regulator-0 {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "D3.3V";
+-- 
+2.7.4
+

@@ -1,0 +1,62 @@
+From 6ecc8987af944ca48a3565111bd1af7293d5a3ac Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 27 Apr 2020 10:59:10 +0300
+Subject: [PATCH] media: i2c: ti9x4: fix rebot_notify and gpiod_request
+
+This fixed reboot return value and initialize power gpiod
+during request
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/fpdlink/ti9x4.c | 8 ++++----
+ drivers/media/i2c/soc_camera/fpdlink/ti9x4.h | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c b/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c
+index 340e61e..24ac2e5 100644
+--- a/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c
++++ b/drivers/media/i2c/soc_camera/fpdlink/ti9x4.c
+@@ -1,7 +1,7 @@
+- /*
++/*
+  * TI DS90UB954/960/964 FPDLinkIII driver
+  *
+- * Copyright (C) 2017-2018 Cogent Embedded, Inc.
++ * Copyright (C) 2017-2020 Cogent Embedded, Inc.
+  *
+  * This program is free software; you can redistribute  it and/or modify it
+  * under  the terms of  the GNU General  Public License as published by the
+@@ -433,7 +433,7 @@ static int ti9x4_reboot_notifier(struct notifier_block *nb, unsigned long event,
+ 			gpiod_direction_output(priv->poc_gpio[idx], 0); /* POC power off */
+ 	}
+ 
+-	return NOTIFY_OK;
++	return NOTIFY_DONE;
+ }
+ 
+ static struct v4l2_subdev_core_ops ti9x4_subdev_core_ops = {
+@@ -511,7 +511,7 @@ static int ti9x4_parse_dt(struct i2c_client *client)
+ 		v4l2_clk_enable(priv->ref_clk);
+ 	}
+ 
+-	priv->pwen = devm_gpiod_get(&client->dev, NULL, GPIOF_OUT_INIT_HIGH);
++	priv->pwen = devm_gpiod_get(&client->dev, NULL, GPIOD_OUT_HIGH);
+ 	if (!IS_ERR(priv->pwen)) {
+ 		mdelay(5);
+ 		gpiod_direction_output(priv->pwen, 0);
+diff --git a/drivers/media/i2c/soc_camera/fpdlink/ti9x4.h b/drivers/media/i2c/soc_camera/fpdlink/ti9x4.h
+index 6825f8a..964ab78 100644
+--- a/drivers/media/i2c/soc_camera/fpdlink/ti9x4.h
++++ b/drivers/media/i2c/soc_camera/fpdlink/ti9x4.h
+@@ -1,7 +1,7 @@
+ /*
+  * TI FPDLinkIII driver include file
+  *
+- * Copyright (C) 2017 Cogent Embedded, Inc.
++ * Copyright (C) 2017-2020 Cogent Embedded, Inc.
+  *
+  * This program is free software; you can redistribute  it and/or modify it
+  * under  the terms of  the GNU General  Public License as published by the
+-- 
+2.7.4
+

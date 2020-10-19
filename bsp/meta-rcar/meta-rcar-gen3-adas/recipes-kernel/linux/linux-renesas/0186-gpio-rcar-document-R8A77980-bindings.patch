@@ -1,0 +1,32 @@
+From 47127037672bd4cafe38cc2984fb10b2edbfdb90 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Fri, 1 Jun 2018 23:13:47 +0300
+Subject: [PATCH 006/211] gpio-rcar: document R8A77980 bindings
+
+Renesas R-Car V3H (R8A77980) SoC also has the R-Car gen3 compatible GPIO
+controllers, so document the SoC specific bindings.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Reviewed-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: Linus Walleij <linus.walleij@linaro.org>
+(cherry picked from commit 29d43c22e480b150e00f1ac28a6653efca31cce4)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt b/Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
+index 378f132..cd5ccdc 100644
+--- a/Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
++++ b/Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
+@@ -17,6 +17,7 @@ Required Properties:
+     - "renesas,gpio-r8a7796": for R8A7796 (R-Car M3-W) compatible GPIO controller.
+     - "renesas,gpio-r8a77965": for R8A77965 (R-Car M3-N) compatible GPIO controller.
+     - "renesas,gpio-r8a77970": for R8A77970 (R-Car V3M) compatible GPIO controller.
++    - "renesas,gpio-r8a77980": for R8A77980 (R-Car V3H) compatible GPIO controller.
+     - "renesas,gpio-r8a77990": for R8A77990 (R-Car E3) compatible GPIO controller.
+     - "renesas,gpio-r8a77995": for R8A77995 (R-Car D3) compatible GPIO controller.
+     - "renesas,rcar-gen1-gpio": for a generic R-Car Gen1 GPIO controller.
+-- 
+2.7.4
+

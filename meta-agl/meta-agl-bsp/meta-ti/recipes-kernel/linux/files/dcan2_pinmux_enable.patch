@@ -1,0 +1,39 @@
+diff --git a/arch/arm/boot/dts/dra7-evm.dts b/arch/arm/boot/dts/dra7-evm.dts
+index 35424da..08fca09 100644
+--- a/arch/arm/boot/dts/dra7-evm.dts
++++ b/arch/arm/boot/dts/dra7-evm.dts
+@@ -243,6 +243,20 @@
+ 			DRA7XX_CORE_IOPAD(0x380c, PIN_INPUT | MUX_MODE1) /* i2c2_scl.hdmi1_ddc_sda */
+ 		>;
+ 	};
++	dcan2_pins_default: dcan2_pins_default {
++                pinctrl-single,pins = <
++                        DRA7XX_CORE_IOPAD(0x3688, PIN_OUTPUT_PULLUP | MUX_MODE2) /* gpio6_14.dcan2_tx */
++                        DRA7XX_CORE_IOPAD(0x368C, PIN_INPUT_PULLUP | MUX_MODE2) /*  gpio6_15.dcan2_rx */
++                >;
++        };
++
++        dcan2_pins_sleep: dcan2_pins_sleep {
++                pinctrl-single,pins = <
++                        DRA7XX_CORE_IOPAD(0x3688, MUX_MODE15 | PULL_UP) /* gpio6_14.dcan2_tx.off */
++                        DRA7XX_CORE_IOPAD(0x368C, MUX_MODE15 | PULL_UP) /* gpio6_15.dcan2_rx.off */
++                >;
++        };
++
+ };
+ 
+ &i2c1 {
+@@ -703,6 +717,13 @@
+ 	memory-region = <&ipu1_memory_region>;
+ };
+ 
++&dcan2 {
++        status = "ok";
++        pinctrl-names = "default", "sleep";
++        pinctrl-0 = <&dcan2_pins_default>;
++        pinctrl-1 = <&dcan2_pins_sleep>;
++};
++
+ &dsp1 {
+ 	status = "okay";
+ 	memory-region = <&dsp1_memory_region>;

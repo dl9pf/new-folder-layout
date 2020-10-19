@@ -1,0 +1,48 @@
+From e7cc9cf9ab044fcd12251f74905715d5415a12b3 Mon Sep 17 00:00:00 2001
+From: Thierry Reding <treding@nvidia.com>
+Date: Wed, 8 Nov 2017 13:08:21 +0100
+Subject: [PATCH 052/211] gpu: host1x: Cleanup on initialization failure
+
+When an error happens during the initialization of one of the sub-
+devices, make sure to properly cleanup all sub-devices that have been
+initialized up to that point.
+
+Signed-off-by: Thierry Reding <treding@nvidia.com>
+(cherry picked from commit 8f7da1578e90bf1af30269dc6dd8806c96e9c683)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/gpu/host1x/bus.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/host1x/bus.c b/drivers/gpu/host1x/bus.c
+index 2e57c9ce..88a3558 100644
+--- a/drivers/gpu/host1x/bus.c
++++ b/drivers/gpu/host1x/bus.c
+@@ -211,8 +211,7 @@ int host1x_device_init(struct host1x_device *device)
+ 				dev_err(&device->dev,
+ 					"failed to initialize %s: %d\n",
+ 					dev_name(client->dev), err);
+-				mutex_unlock(&device->clients_lock);
+-				return err;
++				goto teardown;
+ 			}
+ 		}
+ 	}
+@@ -220,6 +219,14 @@ int host1x_device_init(struct host1x_device *device)
+ 	mutex_unlock(&device->clients_lock);
+ 
+ 	return 0;
++
++teardown:
++	list_for_each_entry_continue_reverse(client, &device->clients, list)
++		if (client->ops->exit)
++			client->ops->exit(client);
++
++	mutex_unlock(&device->clients_lock);
++	return err;
+ }
+ EXPORT_SYMBOL(host1x_device_init);
+ 
+-- 
+2.7.4
+

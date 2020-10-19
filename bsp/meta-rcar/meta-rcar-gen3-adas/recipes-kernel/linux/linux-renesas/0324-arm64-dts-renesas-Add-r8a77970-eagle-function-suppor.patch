@@ -1,0 +1,41 @@
+From 692f5ca25d74fae4e01927a12df571227d644234 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:21:09 +0300
+Subject: [PATCH 144/211] arm64: dts: renesas: Add r8a77970-eagle-function
+ support
+
+This adds r8a77970-eagle-function device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile                    | 1 +
+ arch/arm64/boot/dts/renesas/r8a77970-eagle-function.dts | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 294d38a..1714f94 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -33,5 +33,6 @@ dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-h3ulcb-vb2.dtb r8a7795-es1-h3ulcb-vb2.dtb
+ dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-h3ulcb-vb2.1.dtb r8a7795-h3ulcb-4x2g-vb2.1.dtb
+ dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-h3ulcb-vbm.dtb r8a7795-es1-h3ulcb-vbm.dtb r8a7795-h3ulcb-4x2g-vbm.dtb
+ dtb-$(CONFIG_ARCH_R8A77965) += r8a77965-m3nulcb-kf.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-eagle-function.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-eagle-function.dts b/arch/arm64/boot/dts/renesas/r8a77970-eagle-function.dts
+index 9043a07..dab17bf 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-eagle-function.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-eagle-function.dts
+@@ -47,7 +47,7 @@
+ 	};
+ };
+ 
+-&sdhi2 {
++&mmc0 {
+ 	/* used for on-board eMMC */
+ 	pinctrl-0 = <&sdhi2_pins_3v3>;
+ 	pinctrl-1 = <&sdhi2_pins_1v8>;
+-- 
+2.7.4
+

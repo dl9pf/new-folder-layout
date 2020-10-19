@@ -1,0 +1,51 @@
+Allow regular users to launch Weston
+
+Signed-off-by: Ronan Le Martret <ronan.lemartret@iot.bzh>
+[Reworked for Weston 7.0.0 switch to meson]
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/libweston/launcher-direct.c b/libweston/launcher-direct.c
+index 9fa329b6..8e218804 100644
+--- a/libweston/launcher-direct.c
++++ b/libweston/launcher-direct.c
+@@ -291,8 +291,10 @@ launcher_direct_connect(struct weston_launcher **out, struct weston_compositor *
+ {
+ 	struct launcher_direct *launcher;
+ 
++#ifndef ENABLE_USER_START
+ 	if (geteuid() != 0)
+ 		return -EINVAL;
++#endif
+ 
+ 	launcher = zalloc(sizeof(*launcher));
+ 	if (launcher == NULL)
+diff --git a/libweston/meson.build b/libweston/meson.build
+index d8d3fc07..0d39ebf1 100644
+--- a/libweston/meson.build
++++ b/libweston/meson.build
+@@ -216,6 +216,10 @@ if get_option('weston-launch')
+ 	meson.add_install_script('echo', 'REMINDER: You are installing weston-launch, please make it setuid-root.')
+ endif
+ 
++if get_option('enable-user-start')
++	config_h.set('ENABLE_USER_START', '1')
++endif
++
+ subdir('renderer-gl')
+ subdir('backend-drm')
+ subdir('backend-fbdev')
+diff --git a/meson_options.txt b/meson_options.txt
+index d5bf1d54..c93f31d1 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -217,3 +217,10 @@ option(
+ 	value: false,
+ 	description: 'Generate documentation'
+ )
++
++option(
++	'enable-user-start',
++	type: 'boolean',
++	value: true,
++	description: 'Tests: enable start as non-root user'
++)

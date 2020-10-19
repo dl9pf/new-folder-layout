@@ -1,0 +1,87 @@
+From 2c14590a9c414df1a74e96f4baa2ef8cd2005ae4 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 6 Aug 2018 14:48:20 -0400
+Subject: [PATCH 078/211] media: rcar-vin: add R8A77980 support
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add the R8A77980 SoC support to the R-Car VIN driver.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Acked-by: Niklas Söderlund <niklas.soderlund+renesas@ragnatech.se>
+Signed-off-by: Hans Verkuil <hverkuil-cisco@xs4all.nl>
+Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+(cherry picked from commit a383096c98b4b44151a9fde106b01500ccc2a060)
+[valentine.barshak: resolved minor conflicts in rcar_vin binding docs]
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ .../devicetree/bindings/media/rcar_vin.txt         |  1 +
+ drivers/media/platform/rcar-vin/rcar-core.c        | 32 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/media/rcar_vin.txt b/Documentation/devicetree/bindings/media/rcar_vin.txt
+index 845c786..bcd2e3a 100644
+--- a/Documentation/devicetree/bindings/media/rcar_vin.txt
++++ b/Documentation/devicetree/bindings/media/rcar_vin.txt
+@@ -23,6 +23,7 @@ on Gen3 platforms to a CSI-2 receiver.
+    - "renesas,vin-r8a7796" for the R8A7796 device
+    - "renesas,vin-r8a77970" for the R8A77970 device
+    - "renesas,vin-r8a77965" for the R8A77965 device
++   - "renesas,vin-r8a77980" for the R8A77980 device
+    - "renesas,vin-r8a77990" for the R8A77990 device
+    - "renesas,vin-r8a77995" for the R8A77995 device
+    - "renesas,rcar-gen2-vin" for a generic R-Car Gen2 or RZ/G1 compatible
+diff --git a/drivers/media/platform/rcar-vin/rcar-core.c b/drivers/media/platform/rcar-vin/rcar-core.c
+index d6f99db..adb4ac1 100644
+--- a/drivers/media/platform/rcar-vin/rcar-core.c
++++ b/drivers/media/platform/rcar-vin/rcar-core.c
+@@ -1055,6 +1055,34 @@ static const struct rvin_info rcar_info_r8a77965 = {
+ 	.routes = _rcar_info_r8a77965_routes,
+ };
+ 
++static const struct rvin_group_route rcar_info_r8a77980_routes[] = {
++	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
++	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
++	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
++	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
++	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
++	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
++	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
++	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
++	{ .csi = RVIN_CSI41, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
++	{ .csi = RVIN_CSI41, .channel = 1, .vin = 4, .mask = BIT(2) },
++	{ .csi = RVIN_CSI41, .channel = 0, .vin = 5, .mask = BIT(2) },
++	{ .csi = RVIN_CSI41, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
++	{ .csi = RVIN_CSI41, .channel = 0, .vin = 6, .mask = BIT(1) },
++	{ .csi = RVIN_CSI41, .channel = 2, .vin = 6, .mask = BIT(3) },
++	{ .csi = RVIN_CSI41, .channel = 1, .vin = 7, .mask = BIT(0) },
++	{ .csi = RVIN_CSI41, .channel = 3, .vin = 7, .mask = BIT(3) },
++	{ /* Sentinel */ }
++};
++
++static const struct rvin_info rcar_info_r8a77980 = {
++	.model = RCAR_GEN3,
++	.use_mc = true,
++	.max_width = 4096,
++	.max_height = 4096,
++	.routes = rcar_info_r8a77980_routes,
++};
++
+ static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
+ 	{ .csi = RVIN_CSI40, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
+ 	{ .csi = RVIN_CSI40, .channel = 0, .vin = 5, .mask = BIT(2) },
+@@ -1148,6 +1176,10 @@ static const struct of_device_id rvin_of_id_table[] = {
+ 		.data = &rcar_info_r8a77970,
+ 	},
+ 	{
++		.compatible = "renesas,vin-r8a77980",
++		.data = &rcar_info_r8a77980,
++	},
++	{
+ 		.compatible = "renesas,vin-r8a77990",
+ 		.data = &rcar_info_r8a77990,
+ 	},
+-- 
+2.7.4
+

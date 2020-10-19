@@ -1,0 +1,85 @@
+From bc27eaaaddb5ebc94daa3a7f91d753162de944b9 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 30 Apr 2020 16:33:49 +0300
+Subject: [PATCH 1/2] media: i2c: ap0201: detect AP0200, AP0202
+
+This allows to detect AP0200 and AP0202 imagers
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ .../media/i2c/soc_camera/imagers/ap0201_ar023x.c   |  6 +++---
+ drivers/media/i2c/soc_camera/imagers/dummy.c       | 24 +++++++++++-----------
+ 2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+index 10bf6f7..ad18e2e 100644
+--- a/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
++++ b/drivers/media/i2c/soc_camera/imagers/ap0201_ar023x.c
+@@ -411,11 +411,11 @@ static int ap0201_initialize(struct i2c_client *client)
+ 
+ 		/* check product ID */
+ 		reg16_read16(client, AP0201_PID_REG, &pid);
+-		if (pid == AP0201_PID)
++		if (pid == AP0200_PID || pid == AP0201_PID || pid == AP0202_PID)
+ 			break;
+ 	}
+ 
+-	if (pid != AP0201_PID) {
++	if (pid != AP0200_PID && pid != AP0201_PID && pid != AP0202_PID) {
+ 		dev_dbg(&client->dev, "Product ID error %x\n", pid);
+ 		return -ENODEV;
+ 	}
+@@ -436,7 +436,7 @@ static int ap0201_initialize(struct i2c_client *client)
+ 	/* Read OTP IDs */
+ 	ap0201_otp_id_read(client);
+ 
+-	dev_info(&client->dev, "ap0201 PID %x (%x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
++	dev_info(&client->dev, "ap020X PID %x (%x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+ 		 pid, rev, priv->max_width, priv->max_height, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ 	return 0;
+ }
+diff --git a/drivers/media/i2c/soc_camera/imagers/dummy.c b/drivers/media/i2c/soc_camera/imagers/dummy.c
+index d213fff..e4070fc 100644
+--- a/drivers/media/i2c/soc_camera/imagers/dummy.c
++++ b/drivers/media/i2c/soc_camera/imagers/dummy.c
+@@ -343,6 +343,18 @@ static int dummy_initialize(struct i2c_client *client)
+ 	return 0;
+ }
+ 
++static const struct i2c_device_id dummy_id[] = {
++	{ "dummy-camera", 0 },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, dummy_id);
++
++static const struct of_device_id dummy_of_ids[] = {
++	{ .compatible = "dummy,camera", },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, dummy_of_ids);
++
+ static int dummy_parse_dt(struct device_node *np, struct dummy_priv *priv)
+ {
+ 	if (of_property_read_u32(np, "dummy,width", &priv->max_width))
+@@ -463,18 +475,6 @@ static int dummy_remove(struct i2c_client *client)
+ 	return 0;
+ }
+ 
+-static const struct i2c_device_id dummy_id[] = {
+-	{ "dummy-camera", 0 },
+-	{ }
+-};
+-MODULE_DEVICE_TABLE(i2c, dummy_id);
+-
+-static const struct of_device_id dummy_of_ids[] = {
+-	{ .compatible = "dummy-camera", },
+-	{ }
+-};
+-MODULE_DEVICE_TABLE(of, dummy_of_ids);
+-
+ static struct i2c_driver dummy_i2c_driver = {
+ 	.driver	= {
+ 		.name		= "dummy-camera",
+-- 
+2.7.4
+

@@ -1,0 +1,51 @@
+From c2823ddd8bacc26bb40c3ea0e4a0a898cb4b020d Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 20 Aug 2019 15:20:18 +0300
+Subject: [PATCH 5/5] lib: psci: Fix CPU0 offline issue on the V3x SoCs
+
+When Linux requests CPU0 to go offline, such a request
+is denied on all R-Car SoCs by the PSCI firmware.
+To prevent fatal CPU_OFF denial on the CPU0, the kernel
+detects the presence of a resident Trusted OS and forbids
+CPU_OFF operation on the resident CPU.
+
+However, the PSCI firmware does not mark the following
+capabilities supported on the V3x boards, even though
+they actually are supported on R-Car platform regardless
+of a Trusted OS presence:
+  PSCI_MIG_INFO_UP_CPU_AARCH64
+  PSCI_MIG_INFO_TYPE
+
+The missing capabilities cause Linux kernel resident CPU
+detection failure which in turn allows fatal CPU_OFF
+operation on CPU0.
+
+This enables PSCI_MIG_INFO_UP_CPU_AARCH64 and PSCI_MIG_INFO_TYPE
+capabilities unconditionally on the R-Car platform which forbids
+CPU0 to go offline and fixes Linux kernel freeze issues when
+attempting to disable CPU0.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ lib/psci/psci_setup.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/lib/psci/psci_setup.c b/lib/psci/psci_setup.c
+index c00bd94..54b66cf 100644
+--- a/lib/psci/psci_setup.c
++++ b/lib/psci/psci_setup.c
+@@ -256,6 +256,11 @@ int psci_setup(const psci_lib_args_t *lib_args)
+ 	psci_caps |=  define_psci_cap(PSCI_STAT_COUNT_AARCH64);
+ #endif
+ 
++#if PLAT_rcar
++	psci_caps |= define_psci_cap(PSCI_MIG_INFO_UP_CPU_AARCH64);
++	psci_caps |= define_psci_cap(PSCI_MIG_INFO_TYPE);
++#endif
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

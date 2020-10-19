@@ -1,0 +1,103 @@
+From 2e0f2e9bd61f8a76b2cb6b9022a4787c6e6768ff Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 31 Jul 2019 13:46:17 +0300
+Subject: [PATCH] media: i2c: ov490_ov10640: add group switch
+
+This adds possible to use group switch.
+By default vendors use group#1 in firmware.
+Some vendors start with different group#
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov490_ov10640.c | 21 +++++++++++++++++++++
+ drivers/media/i2c/soc_camera/ov490_ov10640.h |  9 ---------
+ 2 files changed, 21 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov490_ov10640.c b/drivers/media/i2c/soc_camera/ov490_ov10640.c
+index 0f1a0d4..49f373c 100644
+--- a/drivers/media/i2c/soc_camera/ov490_ov10640.c
++++ b/drivers/media/i2c/soc_camera/ov490_ov10640.c
+@@ -54,6 +54,7 @@ struct ov490_priv {
+ 	int				blue;
+ 	int				awb;
+ 	int				dvp_order;
++	int				group;
+ 	/* serializers */
+ 	int				max9286_addr;
+ 	int				max9271_addr;
+@@ -77,6 +78,10 @@ static int max_height;
+ module_param(max_height, int, 0644);
+ MODULE_PARM_DESC(max_height, " Fixed sensor height");
+ 
++static int group = 0;
++module_param(group, int, 0644);
++MODULE_PARM_DESC(group, " group number (0 - does not apply)");
++
+ static inline struct ov490_priv *to_ov490(const struct i2c_client *client)
+ {
+ 	return container_of(i2c_get_clientdata(client), struct ov490_priv, sd);
+@@ -858,6 +863,19 @@ static int ov490_initialize(struct i2c_client *client)
+ 			goto again;
+ 	}
+ 
++	if (priv->group) {
++		/* switch to group# */
++		reg16_write(client, 0xFFFD, 0x80);
++		reg16_write(client, 0xFFFE, 0x19);
++		usleep_range(100, 150); /* wait 100 us */
++		reg16_write(client, 0x5000, priv->group);
++		reg16_write(client, 0xFFFE, 0x80);
++		usleep_range(100, 150); /* wait 100 us */
++		reg16_write(client, 0xc0, 0x3f);
++
++		mdelay(30);
++	}
++
+ 	/* read resolution used by current firmware */
+ 	reg16_write(client, 0xFFFD, 0x80);
+ 	reg16_write(client, 0xFFFE, 0x82);
+@@ -903,6 +921,7 @@ static int ov490_parse_dt(struct device_node *np, struct ov490_priv *priv)
+ 			break;
+ 
+ 		of_property_read_u32(endpoint, "dvp-order", &priv->dvp_order);
++		of_property_read_u32(endpoint, "group", &priv->group);
+ 
+ 		rendpoint = of_parse_phandle(endpoint, "remote-endpoint", 0);
+ 		if (!rendpoint)
+@@ -978,6 +997,8 @@ static int ov490_parse_dt(struct device_node *np, struct ov490_priv *priv)
+ 		priv->max_height = max_height;
+ 		priv->is_fixed_sensor = true;
+ 	}
++	if (group)
++		priv->group = group;
+ 
+ 	return 0;
+ }
+diff --git a/drivers/media/i2c/soc_camera/ov490_ov10640.h b/drivers/media/i2c/soc_camera/ov490_ov10640.h
+index b00dc3ade..8ce8611 100644
+--- a/drivers/media/i2c/soc_camera/ov490_ov10640.h
++++ b/drivers/media/i2c/soc_camera/ov490_ov10640.h
+@@ -17,12 +17,6 @@ struct ov490_reg {
+ };
+ 
+ static const struct ov490_reg ov490_regs_wizard[] = {
+-/* Firmware start (some firmwares need this to kick processing) */
+-{0xfffd, 0x80},
+-{0xfffe, 0x19},
+-{0x5000, 0x05},
+-{0xfffe, 0x80},
+-{0x00c0, 0x3f},
+ /* The following registers should match firmware */
+ {0xfffd, 0x80},
+ {0xfffe, 0x82},
+@@ -104,7 +98,4 @@ static const struct ov490_reg ov490_regs_wizard[] = {
+ {0xfffe, 0x80},
+ {0x00c0, 0xd6},
+ #endif
+-/* respin register 0x6010 due to added firmware start HOST command */
+-{0xfffe, 0x29},
+-{0x6010, 0x01},
+ };
+-- 
+2.7.4
+

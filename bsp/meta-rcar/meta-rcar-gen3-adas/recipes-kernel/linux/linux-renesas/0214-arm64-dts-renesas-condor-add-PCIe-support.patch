@@ -1,0 +1,45 @@
+From 61d409555937f91063cea81334fe8b7c89f7cdff Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 27 Aug 2018 21:54:35 +0300
+Subject: [PATCH 034/211] arm64: dts: renesas: condor: add PCIe support
+
+Enable PCIe PHY and PCIEC and specify the PCIe bus clock for the Condor
+board.
+
+Based on the original (and large) patch by Vladimir Barinov.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit c6eb20473f0b296c671dc6f7a7766ea6bedf2d59)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index 59db4c1..fe2e2c0 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -223,6 +223,18 @@
+ 	status = "okay";
+ };
+ 
++&pciec {
++	status = "okay";
++};
++
++&pcie_bus_clk {
++	clock-frequency = <100000000>;
++};
++
++&pcie_phy {
++	status = "okay";
++};
++
+ &pfc {
+ 	avb_pins: avb {
+ 		groups = "avb_mdio", "avb_rgmii";
+-- 
+2.7.4
+

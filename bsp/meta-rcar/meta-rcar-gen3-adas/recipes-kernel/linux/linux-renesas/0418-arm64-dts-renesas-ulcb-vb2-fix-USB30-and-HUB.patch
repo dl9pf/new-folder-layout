@@ -1,0 +1,116 @@
+From ef159033e2ef9917c15335ba89bcbeb4270773c6 Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Tue, 11 Jun 2019 16:21:41 +0300
+Subject: [PATCH 5/6] arm64: dts: renesas: ulcb-vb2: fix USB30 and HUB
+
+- add two HUB nodes as HUB can populate one of two i2c addresses
+depending on power supply start order. Driver just fixes few
+registers values over i2c for proper operation.
+- same driver handles reset gpio, so remove regulator.
+- add pinctl for XHCI and remove PWEN regulator.
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/ulcb-vb2.dtsi | 58 +++++++++++++++++++------------
+ 1 file changed, 35 insertions(+), 23 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/ulcb-vb2.dtsi b/arch/arm64/boot/dts/renesas/ulcb-vb2.dtsi
+index 5831d12..50cdfd8 100644
+--- a/arch/arm64/boot/dts/renesas/ulcb-vb2.dtsi
++++ b/arch/arm64/boot/dts/renesas/ulcb-vb2.dtsi
+@@ -74,27 +74,7 @@
+ 		regulator-always-on;
+ 	};
+ 
+-	hub_reset: regulator@9 {
+-		compatible = "regulator-fixed";
+-		regulator-name = "hub_reset";
+-		regulator-min-microvolt = <3300000>;
+-		regulator-max-microvolt = <3300000>;
+-		gpio = <&gpio5 5 0>;
+-		enable-active-high;
+-		regulator-always-on;
+-	};
+-
+-	hub_power: regulator@10 {
+-		compatible = "regulator-fixed";
+-		regulator-name = "hub_power";
+-		regulator-min-microvolt = <5000000>;
+-		regulator-max-microvolt = <5000000>;
+-		gpio = <&gpio6 28 0>;
+-		enable-active-high;
+-		regulator-always-on;
+-	};
+-
+-	can2_power: regulator@11 {
++	can2_power: regulator@9 {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "can2_power";
+ 		regulator-min-microvolt = <3300000>;
+@@ -103,7 +83,7 @@
+ 		enable-active-high;
+ 	};
+ 
+-	can3_power: regulator@12 {
++	can3_power: regulator@10 {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "can3_power";
+ 		regulator-min-microvolt = <3300000>;
+@@ -242,6 +222,12 @@
+ 		function = "usb2";
+ 	};
+ 
++	usb30_pins: usb30 {
++		groups = "usb30";
++		function = "usb30";
++	};
++
++
+ 	can0_pins: can0 {
+ 		groups = "can0_data_a";
+ 		function = "can0";
+@@ -449,7 +435,30 @@
+ 			#size-cells = <0>;
+ 			reg = <4>;
+ 			/* USB3.0 HUB node(s) */
+-			/* addr of TUSB8041 is 100.0100 = 0x44 */
++			tusb8041_44@44 {
++				compatible = "ti,tusb8041";
++				reg = <0x44>;
++				reset-gpios = <&gpio5 5 0>;
++				ti,registers = /bits/ 8 <
++					0x05 0x10
++					0x06 0x0f
++					0x07 0x8f
++					0x08 0x0f
++					0x0a 0x20
++					0x0b 0x80>;
++			};
++			tusb8041_45@45 {
++				compatible = "ti,tusb8041";
++				reg = <0x45>;
++				reset-gpios = <&gpio5 5 0>;
++				ti,registers = /bits/ 8 <
++					0x05 0x10
++					0x06 0x0f
++					0x07 0x8f
++					0x08 0x0f
++					0x0a 0x20
++					0x0b 0x80>;
++			};
+ 		};
+ 
+ 		i2c@1 {
+@@ -1594,6 +1603,9 @@
+ };
+ 
+ &xhci0 {
++	pinctrl-0 = <&usb30_pins>;
++	pinctrl-names = "default";
++
+ 	status = "okay";
+ };
+ 
+-- 
+2.7.4
+

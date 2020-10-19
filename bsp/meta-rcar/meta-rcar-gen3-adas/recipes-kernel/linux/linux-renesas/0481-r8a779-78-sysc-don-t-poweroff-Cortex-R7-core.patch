@@ -1,0 +1,42 @@
+From 7ffd543f70c5455bc0a801036658c03a41cd3589 Mon Sep 17 00:00:00 2001
+From: Nikita Yushchenko <nikita.yoush@cogentembedded.com>
+Date: Mon, 4 Jun 2018 11:12:25 +0300
+Subject: [PATCH] r8a779[78]-sysc: don't poweroff Cortex R7 core
+
+In V3M/V3H systems, Cortex R7 code normally executes code not anyhow
+related to Linux. Linux should not touch R7's power domain.
+
+Signed-off-by: Nikita Yushchenko <nikita.yoush@cogentembedded.com>
+---
+ drivers/soc/renesas/r8a77970-sysc.c | 2 +-
+ drivers/soc/renesas/r8a77980-sysc.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/soc/renesas/r8a77970-sysc.c b/drivers/soc/renesas/r8a77970-sysc.c
+index 5725ad09e4da..6d08a3c81262 100644
+--- a/drivers/soc/renesas/r8a77970-sysc.c
++++ b/drivers/soc/renesas/r8a77970-sysc.c
+@@ -23,6 +23,7 @@ static const struct rcar_sysc_area r8a77970_areas[] __initconst = {
+ 	  PD_CPU_NOCR },
+ 	{ "ca53-cpu1",	0x200, 1, R8A77970_PD_CA53_CPU1, R8A77970_PD_CA53_SCU,
+ 	  PD_CPU_NOCR },
++//	{ "cr7",	0x240, 0, R8A77970_PD_CR7,	R8A77970_PD_ALWAYS_ON, PD_CPU },
+ 	{ "a3ir",	0x180, 0, R8A77970_PD_A3IR,	R8A77970_PD_ALWAYS_ON },
+ 	{ "a2ir0",	0x400, 0, R8A77970_PD_A2IR0,	R8A77970_PD_A3IR },
+ 	{ "a2ir1",	0x400, 1, R8A77970_PD_A2IR1,	R8A77970_PD_A3IR },
+diff --git a/drivers/soc/renesas/r8a77980-sysc.c b/drivers/soc/renesas/r8a77980-sysc.c
+index 2affaa27a6f8..ba73ce20d6ba 100644
+--- a/drivers/soc/renesas/r8a77980-sysc.c
++++ b/drivers/soc/renesas/r8a77980-sysc.c
+@@ -28,7 +28,7 @@ static const struct rcar_sysc_area r8a77980_areas[] __initconst = {
+ 	  PD_CPU_NOCR },
+ 	{ "ca53-cpu3",	0x200, 3, R8A77980_PD_CA53_CPU3, R8A77980_PD_CA53_SCU,
+ 	  PD_CPU_NOCR },
+-	{ "cr7",	0x240, 0, R8A77980_PD_CR7,	R8A77980_PD_ALWAYS_ON },
++	{ "cr7",	0x240, 0, R8A77980_PD_CR7,	R8A77980_PD_ALWAYS_ON, PD_CPU },
+ 	{ "a3ir",	0x180, 0, R8A77980_PD_A3IR,	R8A77980_PD_ALWAYS_ON },
+ 	{ "a2ir0",	0x400, 0, R8A77980_PD_A2IR0,	R8A77980_PD_A3IR },
+ 	{ "a2ir1",	0x400, 1, R8A77980_PD_A2IR1,	R8A77980_PD_A3IR },
+-- 
+2.11.0
+

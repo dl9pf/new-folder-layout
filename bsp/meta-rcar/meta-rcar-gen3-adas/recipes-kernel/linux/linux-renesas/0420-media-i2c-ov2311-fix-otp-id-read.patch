@@ -1,0 +1,51 @@
+From 3ef8db409fb567da880f15a08df5cea08f3f2a45 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 18 Sep 2019 14:18:49 +0300
+Subject: [PATCH] media: i2c: ov2311: fix otp id read
+
+The OTP ID may fail if power rail comes early and imager
+get into lpm mode.
+Hence read otp id after full setup and stream enable
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ov2311.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ov2311.c b/drivers/media/i2c/soc_camera/ov2311.c
+index f04f271..c61059d 100644
+--- a/drivers/media/i2c/soc_camera/ov2311.c
++++ b/drivers/media/i2c/soc_camera/ov2311.c
+@@ -376,7 +376,6 @@ static void ov2311_otp_id_read(struct i2c_client *client)
+ 	struct ov2311_priv *priv = to_ov2311(client);
+ 	int i;
+ 
+-	reg16_write(client, 0x100, 1);
+ 	reg16_write(client, 0x3d81, 1);
+ 	usleep_range(25000, 25500); /* wait 25 ms */
+ 
+@@ -384,8 +383,6 @@ static void ov2311_otp_id_read(struct i2c_client *client)
+ 		/* first 6 bytes are equal on all ov2311 */
+ 		reg16_read(client, 0x7000 + i + 6, &priv->id[i]);
+ 	}
+-
+-	reg16_write(client, 0x100, 0);
+ }
+ 
+ static ssize_t ov2311_otp_id_show(struct device *dev,
+@@ -432,10 +429,10 @@ static int ov2311_initialize(struct i2c_client *client)
+ 
+ 	/* check revision */
+ 	reg16_read(client, OV2311_REV, &rev);
+-	/* Read OTP IDs */
+-	ov2311_otp_id_read(client);
+ 	/* Program wizard registers */
+ 	ov2311_set_regs(client, ov2311_regs_wizard_r1c, ARRAY_SIZE(ov2311_regs_wizard_r1c));
++	/* Read OTP IDs */
++	ov2311_otp_id_read(client);
+ 
+ 	dev_info(&client->dev, "ov2311 PID %x (rev %x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+ 		 pid, rev, OV2311_MAX_WIDTH, OV2311_MAX_HEIGHT, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+-- 
+2.7.4
+

@@ -1,0 +1,139 @@
+From cc34c21f572727e49f69e10b761bc44d3addf520 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 4 Mar 2020 17:32:44 +0300
+Subject: [PATCH] media: i2c: max9286,ti9x4: power down POCs on reboot
+
+Power down all POCs on reboot/shutdown/halt
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/max9286.c | 23 +++++++++++++++++++++++
+ drivers/media/i2c/soc_camera/ti9x4.c   | 22 ++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)
+
+diff --git a/drivers/media/i2c/soc_camera/max9286.c b/drivers/media/i2c/soc_camera/max9286.c
+index 343b8ab..05247ff 100644
+--- a/drivers/media/i2c/soc_camera/max9286.c
++++ b/drivers/media/i2c/soc_camera/max9286.c
+@@ -15,6 +15,7 @@
+ #include <linux/notifier.h>
+ #include <linux/of_gpio.h>
+ #include <linux/of_graph.h>
++#include <linux/reboot.h>
+ #include <linux/videodev2.h>
+ 
+ #include <media/v4l2-common.h>
+@@ -71,6 +72,7 @@ struct max9286_priv {
+ 	int			max9271_addr_map[4];
+ 	int			ser_id;
+ 	struct gpio_desc	*poc_gpio[4]; /* PoC power supply */
++	struct notifier_block	reboot_notifier;
+ 
+ 	/* link statistic */
+ 	int			prbserr[4];
+@@ -643,6 +645,19 @@ static int max9286_registered_async(struct v4l2_subdev *sd)
+ 	return 0;
+ }
+ 
++static int max9286_reboot_notifier(struct notifier_block *nb, unsigned long event, void *buf)
++{
++	struct max9286_priv *priv = container_of(nb, struct max9286_priv, reboot_notifier);
++	int idx;
++
++	for (idx = 0; idx < priv->links; idx++) {
++		if (!IS_ERR(priv->poc_gpio[idx]))
++			gpiod_direction_output(priv->poc_gpio[idx], 0); /* POC power off */
++	}
++
++	return NOTIFY_OK;
++}
++
+ static struct v4l2_subdev_core_ops max9286_subdev_core_ops = {
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ 	.g_register		= max9286_g_register,
+@@ -996,6 +1011,13 @@ static int max9286_probe(struct i2c_client *client,
+ 			goto out;
+ 	}
+ 
++	priv->reboot_notifier.notifier_call = max9286_reboot_notifier;
++	err = register_reboot_notifier(&priv->reboot_notifier);
++	if (err) {
++		dev_err(&client->dev, "failed to register reboot notifier\n");
++		goto out;
++	}
++
+ 	err = sysfs_create_group(&client->dev.kobj,
+                                 &max9286_group);
+         if (err < 0)
+@@ -1010,6 +1032,7 @@ static int max9286_remove(struct i2c_client *client)
+ 	int i;
+ 
+ 	sysfs_remove_group(&client->dev.kobj,  &max9286_group);
++	unregister_reboot_notifier(&priv->reboot_notifier);
+ 
+ 	for (i = 0; i < 4; i++) {
+ 		v4l2_async_unregister_subdev(&priv->sd[i]);
+diff --git a/drivers/media/i2c/soc_camera/ti9x4.c b/drivers/media/i2c/soc_camera/ti9x4.c
+index 9004bb1..627612a 100644
+--- a/drivers/media/i2c/soc_camera/ti9x4.c
++++ b/drivers/media/i2c/soc_camera/ti9x4.c
+@@ -15,6 +15,7 @@
+ #include <linux/notifier.h>
+ #include <linux/of_gpio.h>
+ #include <linux/of_graph.h>
++#include <linux/reboot.h>
+ #include <linux/videodev2.h>
+ 
+ #include <media/v4l2-common.h>
+@@ -52,6 +53,7 @@ struct ti9x4_priv {
+ 	struct gpio_desc	*pwen; /* chip power en */
+ 	struct gpio_desc	*poc_gpio[4]; /* PoC power supply */
+ 	struct v4l2_clk		*ref_clk; /* ref clock */
++	struct notifier_block	reboot_notifier;
+ };
+ 
+ static int ser_id;
+@@ -420,6 +422,19 @@ static int ti9x4_registered_async(struct v4l2_subdev *sd)
+ 	return 0;
+ }
+ 
++static int ti9x4_reboot_notifier(struct notifier_block *nb, unsigned long event, void *buf)
++{
++	struct ti9x4_priv *priv = container_of(nb, struct ti9x4_priv, reboot_notifier);
++	int idx;
++
++	for (idx = 0; idx < priv->links; idx++) {
++		if (!IS_ERR(priv->poc_gpio[idx]))
++			gpiod_direction_output(priv->poc_gpio[idx], 0); /* POC power off */
++	}
++
++	return NOTIFY_OK;
++}
++
+ static struct v4l2_subdev_core_ops ti9x4_subdev_core_ops = {
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ 	.g_register		= ti9x4_g_register,
+@@ -676,6 +691,11 @@ static int ti9x4_probe(struct i2c_client *client,
+ 			goto out;
+ 	}
+ 
++	priv->reboot_notifier.notifier_call = ti9x4_reboot_notifier;
++	err = register_reboot_notifier(&priv->reboot_notifier);
++	if (err)
++		dev_err(&client->dev, "failed to register reboot notifier\n");
++
+ out:
+ 	return err;
+ }
+@@ -685,6 +705,8 @@ static int ti9x4_remove(struct i2c_client *client)
+ 	struct ti9x4_priv *priv = i2c_get_clientdata(client);
+ 	int i;
+ 
++	unregister_reboot_notifier(&priv->reboot_notifier);
++
+ 	for (i = 0; i < priv->links; i++) {
+ 		v4l2_async_unregister_subdev(&priv->sd[i]);
+ 		v4l2_device_unregister_subdev(&priv->sd[i]);
+-- 
+2.7.4
+

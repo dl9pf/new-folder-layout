@@ -1,0 +1,58 @@
+From a7ac55ef8c0a09f15977a5ea6d7d8558e6d23c93 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 4 Nov 2019 01:22:47 +0300
+Subject: [PATCH 07/12] arm64: dts: renesas: r8a77980: Update RPC device nodes
+
+This updates RPC device nodes for the consolidated RPC driver.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts  | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi       | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index a60482a..1ba48ad 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -651,7 +651,7 @@
+ 	};
+ };
+ 
+-&qspi0 {
++&rpc0 {
+ 	pinctrl-0 = <&qspi0_pins &qspi1_pins>;
+ 	pinctrl-names = "default";
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index 5c8ded5..c8d94e4 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -265,7 +265,7 @@
+ 	};
+ };
+ 
+-&qspi0 {
++&rpc0 {
+ 	pinctrl-0 = <&qspi0_pins &qspi1_pins>;
+ 	pinctrl-names = "default";
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index 0d25b35..23c39c1 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -823,8 +823,8 @@
+ 			status = "disabled";
+ 		};
+ 
+-		qspi0: qspi@ee200000 {
+-			compatible = "renesas,qspi-rpc-r8a77980";
++		rpc0: rpc0@ee200000 {
++			compatible = "renesas,rpc-r8a77980", "renesas,rpc";
+ 			reg = <0 0xee200000 0 0x1f0>,
+ 			      <0 0x08000000 0 0x04000000>,
+ 			      <0 0xee208000 0 0x100>;
+-- 
+2.7.4
+

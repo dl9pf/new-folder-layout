@@ -1,0 +1,94 @@
+gstreamer: implement pipewire integration using pwaudiosrc/pwaudiosink
+
+The code path is wrapped in #ifdef USE_PIPEWIRE so that it can be toggled
+easily at compile time.
+
+The device string is abused to hold the role name, just like it was
+with 4A. In the future this may need to be reconsidered. In theory,
+we could detect the backend or make it configurable from the upper layer
+if we knew exactly what kind of data is in that device string
+(is it an ALSA device name? a pipewire role? a pipewire node id?
+a pulseaudio device name? ...)
+
+Upstream-Status: Pending
+
+Signed-off-by: George Kiagiadakis <george.kiagiadakis@collabora.com>
+[reworked for SDK 2.0]
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/lib/aal/CMakeLists.txt b/lib/aal/CMakeLists.txt
+index a892465..c92b2cf 100644
+--- a/lib/aal/CMakeLists.txt
++++ b/lib/aal/CMakeLists.txt
+@@ -7,6 +7,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+ 
+ add_definitions(-DUSE_GLOOP)
+ add_definitions(-DUSE_FAKEMUTE)
++add_definitions(-DUSE_PIPEWIRE)
+ 
+ # GStreamer
+ find_package(PkgConfig)
+diff --git a/lib/aal/src/player.c b/lib/aal/src/player.c
+index 02a2881..8747854 100644
+--- a/lib/aal/src/player.c
++++ b/lib/aal/src/player.c
+@@ -120,6 +120,19 @@ aal_handle_t aal_player_create(const aal_attributes_t *attr)
+ 	g_object_get(volume, "volume", &ctx->saved_volume, NULL);
+ #endif
+ 
++#ifdef USE_PIPEWIRE
++	sink = create_and_add_element(bin, "pwaudiosink", "sink");
++	if (sink && attr->device && !IS_EMPTY_STRING(attr->device)) {
++		g_info("Using role: %s\n", attr->device);
++		GstStructure *s = gst_structure_new("properties",
++						    "media.role",
++						    G_TYPE_STRING,
++						    attr->device,
++						    NULL);
++		g_object_set(G_OBJECT(sink), "stream-properties", s, NULL);
++		gst_structure_free(s);
++	}
++#else
+ 	if (!attr->device || IS_EMPTY_STRING(attr->device)) {
+ 		sink = create_and_add_element(bin, "autoaudiosink", "sink");
+ 	} else {
+@@ -128,6 +141,7 @@ aal_handle_t aal_player_create(const aal_attributes_t *attr)
+ 		if (sink)
+ 			g_object_set(G_OBJECT(sink), "device", attr->device, NULL);
+ 	}
++#endif
+ 	if (!sink)
+ 		goto exit;
+ 
+diff --git a/lib/aal/src/recorder.c b/lib/aal/src/recorder.c
+index 96c9b2a..66b36e1 100644
+--- a/lib/aal/src/recorder.c
++++ b/lib/aal/src/recorder.c
+@@ -86,6 +86,19 @@ aal_handle_t aal_recorder_create(const aal_attributes_t *attr)
+ 	if (!ctx)
+ 		goto exit;
+ 
++#ifdef USE_PIPEWIRE
++	source = create_and_add_element(ctx->pipeline, "pwaudiosrc", "source");
++	if (source && attr->device && !IS_EMPTY_STRING(attr->device)) {
++		g_info("Using role: %s\n", attr->device);
++		GstStructure *s = gst_structure_new("properties",
++						    "media.role",
++						    G_TYPE_STRING,
++						    attr->device,
++						    NULL);
++		g_object_set(G_OBJECT(source), "stream-properties", s, NULL);
++		gst_structure_free(s);
++	}
++#else
+ 	if (!attr->device || IS_EMPTY_STRING(attr->device)) {
+ 		source = create_and_add_element(ctx->pipeline, "autoaudiosrc", "source");
+ 	} else {
+@@ -94,6 +107,7 @@ aal_handle_t aal_recorder_create(const aal_attributes_t *attr)
+ 		if (source)
+ 			g_object_set(G_OBJECT(source), "device", attr->device, NULL);
+ 	}
++#endif
+ 	if (!source)
+ 		goto exit;
+ 

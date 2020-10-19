@@ -1,0 +1,12 @@
+[match-node]
+priority = 40
+properties = [
+  { name = "media.class", value = "Audio/Source" },
+  { name = "api.alsa.card.id", value = "ep811ch" },
+]
+
+[endpoint]
+type = "pw-audio-softdsp-endpoint"
+direction = "source"
+streams = "capture.streams"
+priority = 40

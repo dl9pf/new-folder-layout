@@ -1,0 +1,131 @@
+From 469ecb40691eae805c28b6f821f1b6351c292008 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:23:12 +0300
+Subject: [PATCH 145/211] arm64: dts: renesas: Add r8a77970-es1 support
+
+This adds r8a77970-es1 device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile          |  2 ++
+ arch/arm64/boot/dts/renesas/r8a77970-es1.dtsi | 22 +++++++++++-----------
+ 2 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 1714f94..dad071d 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -34,5 +34,7 @@ dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-h3ulcb-vb2.1.dtb r8a7795-h3ulcb-4x2g-vb2.1
+ dtb-$(CONFIG_ARCH_R8A7795) += r8a7795-h3ulcb-vbm.dtb r8a7795-es1-h3ulcb-vbm.dtb r8a7795-h3ulcb-4x2g-vbm.dtb
+ dtb-$(CONFIG_ARCH_R8A77965) += r8a77965-m3nulcb-kf.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-eagle-function.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-eagle.dtb r8a77970-es1-eagle-function.dtb
++dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-es1-v3msk.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-es1.dtsi b/arch/arm64/boot/dts/renesas/r8a77970-es1.dtsi
+index dab9adc..74a9243 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-es1.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77970-es1.dtsi
+@@ -17,7 +17,7 @@
+ 			reg = <0 0xffa00000 0 0x10000>;
+ 			interrupts = <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>;
+ 			clocks = <&cpg CPG_MOD 830>;
+-			power-domains = <&sysc R8A7797_PD_A3IR>;
++			power-domains = <&sysc R8A77970_PD_A3IR>;
+ 			interrupt-controller;
+ 			#interrupt-cells = <1>;
+ 		};
+@@ -28,7 +28,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <0>;
+ 			clocks = <&cpg CPG_MOD 827>;
+-			power-domains = <&sysc R8A7797_PD_A2IR0>;
++			power-domains = <&sysc R8A77970_PD_A2IR0>;
+ 		};
+ 
+ 		imp1 {
+@@ -37,7 +37,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <1>;
+ 			clocks = <&cpg CPG_MOD 826>;
+-			power-domains = <&sysc R8A7797_PD_A2IR1>;
++			power-domains = <&sysc R8A77970_PD_A2IR1>;
+ 		};
+ 
+ 		imp2 {
+@@ -46,7 +46,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <2>;
+ 			clocks = <&cpg CPG_MOD 825>;
+-			power-domains = <&sysc R8A7797_PD_A2IR2>;
++			power-domains = <&sysc R8A77970_PD_A2DP>;
+ 		};
+ 
+ 		imp3 {
+@@ -55,7 +55,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <3>;
+ 			clocks = <&cpg CPG_MOD 824>;
+-			power-domains = <&sysc R8A7797_PD_A2IR3>;
++			power-domains = <&sysc R8A77970_PD_A2CN>;
+ 		};
+ 
+ 		impsc0 {
+@@ -64,7 +64,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <4>;
+ 			clocks = <&cpg CPG_MOD 829>;
+-			power-domains = <&sysc R8A7797_PD_A2SC0>;
++			power-domains = <&sysc R8A77970_PD_A2SC0>;
+ 		};
+ 
+ 		impsc1 {
+@@ -73,7 +73,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <5>;
+ 			clocks = <&cpg CPG_MOD 828>;
+-			power-domains = <&sysc R8A7797_PD_A2SC1>;
++			power-domains = <&sysc R8A77970_PD_A2SC1>;
+ 		};
+ 
+ 		impdm0 {
+@@ -82,7 +82,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <16>;
+ 			clocks = <&cpg CPG_MOD 830>;
+-			power-domains = <&sysc R8A7797_PD_A3IR>;
++			power-domains = <&sysc R8A77970_PD_A3IR>;
+ 		};
+ 
+ 		impdm1 {
+@@ -92,7 +92,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <17>;
+ 			clocks = <&cpg CPG_MOD 830>;
+-			power-domains = <&sysc R8A7797_PD_A3IR>;
++			power-domains = <&sysc R8A77970_PD_A3IR>;
+ 		};
+ 
+ 		imppsc0 {
+@@ -101,7 +101,7 @@
+ 			interrupt-parent = <&imp_distributer>;
+ 			interrupts = <12>;
+ 			clocks = <&cpg CPG_MOD 830>;
+-			power-domains = <&sysc R8A7797_PD_A3IR>;
++			power-domains = <&sysc R8A77970_PD_A3IR>;
+ 		};
+ 
+ 		/delete-node/impcnn0;
+@@ -110,7 +110,7 @@
+ 			compatible = "renesas,impx4-memory";
+ 			reg = <0 0xed000000 0 0xe0000>;
+ 			clocks = <&cpg CPG_MOD 830>;
+-			power-domains = <&sysc R8A7797_PD_A3IR>;
++			power-domains = <&sysc R8A77970_PD_A3IR>;
+ 		};
+ 	};
+ };
+-- 
+2.7.4
+

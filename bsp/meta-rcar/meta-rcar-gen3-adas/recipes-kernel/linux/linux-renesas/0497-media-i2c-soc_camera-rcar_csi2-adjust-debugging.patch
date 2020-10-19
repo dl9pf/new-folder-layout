@@ -1,0 +1,165 @@
+From ae9686ecfbdb0af61975e1f501d83f9a488e2e7b Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 27 Apr 2020 11:25:19 +0300
+Subject: [PATCH] media: i2c: soc_camera: rcar_csi2: adjust debugging
+
+This extends MIPI packets debugging.
+This adds possibility to enable debuuggin runtime via sysfs
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/rcar_csi2.c | 84 ++++++++++++++++++++++-----
+ 1 file changed, 69 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/media/platform/soc_camera/rcar_csi2.c b/drivers/media/platform/soc_camera/rcar_csi2.c
+index ca47ba3..1f1beb8 100644
+--- a/drivers/media/platform/soc_camera/rcar_csi2.c
++++ b/drivers/media/platform/soc_camera/rcar_csi2.c
+@@ -293,10 +293,10 @@ MODULE_PARM_DESC(dump, " Dump CSI packets (default: disabled)");
+ #define RCAR_CSI2_CRCECM		0x150
+ #define RCAR_CSI2_LCNT(i)		(0x160 + i * 0x04)
+ #define RCAR_CSI2_LCNTM(i)		(0x168 + i * 0x04)
+-#define RCAR_CSI2_FCNTM			0x170
+-#define RCAR_CSI2_FCNTM2		0x174
++#define RCAR_CSI2_FCNTM(i)		(0x170 + i * 0x04)
+ #define RCAR_CSI2_VINSM(i)		(0x190 + i * 0x04)
+ #define RCAR_CSI2_PHM(i)		(0x1C0 + i * 0x04)
++#define RCAR_CSI2_PPM(i)		(0x1E0 + i * 0x04)
+ 
+ #define RCAR_CSI2_INTSTATE_ALL		0x3FFFFCDD
+ 
+@@ -309,8 +309,28 @@ static void rcar_sci2_debug_show(struct rcar_csi2 *priv)
+ 		return;
+ 
+ 	dev_info(&priv->pdev->dev, "Debug registers:\n");
+-	printk("FCNTM : 0x%08x\n", ioread32(priv->base + RCAR_CSI2_FCNTM));
+-	printk("FCNTM2: 0x%08x\n", ioread32(priv->base + RCAR_CSI2_FCNTM2));
++	for (i = 0; i < 2; i++) {
++		reg0 = ioread32(priv->base + RCAR_CSI2_FCNTM(i));
++
++		printk("FCNTM%d: 0x%08x: "
++			"Ch%d: %d, Ch%d: %d\n",
++			i + 1, reg0,
++			i * 2, (reg0 >> 0) & 0xffff, i * 2 + 1, (reg0 >> 16) & 0xffff);
++	}
++	for (i = 0; i < 2; i++) {
++		reg0 = ioread32(priv->base + RCAR_CSI2_LCNTM(i));
++
++		printk("LCNTM%d: 0x%08x: "
++			"Ch%d: %d, Ch%d: %d\n",
++			i + 1, reg0,
++			i * 2, (reg0 >> 0) & 0xffff, i * 2 + 1, (reg0 >> 16) & 0xffff);
++	}
++	for (i = 0; i < 2; i++) {
++		reg0 = ioread32(priv->base + RCAR_CSI2_LCNT(i));
++
++		printk("LCNT%d: 0x%04x, 0x%04x\n",
++		i + 1, (reg0 >> 0) & 0xffff, (reg0 >> 16));
++	}
+ 
+ 	for (i = 0; i < 4; i++) {
+ 		reg0 = ioread32(priv->base + RCAR_CSI2_PHxM0(i));
+@@ -324,7 +344,7 @@ static void rcar_sci2_debug_show(struct rcar_csi2 *priv)
+ 	for (i = 0; i < 3; i++) {
+ 		reg0 = ioread32(priv->base + RCAR_CSI2_PHRM(i));
+ 
+-		printk("Packet header R %d dt: 0x%02x, vc: %d, wc: %d, ecc: 0x%02x\n",
++		printk("Packet Header R Monitor Register %d dt: 0x%02x, vc: %d, wc: %d, ecc: 0x%02x\n",
+ 			i,
+ 			reg0 & 0x3F, (reg0 >> 6) & 0x03, (reg0 >> 8) & 0xffff,
+ 			(reg0 >> 24) & 0xff);
+@@ -332,21 +352,36 @@ static void rcar_sci2_debug_show(struct rcar_csi2 *priv)
+ 	for (i = 0; i < 2; i++) {
+ 		reg0 = ioread32(priv->base + RCAR_CSI2_PHCM(i));
+ 
+-		printk("Packet header C %d: dt: 0x%02x, vc: %d, wc: %d, cal_parity: 0x%02x\n",
++		printk("Packet Header C Monitor Register %d: dt: 0x%02x, vc: %d, wc: %d, cal_parity: 0x%02x\n",
+ 			i,
+ 			reg0 & 0x3F, (reg0 >> 6) & 0x03, (reg0 >> 8) & 0xffff,
+ 			(reg0 >> 24) & 0xff);
+ 	}
+ 	for (i = 0; i < 8; i++) {
+ 		reg0 = ioread32(priv->base + RCAR_CSI2_PHM(i));
++		reg1 = ioread32(priv->base + RCAR_CSI2_PPM(i));
+ 
+-		printk("Packet header Monitor %d: dt: 0x%02x, vc: %d, wc: %d, ecc: 0x%02x\n",
+-			i + 1,
++		printk("Packet Header Monitor Register %d: dt: 0x%02x, vc: %d, wc: %d, ecc: 0x%02x (period = 0x%08x)\n",
++			i,
+ 			reg0 & 0x3F, (reg0 >> 6) & 0x03, (reg0 >> 8) & 0xffff,
+-			(reg0 >> 24) & 0xff);
++			(reg0 >> 24) & 0xff,
++			reg1);
+ 	}
+-	for (i = 0; i < 3; i++)
+-		printk("VINSM%d: 0x%08x\n", i, ioread32(priv->base + RCAR_CSI2_VINSM(i)));
++	for (i = 0; i < 2; i++) {
++		reg0 = ioread32(priv->base + RCAR_CSI2_VINSM(i));
++
++		printk("VINSM%d: 0x%08x: "
++			"HD%d: %d, VD%d: %d, HD%d: %d, VD%d: %d\n",
++			i, reg0,
++			2 * i, (reg0 >> 0) & 0x0fff, 2* i, (reg0 >> 12) & 0x000f,
++			2 * i + 1, (reg0 >> 16) & 0x0fff, 2 * i + 1, (reg0 >> 28) & 0x000f);
++	}
++	reg0 = ioread32(priv->base + RCAR_CSI2_VINSM(2));
++	printk("VINSM3: 0x%08x: "
++		"PE: %d, PEB: %x, FLD: %x, TAG: %x, ERRC: %x, ERRE: %x\n",
++		reg0,
++		(reg0 >> 0) & 0x01, (reg0 >> 4) & 0x0f, (reg0 >> 8) & 0x0f, (reg0 >> 10) & 0x03,
++		(reg0 >> 14) & 0x01, (reg0 >> 15) & 0x01);
+ 	printk("SERCCNT: %d\n",
+ 		ioread32(priv->base + RCAR_CSI2_SERCCNT));
+ 	printk("SSERCCNT: %d\n",
+@@ -357,10 +392,6 @@ static void rcar_sci2_debug_show(struct rcar_csi2 *priv)
+ 		ioread32(priv->base + RCAR_CSI2_ECECM));
+ 	printk("CRCECM: %d\n",
+ 		ioread32(priv->base + RCAR_CSI2_CRCECM));
+-	for (i = 0; i < 2; i++)
+-		printk("LCNT%d: 0x%08x\n", i, ioread32(priv->base + RCAR_CSI2_LCNT(i)));
+-	for (i = 0; i < 2; i++)
+-		printk("LCNTM%d: 0x%08x\n", i, ioread32(priv->base + RCAR_CSI2_LCNTM(i)));
+ }
+ 
+ static int rcar_csi2_set_phy_freq(struct rcar_csi2 *priv)
+@@ -669,6 +700,26 @@ static struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
+ 	.core	= &rcar_csi2_subdev_core_ops,
+ };
+ 
++static ssize_t rcar_csi2_dump_store(struct device *dev,
++				    struct device_attribute *attr, const char *buf, size_t count)
++{
++	u32 val;
++
++	if (sscanf(buf, "%u\n", &val) != 1)
++		return -EINVAL;
++	dump = !!val;
++
++	return count;
++}
++
++static ssize_t rcar_csi2_dump_show(struct device *dev,
++				   struct device_attribute *attr, char *buf)
++{
++	return snprintf(buf, 4, "%d\n", dump);
++}
++
++static DEVICE_ATTR(dump, S_IRUGO|S_IWUSR, rcar_csi2_dump_show, rcar_csi2_dump_store);
++
+ #ifdef CONFIG_OF
+ static const struct of_device_id rcar_csi2_of_table[] = {
+ 	{ .compatible = "renesas,r8a77980-csi2", .data = (void *)RCAR_GEN3 },
+@@ -832,6 +883,9 @@ static int rcar_csi2_probe(struct platform_device *pdev)
+ 
+ 	pm_runtime_enable(&pdev->dev);
+ 
++	if (device_create_file(&pdev->dev, &dev_attr_dump) != 0)
++		dev_err(&pdev->dev, "sysfs dump entry creation failed\n");
++
+ 	dev_dbg(&pdev->dev, "CSI2 probed.\n");
+ 
+ 	return 0;
+-- 
+2.7.4
+

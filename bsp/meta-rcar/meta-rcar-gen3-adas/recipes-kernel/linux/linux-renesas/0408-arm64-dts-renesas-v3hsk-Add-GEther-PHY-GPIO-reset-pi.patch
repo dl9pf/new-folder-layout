@@ -1,0 +1,36 @@
+From 94eabe59e8f83cdd68ce763f3ce8a9e2533cc737 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 13 Aug 2019 23:02:19 +0300
+Subject: [PATCH 1/3] arm64: dts: renesas: v3hsk: Add GEther PHY GPIO reset pin
+ support
+
+This adds "reset-gpios" property to the GEther PHY device tree node.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index f52dc2d..9e907b9 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -8,6 +8,7 @@
+ 
+ /dts-v1/;
+ #include "r8a77980.dtsi"
++#include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+ 	model = "Renesas V3H Starter Kit board";
+@@ -150,6 +151,7 @@
+ 		reg = <0>;
+ 		interrupt-parent = <&gpio4>;
+ 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
++		reset-gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
+ 	};
+ };
+ 
+-- 
+2.7.4
+

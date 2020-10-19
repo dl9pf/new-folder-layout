@@ -1,0 +1,12 @@
+[Unit]
+Description=Qualcomm Hexagon PIL setup
+After=rmtfs.service
+Requires=rmtfs.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/modprobe -q qcom_q6v5_pil
+
+[Install]
+WantedBy=multi-user.target

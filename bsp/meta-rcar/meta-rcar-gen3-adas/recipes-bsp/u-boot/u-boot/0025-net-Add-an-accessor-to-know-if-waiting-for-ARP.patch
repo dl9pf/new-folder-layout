@@ -1,0 +1,66 @@
+From 3ce40bb31bf1785bfa541805ada5f5f872a683a6 Mon Sep 17 00:00:00 2001
+From: Joe Hershberger <joe.hershberger@ni.com>
+Date: Wed, 26 Sep 2018 16:48:58 -0500
+Subject: [PATCH 1/2] net: Add an accessor to know if waiting for ARP
+
+This single-sources the state of the ARP.
+
+Signed-off-by: Joe Hershberger <joe.hershberger@ni.com>
+Reviewed-by: Simon Glass <sjg@chromium.org>
+Reviewed-by: Bin Meng <bmeng.cn@gmail.com>
+
+(cherry picked from commit 3f02c98bd1000fc26ee2700fd5a75112cdeaca6c)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ include/net.h |  1 +
+ net/arp.c     | 11 ++++++++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/include/net.h b/include/net.h
+index 2b2deb5..259c4a7 100644
+--- a/include/net.h
++++ b/include/net.h
+@@ -635,6 +635,7 @@ rxhand_f *net_get_udp_handler(void);	/* Get UDP RX packet handler */
+ void net_set_udp_handler(rxhand_f *);	/* Set UDP RX packet handler */
+ rxhand_f *net_get_arp_handler(void);	/* Get ARP RX packet handler */
+ void net_set_arp_handler(rxhand_f *);	/* Set ARP RX packet handler */
++bool arp_is_waiting(void);		/* Waiting for ARP reply? */
+ void net_set_icmp_handler(rxhand_icmp_f *f); /* Set ICMP RX handler */
+ void net_set_timeout_handler(ulong, thand_f *);/* Set timeout handler */
+ 
+diff --git a/net/arp.c b/net/arp.c
+index b8a7168..ea685d9 100644
+--- a/net/arp.c
++++ b/net/arp.c
+@@ -100,7 +100,7 @@ int arp_timeout_check(void)
+ {
+ 	ulong t;
+ 
+-	if (!net_arp_wait_packet_ip.s_addr)
++	if (!arp_is_waiting())
+ 		return 0;
+ 
+ 	t = get_timer(0);
+@@ -187,8 +187,8 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
+ 		return;
+ 
+ 	case ARPOP_REPLY:		/* arp reply */
+-		/* are we waiting for a reply */
+-		if (!net_arp_wait_packet_ip.s_addr)
++		/* are we waiting for a reply? */
++		if (!arp_is_waiting())
+ 			break;
+ 
+ #ifdef CONFIG_KEEP_SERVERADDR
+@@ -233,3 +233,8 @@ void arp_receive(struct ethernet_hdr *et, struct ip_udp_hdr *ip, int len)
+ 		return;
+ 	}
+ }
++
++bool arp_is_waiting(void)
++{
++	return !!net_arp_wait_packet_ip.s_addr;
++}
+-- 
+2.7.4
+

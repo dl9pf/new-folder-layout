@@ -1,0 +1,30 @@
+From 7e5fb58591a29d60657158262a0772796bfd3461 Mon Sep 17 00:00:00 2001
+From: Marius Vlad <marius.vlad@collabora.com>
+Date: Wed, 12 Feb 2020 13:18:19 +0200
+Subject: [PATCH] libweston: Expose weston_output_damage() in libweston
+
+We have weston_compositor_damage_all() exported and declared but users
+might need weston_output_damage() to refer to an individual output. The
+symbol already exported so just declare it.
+
+Signed-off-by: Marius Vlad <marius.vlad@collabora.com>
+---
+ include/libweston/libweston.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/libweston/libweston.h b/include/libweston/libweston.h
+index 1439775e..9fac5be0 100644
+--- a/include/libweston/libweston.h
++++ b/include/libweston/libweston.h
+@@ -1604,6 +1604,8 @@ weston_compositor_schedule_repaint(struct weston_compositor *compositor);
+ void
+ weston_compositor_damage_all(struct weston_compositor *compositor);
+ void
++weston_output_damage(struct weston_output *woutput);
++void
+ weston_compositor_wake(struct weston_compositor *compositor);
+ void
+ weston_compositor_sleep(struct weston_compositor *compositor);
+-- 
+2.20.1
+

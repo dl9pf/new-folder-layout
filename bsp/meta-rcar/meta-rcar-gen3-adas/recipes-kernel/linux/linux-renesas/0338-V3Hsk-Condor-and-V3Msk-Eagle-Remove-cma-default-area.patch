@@ -1,0 +1,103 @@
+From 7fb5561dd487a5fb987fd94dd016a96bf0547daf Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Tue, 6 Nov 2018 14:00:29 +0300
+Subject: [PATCH 158/211] V3Hsk/Condor and V3Msk/Eagle: Remove cma-default area
+ from dts.
+
+To be defined using 'cma' kernel command line parameter.
+---
+ arch/arm64/boot/dts/renesas/r8a77970-eagle.dts  |  9 +--------
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts  |  9 +--------
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 10 +---------
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts  | 10 +---------
+ 4 files changed, 4 insertions(+), 34 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-eagle.dts b/arch/arm64/boot/dts/renesas/r8a77970-eagle.dts
+index dd484d5..b87f418 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-eagle.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-eagle.dts
+@@ -38,16 +38,9 @@
+ 		/* device specific region for Lossy Decompression */
+ 		lossy_decompress: linux,lossy_decompress {
+ 			no-map;
+-			reg = <0x00000000 0x6c000000 0x0 0x03000000>;
++			reg = <0x00000000 0x7c000000 0x0 0x03000000>;
+ 		};
+ 
+-		/* global autoconfigured region for contiguous allocations */
+-		linux,cma {
+-			compatible = "shared-dma-pool";
+-			reusable;
+-			reg = <0x00000000 0x6f000000 0x0 0x10000000>;
+-			linux,cma-default;
+-		};
+ 
+ 		/* device specific region for contiguous allocations */
+ 		mmp_reserved: linux,multimedia {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+index 4cc11c9..af6c7b9 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+@@ -35,16 +35,9 @@
+ 		/* device specific region for Lossy Decompression */
+ 		lossy_decompress: linux,lossy_decompress {
+ 			no-map;
+-			reg = <0x00000000 0x6c000000 0x0 0x03000000>;
++			reg = <0x00000000 0x7c000000 0x0 0x03000000>;
+ 		};
+ 
+-		/* global autoconfigured region for contiguous allocations */
+-		linux,cma {
+-			compatible = "shared-dma-pool";
+-			reusable;
+-			reg = <0x00000000 0x6f000000 0x0 0x10000000>;
+-			linux,cma-default;
+-		};
+ 
+ 		/* device specific region for contiguous allocations */
+ 		mmp_reserved: linux,multimedia {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index f3b7ebe..577ff3a 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -38,15 +38,7 @@
+ 		/* device specific region for Lossy Decompression */
+ 		lossy_decompress: linux,lossy_decompress {
+ 			no-map;
+-			reg = <0x00000000 0x6c000000 0x0 0x03000000>;
+-		};
+-
+-		/* global autoconfigured region for contiguous allocations */
+-		linux,cma {
+-			compatible = "shared-dma-pool";
+-			reusable;
+-			reg = <0x00000000 0x6f000000 0x0 0x10000000>;
+-			linux,cma-default;
++			reg = <0x00000000 0x7c000000 0x0 0x03000000>;
+ 		};
+ 
+ 		/* device specific region for contiguous allocations */
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+index 549ca5e..cfd9c89 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk.dts
+@@ -36,15 +36,7 @@
+ 		/* device specific region for Lossy Decompression */
+ 		lossy_decompress: linux,lossy_decompress {
+ 			no-map;
+-			reg = <0x00000000 0x6c000000 0x0 0x03000000>;
+-		};
+-
+-		/* global autoconfigured region for contiguous allocations */
+-		linux,cma {
+-			compatible = "shared-dma-pool";
+-			reusable;
+-			reg = <0x00000000 0x6f000000 0x0 0x10000000>;
+-			linux,cma-default;
++			reg = <0x00000000 0x7c000000 0x0 0x03000000>;
+ 		};
+ 
+ 		/* device specific region for contiguous allocations */
+-- 
+2.7.4
+

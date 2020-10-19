@@ -1,0 +1,1 @@
+SUBSYSTEM=="input", MODE="0660", GROUP="input", SECLABEL{smack}="*", TAG+="systemd", ENV{SYSTEMD_WANTS}="weston@@WESTONUSER@.service"

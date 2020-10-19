@@ -1,0 +1,8 @@
+System System::Pipewire rwxa--
+System::Pipewire System -wx---
+System::Pipewire System::Shared r-x---
+System::Pipewire System::Run rwxat-
+System::Pipewire System::Log rwxa--
+System::Pipewire _ r-x--l
+System::Pipewire User::Home r-x--l
+System::Pipewire User::App-Shared rwxat-

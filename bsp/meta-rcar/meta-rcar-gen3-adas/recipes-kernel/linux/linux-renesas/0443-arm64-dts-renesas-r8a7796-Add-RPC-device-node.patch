@@ -1,0 +1,39 @@
+From 156743895046cd24f950a3f6790a19b5ba417f92 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Mon, 4 Nov 2019 01:25:40 +0300
+Subject: [PATCH 09/12] arm64: dts: renesas: r8a7796: Add RPC device node
+
+This adds RPC device node to the r8a7796.dtsi file.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a7796.dtsi | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a7796.dtsi b/arch/arm64/boot/dts/renesas/r8a7796.dtsi
+index 7fcac8f..c50f5e9 100644
+--- a/arch/arm64/boot/dts/renesas/r8a7796.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a7796.dtsi
+@@ -1853,6 +1853,19 @@
+ 			status = "disabled";
+ 		};
+ 
++		rpc0: rpc0@ee200000 {
++			compatible = "renesas,rpc-r8a7796", "renesas,rpc";
++			reg = <0 0xee200000 0 0x1f0>,
++			      <0 0x08000000 0 0x04000000>,
++			      <0 0xee208000 0 0x100>;
++			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&cpg CPG_MOD 917>;
++			power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			status = "disabled";
++		};
++
+ 		vin0: video@e6ef0000 {
+ 			compatible = "renesas,vin-r8a7796";
+ 			reg = <0 0xe6ef0000 0 0x1000>;
+-- 
+2.7.4
+

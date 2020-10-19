@@ -1,0 +1,78 @@
+From 67845bd98cd08aa18a07c884263aea0110273e51 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 1 Mar 2019 22:22:04 +0300
+Subject: [PATCH 071/122] block: blk-mq: Fix IO hang
+
+Sometimes IO hangs are observed on Samsung Pro 960 NVME device.
+If driver returns BLK_STS_RESOURCE and SCHED_RESTART is set,
+rerun queue after a delay (BLK_MQ_DELAY_QUEUE) to avoid IO stalls.
+BLK_MQ_DELAY_QUEUE is 3 ms because both scsi-mq and nvmefc are using
+that magic value.
+
+This is part of the commit 86ff7c2a80cd357f6156a53b354f6a0b357dc0c9
+"blk-mq: introduce BLK_STS_DEV_RESOURCE" found in
+https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas.git.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ block/blk-mq.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/block/blk-mq.c b/block/blk-mq.c
+index 49979c0..0d923ea 100644
+--- a/block/blk-mq.c
++++ b/block/blk-mq.c
+@@ -1037,11 +1037,14 @@ static bool blk_mq_dispatch_wait_add(struct blk_mq_hw_ctx *hctx)
+ 	return true;
+ }
+ 
++#define BLK_MQ_RESOURCE_DELAY	3		/* ms units */
++
+ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
+ {
+ 	struct blk_mq_hw_ctx *hctx;
+ 	struct request *rq;
+ 	int errors, queued;
++	blk_status_t ret = BLK_STS_OK;
+ 
+ 	if (list_empty(list))
+ 		return false;
+@@ -1052,7 +1055,6 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
+ 	errors = queued = 0;
+ 	do {
+ 		struct blk_mq_queue_data bd;
+-		blk_status_t ret;
+ 
+ 		rq = list_first_entry(list, struct request, queuelist);
+ 		if (!blk_mq_get_driver_tag(rq, &hctx, false)) {
+@@ -1116,6 +1118,8 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
+ 	 * that is where we will continue on next queue run.
+ 	 */
+ 	if (!list_empty(list)) {
++		bool needs_restart;
++
+ 		/*
+ 		 * If an I/O scheduler has been configured and we got a driver
+ 		 * tag for the next request already, free it again.
+@@ -1146,10 +1150,17 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list)
+ 		 * - Some but not all block drivers stop a queue before
+ 		 *   returning BLK_STS_RESOURCE. Two exceptions are scsi-mq
+ 		 *   and dm-rq.
++		 *
++		 * If driver returns BLK_STS_RESOURCE and SCHED_RESTART
++		 * bit is set, run queue after a delay to avoid IO stalls
++		 * that could otherwise occur if the queue is idle.
+ 		 */
+-		if (!blk_mq_sched_needs_restart(hctx) &&
++		needs_restart = blk_mq_sched_needs_restart(hctx);
++		if (!needs_restart &&
+ 		    !test_bit(BLK_MQ_S_TAG_WAITING, &hctx->state))
+ 			blk_mq_run_hw_queue(hctx, true);
++		else if (needs_restart && (ret == BLK_STS_RESOURCE))
++			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
+ 	}
+ 
+ 	return (queued + errors) != 0;
+-- 
+2.7.4
+

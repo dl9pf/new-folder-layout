@@ -1,0 +1,28 @@
+From 93c3ef73d1b9fdab33a2e875b50a94840ff6cd31 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 27 Oct 2017 20:58:21 +0300
+Subject: [PATCH 038/122] arm64: dts: renesas: ulcb-kf: enable most
+
+This enables MOST on CN22 instead GPS
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/ulcb-kf.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/renesas/ulcb-kf.dtsi b/arch/arm64/boot/dts/renesas/ulcb-kf.dtsi
+index da522a2..61b7851 100644
+--- a/arch/arm64/boot/dts/renesas/ulcb-kf.dtsi
++++ b/arch/arm64/boot/dts/renesas/ulcb-kf.dtsi
+@@ -1438,3 +1438,8 @@
+ 
+ 
+ 
++/* enable CN22: enable MOST and disable GPS (move R661->R660, R663->R662) */
++#include "ulcb-kf-most.dtsi"
++
++
++
+-- 
+2.7.4
+

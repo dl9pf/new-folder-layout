@@ -1,0 +1,89 @@
+From 34bd7eb4d9826aa6229f797c57d4011d0beb995e Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 26 Oct 2018 19:52:08 +0300
+Subject: [PATCH 120/211] media: platform: soc_camera: rcar_csi2: Add r8a77980
+ support
+
+This adds R8A77980 support to the R-Car CSI2 driver.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/media/platform/soc_camera/Kconfig     |  2 +-
+ drivers/media/platform/soc_camera/rcar_csi2.c | 13 ++++++++++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/platform/soc_camera/Kconfig b/drivers/media/platform/soc_camera/Kconfig
+index ae9e0b3..19fd6c4 100644
+--- a/drivers/media/platform/soc_camera/Kconfig
++++ b/drivers/media/platform/soc_camera/Kconfig
+@@ -40,7 +40,7 @@ config VIDEO_RCAR_CSI2_LEGACY
+ 	tristate "R-Car MIPI CSI-2 Interface driver"
+ 	depends on VIDEO_DEV && SOC_CAMERA && HAVE_CLK
+ 	depends on ARCH_R8A7795 || ARCH_R8A7796 || ARCH_R8A77965 || \
+-		   ARCH_R8A77970 || COMPILE_TEST
++		   ARCH_R8A77970 || ARCH_R8A77980 || COMPILE_TEST
+ 	select V4L2_FWNODE
+ 	---help---
+ 	  This is a v4l2 driver for the R-Car CSI-2 Interface
+diff --git a/drivers/media/platform/soc_camera/rcar_csi2.c b/drivers/media/platform/soc_camera/rcar_csi2.c
+index 838806d..737a686 100644
+--- a/drivers/media/platform/soc_camera/rcar_csi2.c
++++ b/drivers/media/platform/soc_camera/rcar_csi2.c
+@@ -166,6 +166,11 @@
+ #define RCAR_CSI2_INTSTATE_ERRSYNCESC		(1 << 1)
+ #define RCAR_CSI2_INTSTATE_ERRCONTROL		(1 << 0)
+ 
++static const struct soc_device_attribute r8a77980[] = {
++	{ .soc_id = "r8a77980" },
++	{ }
++};
++
+ static const struct soc_device_attribute r8a77970[] = {
+ 	{ .soc_id = "r8a77970" },
+ 	{ }
+@@ -413,7 +418,7 @@ static int rcar_csi2_set_phy_freq(struct rcar_csi2 *priv)
+ 		iowrite32((hs_freq_range_v3m[bps_per_lane] << 16) |
+ 				RCAR_CSI2_PHTW_DWEN | RCAR_CSI2_PHTW_CWEN | 0x44,
+ 				priv->base + RCAR_CSI2_PHTW);
+-	else if (soc_device_match(r8a7795))
++	else if (soc_device_match(r8a7795) || soc_device_match(r8a77980))
+ 		iowrite32(hs_freq_range_h3[bps_per_lane] << 16,
+ 				priv->base + RCAR_CSI2_PHYPLL);
+ 	else
+@@ -500,7 +505,7 @@ static int rcar_csi2_hwinit(struct rcar_csi2 *priv)
+ 			return -EINVAL;
+ 		}
+ 
+-		if (soc_device_match(r8a7795)) {
++		if (soc_device_match(r8a7795) || soc_device_match(r8a77980)) {
+ 			/* Set PHY Test Interface Write Register in R-Car H3(ES2.0) */
+ 			iowrite32(0x01cc01e2, priv->base + RCAR_CSI2_PHTW);
+ 			iowrite32(0x010101e3, priv->base + RCAR_CSI2_PHTW);
+@@ -518,7 +523,7 @@ static int rcar_csi2_hwinit(struct rcar_csi2 *priv)
+ 		/* Set CSI0CLK Frequency Configuration Preset Register
+ 		 * in R-Car H3(ES2.0)
+ 		 */
+-		if (soc_device_match(r8a7795))
++		if (soc_device_match(r8a7795) || soc_device_match(r8a77980))
+ 			iowrite32(CSI0CLKFREQRANGE(32), priv->base + RCAR_CSI2_CSI0CLKFCPR);
+ 
+ 		/* Enable lanes */
+@@ -612,6 +617,7 @@ static struct v4l2_subdev_ops rcar_csi2_subdev_ops = {
+ 
+ #ifdef CONFIG_OF
+ static const struct of_device_id rcar_csi2_of_table[] = {
++	{ .compatible = "renesas,r8a77980-csi2", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,r8a77970-csi2", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,r8a77965-csi2", .data = (void *)RCAR_GEN3 },
+ 	{ .compatible = "renesas,r8a7796-csi2", .data = (void *)RCAR_GEN3 },
+@@ -622,6 +628,7 @@ MODULE_DEVICE_TABLE(of, rcar_csi2_of_table);
+ #endif
+ 
+ static struct platform_device_id rcar_csi2_id_table[] = {
++	{ "r8a77980-csi2",  RCAR_GEN3 },
+ 	{ "r8a77970-csi2",  RCAR_GEN3 },
+ 	{ "r8a77965-csi2",  RCAR_GEN3 },
+ 	{ "r8a7796-csi2",  RCAR_GEN3 },
+-- 
+2.7.4
+

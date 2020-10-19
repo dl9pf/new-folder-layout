@@ -1,0 +1,80 @@
+From 7fc6b55fbd279e287a350b85f45885d51c4de5c4 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 25 Mar 2020 15:07:48 +0300
+Subject: [PATCH] i2c: busses i2c-rcar: block pm_runtime
+
+This allows blocking of i2c clock runtime control by existing dts
+pataremeter multi-master.
+This speeds up i2c transaction during stress use case.
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/i2c/busses/i2c-rcar.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-rcar.c b/drivers/i2c/busses/i2c-rcar.c
+index ddd3b39..4a3ea72 100644
+--- a/drivers/i2c/busses/i2c-rcar.c
++++ b/drivers/i2c/busses/i2c-rcar.c
+@@ -786,7 +786,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
+ 	if (priv->suspended)
+ 		return -EBUSY;
+ 
+-	pm_runtime_get_sync(dev);
++	if (!(priv->flags & ID_P_PM_BLOCKED))
++		pm_runtime_get_sync(dev);
+ 
+ 	/* Check bus state before init otherwise bus busy info will be lost */
+ 	ret = rcar_i2c_bus_barrier(priv);
+@@ -826,7 +827,8 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
+ 		ret = num - priv->msgs_left; /* The number of transfer */
+ 	}
+ out:
+-	pm_runtime_put(dev);
++	if (!(priv->flags & ID_P_PM_BLOCKED))
++		pm_runtime_put(dev);
+ 
+ 	if (ret < 0 && ret != -ENXIO)
+ 		dev_err(dev, "error %d : %x\n", ret, priv->flags);
+@@ -845,7 +847,8 @@ static int rcar_reg_slave(struct i2c_client *slave)
+ 		return -EAFNOSUPPORT;
+ 
+ 	/* Keep device active for slave address detection logic */
+-	pm_runtime_get_sync(rcar_i2c_priv_to_dev(priv));
++	if (!(priv->flags & ID_P_PM_BLOCKED))
++		pm_runtime_get_sync(rcar_i2c_priv_to_dev(priv));
+ 
+ 	priv->slave = slave;
+ 	rcar_i2c_write(priv, ICSAR, slave->addr);
+@@ -867,7 +870,8 @@ static int rcar_unreg_slave(struct i2c_client *slave)
+ 
+ 	priv->slave = NULL;
+ 
+-	pm_runtime_put(rcar_i2c_priv_to_dev(priv));
++	if (!(priv->flags & ID_P_PM_BLOCKED))
++		pm_runtime_put(rcar_i2c_priv_to_dev(priv));
+ 
+ 	return 0;
+ }
+@@ -1026,6 +1030,8 @@ static int rcar_i2c_suspend(struct device *dev)
+ 	struct platform_device *pdev = to_platform_device(dev);
+ 	struct rcar_i2c_priv *priv = platform_get_drvdata(pdev);
+ 
++	if (priv->flags & ID_P_PM_BLOCKED)
++		pm_runtime_put(dev);
+ 	priv->suspended = 1;
+ 
+ 	return 0;
+@@ -1045,7 +1051,8 @@ static int rcar_i2c_resume(struct device *dev)
+ 		dev_err(dev, "Could not calculate clock\n");
+ 
+ 	rcar_i2c_init(priv);
+-	pm_runtime_put(dev);
++	if (!(priv->flags & ID_P_PM_BLOCKED))
++		pm_runtime_put(dev);
+ 
+ 	priv->suspended = 0;
+ 
+-- 
+2.7.4
+

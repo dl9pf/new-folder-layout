@@ -1,0 +1,74 @@
+meta-netboot
+============
+
+This layer contains some recipes and configuration adjustments to allow network boot through NBD (network block device).
+
+Content and usage
+-----------------
+
+This layer creates a new supplementary initrd image which can be downloaded through TFTP with the kernel.
+At boot time, the init script will try to mount the rootfs based on the following kernel command line parameters:
+
+* nbd.server: IP address to reach the NBD server
+* nbd.dev: nbd device to use (default: /dev/nbd0)
+* nbd.debug: activate debug mode (init script is then interruptible)
+
+For nbd v2:
+
+* nbd.port: TCP port on which server is listening (default: 10809)
+
+For nbd v3:
+
+* nbd.namev3: The name of the image served by nbd-server.
+
+
+The layer meta-netboot contains recipes for the following components:
+* busybox: activate the built-in NBD client
+* initramfs-netboot: contains the init script started by the kernel: basically, this script mounts the real root filesystem, then pivot_root on it and finally exec systemd.
+* initramfs-netboot-image: image to specify for building the initrd
+
+To enable the build of the netboot initrd and ext4 rootfs, add the following line in conf/local.conf:
+
+INHERIT += "netboot"
+
+
+Server side
+-----------
+
+On the server side (assuming that the build dir is stored in $BUILD) we can run:
+
+* a TFTP server, for example tftpd-hpa started with $BUILD/tmp/deploy/images as the TFTP dir:
+
+  /usr/sbin/in.tftpd --listen --user tftp --address 0.0.0.0:69 --secure $BUILD/tmp/deploy/images
+
+* a NBD server, for example xnbd-server, used to expose the whole ext4 rootfs as a network block device:
+
+  xnbd-server --target --lport 10809 $BUILD/tmp/deploy/images/$MACHINE/agl-demo-platform-$MACHINE.ext4
+
+
+Target side
+-----------
+
+On the target board, a specific setup should also be done.\
+For Renesas Gen3 board, u-boot is updated and environment is more like :
+
+------------------------------------------------------------------
+setenv bootargs_console 'console=ttySC0,115200 ignore_loglevel'
+setenv bootargs_extra 'rw rootfstype=ext4 rootwait rootdelay=2'
+setenv bootargs_root 'root=/dev/ram0 ramdisk_size=16384 ip=dhcp'
+setenv bootargs_video 'vmalloc=384M video=HDMI-A-1:1920x1080-32@60'
+setenv serverip '<your_serverip>'
+setenv 'bootdaddr' '0x48000000'
+setenv 'bootdfile' 'Image-r8a7795-h3ulcb.dtb'
+setenv 'bootdload_net' 'tftp ${bootdaddr} h3ulcb/${bootdfile}'
+setenv 'bootkaddr' '0x48080000'
+setenv 'bootkfile' 'Image'
+setenv 'bootkload_net' 'tftp ${bootkaddr} h3ulcb/${bootkfile}'
+setenv 'bootiaddr' '0x5C3F9520'
+setenv 'bootifile' 'initramfs-netboot-image-h3ulcb.ext4.gz'
+setenv 'bootiload_net' 'tftp ${bootiaddr} h3ulcb/${bootifile}'
+setenv 'load_net' 'run bootkload_net; run bootdload_net; run bootiload_net; setenv initrd_size ${filesize}'
+
+setenv 'bootcmd' 'setenv bootargs ${bootargs_console} ${bootargs_video} ${bootargs_root} ${bootargs_extra} nbd.server=${serverip}; run load_net; booti ${bootkaddr} ${bootiaddr}:${initrd_size} ${bootdaddr}'
+------------------------------------------------------------------
+

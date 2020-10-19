@@ -1,0 +1,57 @@
+From 78e88f79266f3f8f954b308bd0274bf717a340b1 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Thu, 1 Nov 2018 17:39:35 +0300
+Subject: [PATCH 150/211] arm64: dts: renesas: Add r8a77980-v3hsk-vbm support
+
+This adds r8a77980-v3hsk-vbm and r8a77980-v3hsk-vbm-v2
+device tree support.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/Makefile                  | 2 ++
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm-v2.dts | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts    | 3 ++-
+ 3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/Makefile b/arch/arm64/boot/dts/renesas/Makefile
+index 7698983d..cac4b75 100644
+--- a/arch/arm64/boot/dts/renesas/Makefile
++++ b/arch/arm64/boot/dts/renesas/Makefile
+@@ -41,5 +41,7 @@ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-kf.dtb r8a77970-es1-v3msk-kf.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm.dtb r8a77970-es1-v3msk-vbm.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3msk-vbm-v2.dtb r8a77970-es1-v3msk-vbm-v2.dtb
+ dtb-$(CONFIG_ARCH_R8A77970) += r8a77970-v3mzf.dtb
++dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vbm.dtb
++dtb-$(CONFIG_ARCH_R8A77980) += r8a77980-v3hsk-vbm-v2.dtb
+ 
+ always		:= $(dtb-y)
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm-v2.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm-v2.dts
+index 56d4253..7a3f381 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm-v2.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm-v2.dts
+@@ -8,7 +8,7 @@
+  * kind, whether express or implied.
+  */
+ 
+-#include "r8a7798-v3hsk-vbm.dts"
++#include "r8a77980-v3hsk-vbm.dts"
+ 
+ / {
+ 	model = "Renesas V3HSK Videobox Mini board V2 based on r8a7798";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
+index 9a54554..1b0649f 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vbm.dts
+@@ -8,7 +8,8 @@
+  * kind, whether express or implied.
+  */
+ 
+-#include "r8a7798-v3hsk.dts"
++#include "r8a77980-v3hsk.dts"
++#include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+ 	model = "Renesas V3HSK Videobox Mini board based on r8a7798";
+-- 
+2.7.4
+

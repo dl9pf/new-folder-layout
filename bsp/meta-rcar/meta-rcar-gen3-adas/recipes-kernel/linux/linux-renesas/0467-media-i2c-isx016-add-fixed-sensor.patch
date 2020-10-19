@@ -1,0 +1,94 @@
+From 43b01937acf76c4d057fd6681ff66f945634f5c4 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 30 Jan 2020 16:41:59 +0300
+Subject: [PATCH] media: i2c: isx016: add fixed sensor
+
+This add possibility to enable camera if the imager is not
+accessible in i2c line for ID detection
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/isx016.c | 41 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)
+
+diff --git a/drivers/media/i2c/soc_camera/isx016.c b/drivers/media/i2c/soc_camera/isx016.c
+index 9465c8f..a9f137c 100644
+--- a/drivers/media/i2c/soc_camera/isx016.c
++++ b/drivers/media/i2c/soc_camera/isx016.c
+@@ -51,8 +51,21 @@ struct isx016_priv {
+ 	int				port;
+ 	int				gpio_resetb;
+ 	int				gpio_fsin;
++	int				fixed_sensor;
+ };
+ 
++static int isx016_fixed = 0;
++module_param(isx016_fixed, int, 0644);
++MODULE_PARM_DESC(isx016_fixed, " isx016 fixed detect (0 - imager disabled)");
++
++static int isx016_width = ISX016_MAX_WIDTH;
++module_param(isx016_width, int, 0644);
++MODULE_PARM_DESC(isx016_width, " isx016 fixed width");
++
++static int isx016_height = ISX016_MAX_HEIGHT;
++module_param(isx016_height, int, 0644);
++MODULE_PARM_DESC(isx016_height, " isx016 fixed height");
++
+ static inline struct isx016_priv *to_isx016(const struct i2c_client *client)
+ {
+ 	return container_of(i2c_get_clientdata(client), struct isx016_priv, sd);
+@@ -371,9 +384,27 @@ static int isx016_initialize(struct i2c_client *client)
+ 	int ret = 0;
+ 	int tmp_addr;
+ 	int i;
++	u8 ser_pid = 0;
+ 
+ 	isx016_s_port(client, 1);
+ 
++	if (priv->fixed_sensor) {
++		tmp_addr = client->addr;
++		if (priv->max9286_addr) {
++			client->addr = priv->max9271_addr;
++			/* check serizlizer ID */
++			reg8_read(client, 0x1e, &ser_pid);
++		}
++		client->addr = tmp_addr;
++
++		if (ser_pid != MAX9271_ID && ser_pid != MAX96705_ID && ser_pid != MAX96707_ID) {
++			ret = -ENODEV;
++			goto err;
++		}
++
++		goto out;
++	}
++
+ 	for (i = 0; i < ARRAY_SIZE(isx016_i2c_addr); i++) {
+ 		tmp_addr = client->addr;
+ 		if (priv->max9286_addr) {
+@@ -409,6 +440,7 @@ static int isx016_initialize(struct i2c_client *client)
+ 	/* Program wizard registers */
+ 	isx016_set_regs(client, isx016_regs_wizard, ARRAY_SIZE(isx016_regs_wizard));
+ 
++out:
+ 	dev_info(&client->dev, "isx016 PID %x, res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
+ 		 pid, priv->max_width, priv->max_height, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ err:
+@@ -471,6 +503,15 @@ static int isx016_parse_dt(struct device_node *np, struct isx016_priv *priv)
+ 	}
+ 	client->addr = tmp_addr;
+ 
++	if (of_property_read_u32(np, "isx016,fixed", &priv->fixed_sensor))
++		priv->fixed_sensor = isx016_fixed;
++	if (priv->fixed_sensor) {
++		if (of_property_read_u32(np, "width", &priv->max_width))
++			priv->max_width = ISX016_MAX_WIDTH;
++		if (of_property_read_u32(np, "height", &priv->max_height))
++			priv->max_height = ISX016_MAX_HEIGHT;
++	}
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

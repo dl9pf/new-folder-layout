@@ -1,0 +1,30 @@
+From 09381afbd95859e22aad7d0647b202eba7bb2cae Mon Sep 17 00:00:00 2001
+From: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+Date: Thu, 5 Dec 2019 17:30:15 +0300
+Subject: [PATCH] MTD: renesas-rpc: fix dummy cycles
+
+Signed-off-by: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
+---
+ drivers/mtd/spi-nor/renesas-rpc-qspi.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mtd/spi-nor/renesas-rpc-qspi.c b/drivers/mtd/spi-nor/renesas-rpc-qspi.c
+index 3d2d5dbe03e0..f4abdac10670 100644
+--- a/drivers/mtd/spi-nor/renesas-rpc-qspi.c
++++ b/drivers/mtd/spi-nor/renesas-rpc-qspi.c
+@@ -458,7 +458,11 @@ static ssize_t rpc_read_flash(struct spi_nor *nor, loff_t from, size_t len,
+ 
+ 	/* ...setup read sequence */
+ 	val = rpc_readl(rpc, RPC_DRENR);
+-	val |= RPC_DRENR_DME | RPC_DRENR_CDE;
++	if (nor->read_dummy)
++		val |= RPC_DRENR_DME;
++	else
++		val &= ~RPC_DRENR_DME;
++	val |= RPC_DRENR_CDE;
+ 	rpc_writel(rpc, RPC_DRENR, val);
+ 
+ 	rpc_do_read_flash(rpc, from, len, buf, nor->addr_width > 3);
+-- 
+2.17.1
+

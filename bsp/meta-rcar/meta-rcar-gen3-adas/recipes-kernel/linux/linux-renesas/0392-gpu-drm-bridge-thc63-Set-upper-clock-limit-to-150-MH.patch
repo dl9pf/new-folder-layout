@@ -1,0 +1,32 @@
+From e97955f52cf6d797ce4a4e6c9c27f96ecac77798 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Wed, 3 Jul 2019 17:24:01 +0300
+Subject: [PATCH] gpu: drm: bridge: thc63: Set upper clock limit to 150 MHz
+
+Commit "drm: bridge: thc63: Restrict modes based on hardware
+operating frequency" limits the maximum resolution to 1280x1024
+on the V3[HM] boards. Clock frequency is set to 138-148.5 MHz
+for the FullHD resolution. This sets maximum clock frequency
+to 150MHz to allow FullHD modes.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/gpu/drm/bridge/thc63lvd1024.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/bridge/thc63lvd1024.c b/drivers/gpu/drm/bridge/thc63lvd1024.c
+index cc44f37..0f3ad8b 100644
+--- a/drivers/gpu/drm/bridge/thc63lvd1024.c
++++ b/drivers/gpu/drm/bridge/thc63lvd1024.c
+@@ -55,7 +55,7 @@ static enum drm_mode_status thc63_mode_valid(struct drm_bridge *bridge,
+ 	if (mode->clock < 8000)
+ 		return MODE_CLOCK_LOW;
+ 
+-	if (mode->clock > 135000)
++	if (mode->clock > 150000)
+ 		return MODE_CLOCK_HIGH;
+ 
+ 	/* Refresh rate 30 or less of full HD is basically not used,
+-- 
+2.7.4
+

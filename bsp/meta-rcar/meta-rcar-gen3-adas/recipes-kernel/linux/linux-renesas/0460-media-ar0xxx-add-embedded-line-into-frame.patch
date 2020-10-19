@@ -1,0 +1,534 @@
+From 093694680d2fc99df1dc5118b78f80f34a0e3f4b Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 30 Dec 2019 19:48:34 +0300
+Subject: [PATCH] media: ar0xxx: add embedded line into frame
+
+This adds embedded line into frame for further parsing in ISP
+
+Signed-off-by: Petr Nechaev <petr.nechaev@cogentembedded.com>
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0140.c        | 49 +++++++++++++++++++++----
+ drivers/media/i2c/soc_camera/ar0140.h        | 21 ++++++-----
+ drivers/media/i2c/soc_camera/ar0143.c        | 53 +++++++++++++++++++++++++---
+ drivers/media/i2c/soc_camera/ar0143.h        | 17 +++++----
+ drivers/media/i2c/soc_camera/ar0143_custom.h |  6 +---
+ drivers/media/i2c/soc_camera/ar0143_rev1.h   |  8 +----
+ drivers/media/i2c/soc_camera/ar0220.h        | 12 ++++---
+ drivers/media/i2c/soc_camera/ar0233.c        | 31 ++++++++++------
+ drivers/media/i2c/soc_camera/ar0233.h        | 12 ++++---
+ drivers/media/i2c/soc_camera/ar0233_rev1.h   |  2 +-
+ drivers/media/i2c/soc_camera/ar0233_rev2.h   |  2 +-
+ 11 files changed, 150 insertions(+), 63 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0140.c b/drivers/media/i2c/soc_camera/ar0140.c
+index ec2b2e5..ceb2c31 100644
+--- a/drivers/media/i2c/soc_camera/ar0140.c
++++ b/drivers/media/i2c/soc_camera/ar0140.c
+@@ -36,6 +36,7 @@ struct ar0140_priv {
+ 	struct v4l2_rect		rect;
+ 	int				init_complete;
+ 	u8				id[6];
++	bool				emb_enable;
+ 	/* serializers */
+ 	int				max9286_addr;
+ 	int				max9271_addr;
+@@ -115,7 +116,7 @@ static int ar0140_set_window(struct v4l2_subdev *sd)
+ 	reg16_write16(client, 0x3008, priv->rect.left + priv->rect.width - 1 + AR0140_X_START);
+ 	/* vert crop start */
+ 	reg16_write16(client, 0x3002, priv->rect.top + AR0140_Y_START);
+-	/* vert crop end */
++	/* limit window for embedded data/stats */
+ 	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR0140_Y_START);
+ 
+ 	return 0;
+@@ -235,12 +236,18 @@ static int ar0140_get_selection(struct v4l2_subdev *sd,
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+-		sel->r.width = AR0140_MAX_WIDTH;
+-		sel->r.height = AR0140_MAX_HEIGHT;
++		sel->r.width = AR0140_DEFAULT_WIDTH;
++		sel->r.height = AR0140_DEFAULT_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP:
+ 		sel->r = priv->rect;
+ 		return 0;
++	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = AR0140_EMB_PADDED;
++		sel->r.width = priv->rect.width;
++		sel->r.height = priv->rect.height;
++		return 0;
+ 	default:
+ 		return -EINVAL;
+ 	}
+@@ -402,7 +409,35 @@ static ssize_t ar0140_otp_id_show(struct device *dev,
+ 			priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ }
+ 
++static ssize_t ar0140_emb_enable_store(struct device *dev,
++				       struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0140_priv *priv = to_ar0140(client);
++	u32 val;
++
++	if (sscanf(buf, "%u\n", &val) != 1)
++		return -EINVAL;
++	priv->emb_enable = !!val;
++
++	reg16_write16(client, 0x3064, priv->emb_enable ? 0x1982 : 0x1802);
++
++	return count;
++}
++
++static ssize_t ar0140_emb_enable_show(struct device *dev,
++				      struct device_attribute *attr, char *buf)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0140_priv *priv = to_ar0140(client);
++
++	return snprintf(buf, 4, "%d\n", priv->emb_enable);
++}
++
+ static DEVICE_ATTR(otp_id_ar0140, S_IRUGO, ar0140_otp_id_show, NULL);
++static DEVICE_ATTR(emb_enable_ar0140, S_IRUGO|S_IWUSR, ar0140_emb_enable_show, ar0140_emb_enable_store);
+ 
+ static int ar0140_initialize(struct i2c_client *client)
+ {
+@@ -589,14 +624,15 @@ static int ar0140_probe(struct i2c_client *client,
+ 
+ 	priv->rect.left = 0;
+ 	priv->rect.top = 0;
+-	priv->rect.width = AR0140_MAX_WIDTH;
+-	priv->rect.height = AR0140_MAX_HEIGHT;
++	priv->rect.width = AR0140_DEFAULT_WIDTH;
++	priv->rect.height = AR0140_DEFAULT_HEIGHT;
+ 
+ 	ret = v4l2_async_register_subdev(&priv->sd);
+ 	if (ret)
+ 		goto cleanup;
+ 
+-	if (device_create_file(&client->dev, &dev_attr_otp_id_ar0140) != 0) {
++	if (device_create_file(&client->dev, &dev_attr_otp_id_ar0140) != 0 ||
++	    device_create_file(&client->dev, &dev_attr_emb_enable_ar0140) != 0) {
+ 		dev_err(&client->dev, "sysfs otp_id entry creation failed\n");
+ 		goto cleanup;
+ 	}
+@@ -620,6 +656,7 @@ static int ar0140_remove(struct i2c_client *client)
+ {
+ 	struct ar0140_priv *priv = i2c_get_clientdata(client);
+ 
++	device_remove_file(&client->dev, &dev_attr_emb_enable_ar0140);
+ 	device_remove_file(&client->dev, &dev_attr_otp_id_ar0140);
+ 	v4l2_async_unregister_subdev(&priv->sd);
+ 	media_entity_cleanup(&priv->sd.entity);
+diff --git a/drivers/media/i2c/soc_camera/ar0140.h b/drivers/media/i2c/soc_camera/ar0140.h
+index 2993478..08ce1ca 100644
+--- a/drivers/media/i2c/soc_camera/ar0140.h
++++ b/drivers/media/i2c/soc_camera/ar0140.h
+@@ -12,20 +12,23 @@
+ //#define AR0140_DISPLAY_PATTERN_FIXED
+ //#define AR0140_DISPLAY_PATTERN_COLOR_BAR
+ 
+-//#define AR0140_EMBEDDED_LINE
++#define AR0140_DEFAULT_WIDTH	1280
++#define AR0140_DEFAULT_HEIGHT	800
+ 
+-#define AR0140_MAX_WIDTH	1280
+-#define AR0140_MAX_HEIGHT	800
++#define AR0140_EMB_LINES	4
++#define AR0140_EMB_PADDED	(priv->emb_enable ? AR0140_EMB_LINES + 30 : 0) /* embedded data (SOF) and stats (EOF) + post padding */
+ 
+ #define AR0140_DELAY		0xffff
+ 
++#define AR0140_MAX_WIDTH	1280
++#define AR0140_MAX_HEIGHT	800
+ #define AR0140_SENSOR_WIDTH	1280
+ #define AR0140_SENSOR_HEIGHT	800
+ 
+-#define AR0140_X_START		((AR0140_SENSOR_WIDTH - AR0140_MAX_WIDTH) / 2)
+-#define AR0140_Y_START		((AR0140_SENSOR_HEIGHT - AR0140_MAX_HEIGHT) / 2)
+-#define AR0140_X_END		(AR0140_X_START + AR0140_MAX_WIDTH - 1)
+-#define AR0140_Y_END		(AR0140_Y_START + AR0140_MAX_HEIGHT + 1) /* must be +1 and not -1 or 2 lines missed - bug in imager? */
++#define AR0140_X_START		((AR0140_SENSOR_WIDTH - AR0140_DEFAULT_WIDTH) / 2)
++#define AR0140_Y_START		((AR0140_SENSOR_HEIGHT - AR0140_DEFAULT_HEIGHT) / 2)
++#define AR0140_X_END		(AR0140_X_START + AR0140_DEFAULT_WIDTH - 1)
++#define AR0140_Y_END		(AR0140_Y_START + AR0140_DEFAULT_HEIGHT + 1) /* must be +1 and not -1 or 2 lines missed - bug in imager? */
+ 
+ struct ar0140_reg {
+ 	u16	reg;
+@@ -395,11 +398,7 @@ static const struct ar0140_reg ar0140_regs_wizard[] = {
+ {0x3086, 0x2C2C},
+ {0x3086, 0x2C00},
+ /* End Sequencer */
+-#ifdef AR0140_EMBEDDED_LINE
+-{0x3064, 0x1982}, // SMIA_TEST
+-#else
+ {0x3064, 0x1802}, // SMIA_TEST
+-#endif
+ /* PCLK=27Mhz/0x2 *0x30 /1/0x10 - TI serializers */
+ {0x302A, 0x0010}, // vt_pix_clk_div
+ {0x302E, 0x0002}, // pre_pll_clk_div
+diff --git a/drivers/media/i2c/soc_camera/ar0143.c b/drivers/media/i2c/soc_camera/ar0143.c
+index 0c4b970..bf8d717 100644
+--- a/drivers/media/i2c/soc_camera/ar0143.c
++++ b/drivers/media/i2c/soc_camera/ar0143.c
+@@ -38,6 +38,7 @@ struct ar0143_priv {
+ 	int				init_complete;
+ 	u8				id[6];
+ 	int				setup;
++	bool				emb_enable;
+ 	/* serializers */
+ 	int				max9286_addr;
+ 	int				max9271_addr;
+@@ -265,12 +270,18 @@ static int ar0143_get_selection(struct v4l2_subdev *sd,
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+-		sel->r.width = AR0143_MAX_WIDTH;
+-		sel->r.height = AR0143_MAX_HEIGHT;
++		sel->r.width = AR0143_DEFAULT_WIDTH;
++		sel->r.height = AR0143_DEFAULT_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP:
+ 		sel->r = priv->rect;
+ 		return 0;
++	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = AR0143_EMB_PADDED;
++		sel->r.width = priv->rect.width;
++		sel->r.height = priv->rect.height;
++		return 0;
+ 	default:
+ 		return -EINVAL;
+ 	}
+@@ -436,7 +449,35 @@ static ssize_t ar0143_otp_id_show(struct device *dev,
+ 			priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
+ }
+ 
++static ssize_t ar0143_emb_enable_store(struct device *dev,
++				       struct device_attribute *attr, const char *buf, size_t count)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0143_priv *priv = to_ar0143(client);
++	u32 val;
++
++	if (sscanf(buf, "%u\n", &val) != 1)
++		return -EINVAL;
++	priv->emb_enable = !!val;
++
++	reg16_write16(client, 0x3064, priv->emb_enable ? 0x1982 : 0x1802);
++
++	return count;
++}
++
++static ssize_t ar0143_emb_enable_show(struct device *dev,
++				      struct device_attribute *attr, char *buf)
++{
++	struct v4l2_subdev *sd = i2c_get_clientdata(to_i2c_client(dev));
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0143_priv *priv = to_ar0143(client);
++
++	return snprintf(buf, 4, "%d\n", priv->emb_enable);
++}
++
+ static DEVICE_ATTR(otp_id_ar0143, S_IRUGO, ar0143_otp_id_show, NULL);
++static DEVICE_ATTR(emb_enable_ar0143, S_IRUGO|S_IWUSR, ar0143_emb_enable_show, ar0143_emb_enable_store);
+ 
+ static int ar0143_initialize(struct i2c_client *client)
+ {
+@@ -632,14 +673,15 @@ static int ar0143_probe(struct i2c_client *client,
+ 
+ 	priv->rect.left = 0;
+ 	priv->rect.top = 0;
+-	priv->rect.width = AR0143_MAX_WIDTH;
+-	priv->rect.height = AR0143_MAX_HEIGHT;
++	priv->rect.width = AR0143_DEFAULT_WIDTH;
++	priv->rect.height = AR0143_DEFAULT_HEIGHT;
+ 
+ 	ret = v4l2_async_register_subdev(&priv->sd);
+ 	if (ret)
+ 		goto cleanup;
+ 
+-	if (device_create_file(&client->dev, &dev_attr_otp_id_ar0143) != 0) {
++	if (device_create_file(&client->dev, &dev_attr_otp_id_ar0143) != 0||
++	    device_create_file(&client->dev, &dev_attr_emb_enable_ar0143) != 0) {
+ 		dev_err(&client->dev, "sysfs otp_id entry creation failed\n");
+ 		goto cleanup;
+ 	}
+@@ -664,6 +706,7 @@ static int ar0143_remove(struct i2c_client *client)
+ 	struct ar0143_priv *priv = i2c_get_clientdata(client);
+ 
+ 	device_remove_file(&client->dev, &dev_attr_otp_id_ar0143);
++	device_remove_file(&client->dev, &dev_attr_emb_enable_ar0143);
+ 	v4l2_async_unregister_subdev(&priv->sd);
+ 	media_entity_cleanup(&priv->sd.entity);
+ 	v4l2_ctrl_handler_free(&priv->hdl);
+diff --git a/drivers/media/i2c/soc_camera/ar0143.h b/drivers/media/i2c/soc_camera/ar0143.h
+index 14d8175..d14ecae 100644
+--- a/drivers/media/i2c/soc_camera/ar0143.h
++++ b/drivers/media/i2c/soc_camera/ar0143.h
+@@ -12,20 +12,23 @@
+ //#define AR0143_DISPLAY_PATTERN_FIXED
+ //#define AR0143_DISPLAY_PATTERN_COLOR_BAR
+ 
+-//#define AR0143_EMBEDDED_LINE
++#define AR0143_DEFAULT_WIDTH	1280
++#define AR0143_DEFAULT_HEIGHT	960
+ 
+-#define AR0143_MAX_WIDTH	1344
+-#define AR0143_MAX_HEIGHT	968
++#define AR0143_EMB_LINES	8
++#define AR0143_EMB_PADDED	(priv->emb_enable ? AR0143_EMB_LINES + 30 : 0) /* embedded data (SOF) and stats (EOF) + post padding */
+ 
+ #define AR0143_DELAY		0xffff
+ 
++#define AR0143_MAX_WIDTH	1344
++#define AR0143_MAX_HEIGHT	968
+ #define AR0143_SENSOR_WIDTH	1344
+ #define AR0143_SENSOR_HEIGHT	968
+ 
+-#define AR0143_X_START		((AR0143_SENSOR_WIDTH - AR0143_MAX_WIDTH) / 2)
+-#define AR0143_Y_START		((AR0143_SENSOR_HEIGHT - AR0143_MAX_HEIGHT) / 2)
+-#define AR0143_X_END		(AR0143_X_START + AR0143_MAX_WIDTH - 1)
+-#define AR0143_Y_END		(AR0143_Y_START + AR0143_MAX_HEIGHT + 1) /* must be +1 and not -1 or 2 lines missed - bug in imager? */
++#define AR0143_X_START		((AR0143_SENSOR_WIDTH - AR0143_DEFAULT_WIDTH) / 2)
++#define AR0143_Y_START		((AR0143_SENSOR_HEIGHT - AR0143_DEFAULT_HEIGHT) / 2)
++#define AR0143_X_END		(AR0143_X_START + AR0143_DEFAULT_WIDTH - 1)
++#define AR0143_Y_END		(AR0143_Y_START + AR0143_DEFAULT_HEIGHT + 1) /* must be +1 and not -1 or 2 lines missed - bug in imager? */
+ 
+ struct ar0143_reg {
+ 	u16	reg;
+diff --git a/drivers/media/i2c/soc_camera/ar0143_custom.h b/drivers/media/i2c/soc_camera/ar0143_custom.h
+index e5bc37a..8e21416 100644
+--- a/drivers/media/i2c/soc_camera/ar0143_custom.h
++++ b/drivers/media/i2c/soc_camera/ar0143_custom.h
+@@ -368,11 +368,7 @@ static const struct ar0143_reg ar0143_regs_wizard_custom[] = {
+ {0x3180, 0x0080}, // RESERVED_MFR_3180
+ {0x33E4, 0x0080}, // RESERVED_MFR_33E4
+ {0x33E0, 0x0880}, // TEST_ASIL_ROWS
+-#ifdef AR0143_EMBEDDED_LINE
+-{0x3064, 0x1982}, // SMIA_TEST
+-#else
+ {0x3064, 0x1802}, // SMIA_TEST
+-#endif
+ {0x3004, 0x0000}, // X_ADDR_START_
+ {0x3008, 0x053F}, // X_ADDR_END_
+ {0x3002, 0x0000}, // Y_ADDR_START_
+@@ -455,7 +451,7 @@ static const struct ar0143_reg ar0143_regs_wizard_custom[] = {
+ {0x31B8, 0x404B}, // RESERVED_MFR_31B8
+ {0x31BA, 0x020A}, // RESERVED_MFR_31BA
+ {0x31BC, 0x0C08}, // RESERVED_MFR_31BC
+-{0x3040, 0x0000}, // READ_MODE
++{0x3040, 0x0005}, // READ_MODE
+ {0x30BA, 0x01E2}, // DIGITAL_CTRL
+ {0x3082, 0x0008}, // OPERATION_MODE_CTRL
+ {0x3044, 0x0400}, // DARK_CONTROL
+diff --git a/drivers/media/i2c/soc_camera/ar0143_rev1.h b/drivers/media/i2c/soc_camera/ar0143_rev1.h
+index ec941d8..21cb4bf 100644
+--- a/drivers/media/i2c/soc_camera/ar0143_rev1.h
++++ b/drivers/media/i2c/soc_camera/ar0143_rev1.h
+@@ -390,7 +390,7 @@ static const struct ar0143_reg ar0143_regs_wizard_rev1[] = {
+ #ifdef AR0143_Readout_Mode_Configuration
+ {0x30A2, 0x0001}, // X_ODD_INC_
+ {0x30A6, 0x0001}, // Y_ODD_INC_
+-{0x3040, 0x0000}, // READ_MODE
++{0x3040, 0x0005}, // READ_MODE
+ {0x3082, 0x0008}, // OPERATION_MODE_CTRL: 3exp
+ {0x30BA, 0x01E2}, // DIGITAL_CTRL: 3exp max
+ {0x3044, 0x0400}, // DARK_CONTROL
+@@ -400,12 +400,6 @@ static const struct ar0143_reg ar0143_regs_wizard_rev1[] = {
+ {0x33E4, 0x0080}, // RESERVED_MFR_33E4
+ #endif /* AR0143_Readout_Mode_Configuration */
+ 
+-#ifdef AR0143_HDR_Readout_Mode_Configuration
+-#ifdef AR0143_EMBEDDED_LINE
+-{0x3064, 0x1982}, // SMIA_TEST: enable emb data and stats
+-#endif
+-#endif /* AR0143_HDR_Readout_Mode_Configuration */
+-
+ #ifdef AR0143_Full_Res_FOV
+ {0x31B0, 0x0006}, // FRAME_PREAMBLE
+ {0x31B2, 0x0045}, // LINE_PREAMBLE
+diff --git a/drivers/media/i2c/soc_camera/ar0220.h b/drivers/media/i2c/soc_camera/ar0220.h
+index 59a949e..f90deae 100644
+--- a/drivers/media/i2c/soc_camera/ar0220.h
++++ b/drivers/media/i2c/soc_camera/ar0220.h
+@@ -12,16 +12,18 @@
+ //#define AR0220_DISPLAY_PATTERN_FIXED
+ //#define AR0220_DISPLAY_PATTERN_COLOR_BAR
+ 
++#define AR0220_DEFAULT_WIDTH	1792
++#define AR0220_DEFAULT_HEIGHT	944
++
+ #define AR0220_MAX_WIDTH	1828
+ #define AR0220_MAX_HEIGHT	948
+-
+ #define AR0220_SENSOR_WIDTH	1828
+ #define AR0220_SENSOR_HEIGHT	948
+ 
+-#define AR0220_X_START		((AR0220_SENSOR_WIDTH - AR0220_MAX_WIDTH) / 2)
+-#define AR0220_Y_START		((AR0220_SENSOR_HEIGHT - AR0220_MAX_HEIGHT) / 2)
+-#define AR0220_X_END		(AR0220_X_START + AR0220_MAX_WIDTH - 1)
+-#define AR0220_Y_END		(AR0220_Y_START + AR0220_MAX_HEIGHT - 1)
++#define AR0220_X_START		((AR0220_SENSOR_WIDTH - AR0220_DEFAULT_WIDTH) / 2)
++#define AR0220_Y_START		((AR0220_SENSOR_HEIGHT - AR0220_DEFAULT_HEIGHT) / 2)
++#define AR0220_X_END		(AR0220_X_START + AR0220_DEFAULT_WIDTH - 1)
++#define AR0220_Y_END		(AR0220_Y_START + AR0220_DEFAULT_HEIGHT - 1)
+ 
+ #include "ar0220_rev2.h"
+ #include "ar0220_rev3.h"
+diff --git a/drivers/media/i2c/soc_camera/ar0233.c b/drivers/media/i2c/soc_camera/ar0233.c
+index b62fb77..cdd2d8a 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.c
++++ b/drivers/media/i2c/soc_camera/ar0233.c
+@@ -21,9 +21,10 @@
+ #include <media/v4l2-ctrls.h>
+ 
+ #define AR_DELAY		0xffff
+-static int AR_MAX_WIDTH;
+-static int AR_MAX_HEIGHT;
+-#define AR_MAX_HEIGHT_EMB	(AR_MAX_HEIGHT + priv->emb_enable * 4) /* embedded data (SOF) and stats (EOF) */
++static int AR_MAX_WIDTH, AR_DEFAULT_WIDTH;
++static int AR_MAX_HEIGHT, AR_DEFAULT_HEIGHT;
++#define AR_EMB_LINES		8
++#define AR_EMB_PADDED		(priv->emb_enable ? AR_EMB_LINES : 0) /* embedded data (SOF) and stats (EOF) */
+ static int AR_X_START;
+ static int AR_Y_START;
+ static int AR_X_END;
+@@ -124,7 +125,7 @@ static int ar0233_set_window(struct v4l2_subdev *sd)
+ 	reg16_write16(client, 0x3002, priv->rect.top + AR_Y_START);
+ 	/* vert crop end */
+ 	/* limit window for embedded data/stats */
+-	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR_Y_START - priv->emb_enable * 4);
++	reg16_write16(client, 0x3006, priv->rect.top + priv->rect.height - 1 + AR_Y_START);
+ 
+ 	return 0;
+ };
+@@ -210,7 +211,7 @@ static int ar0233_set_selection(struct v4l2_subdev *sd,
+ 	rect->height = ALIGN(rect->height, 2);
+ 
+ 	if ((rect->left + rect->width > AR_MAX_WIDTH) ||
+-	    (rect->top + rect->height > AR_MAX_HEIGHT_EMB))
++	    (rect->top + rect->height > AR_MAX_HEIGHT))
+ 		*rect = priv->rect;
+ 
+ 	priv->rect.left = rect->left;
+@@ -238,17 +239,23 @@ static int ar0233_get_selection(struct v4l2_subdev *sd,
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+ 		sel->r.width = AR_MAX_WIDTH;
+-		sel->r.height = AR_MAX_HEIGHT_EMB;
++		sel->r.height = AR_MAX_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+ 		sel->r.left = 0;
+ 		sel->r.top = 0;
+-		sel->r.width = AR_MAX_WIDTH;
+-		sel->r.height = AR_MAX_HEIGHT_EMB;
++		sel->r.width = AR_DEFAULT_WIDTH;
++		sel->r.height = AR_DEFAULT_HEIGHT;
+ 		return 0;
+ 	case V4L2_SEL_TGT_CROP:
+ 		sel->r = priv->rect;
+ 		return 0;
++	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
++		sel->r.left = 0;
++		sel->r.top = AR_EMB_PADDED;
++		sel->r.width = priv->rect.width;
++		sel->r.height = priv->rect.height;
++		return 0;
+ 	default:
+ 		return -EINVAL;
+ 	}
+@@ -496,6 +503,8 @@ static int ar0233_initialize(struct i2c_client *client)
+ 			strncpy(chip_name, "AR0220", 10);
+ 			AR_MAX_WIDTH = AR0220_MAX_WIDTH;
+ 			AR_MAX_HEIGHT = AR0220_MAX_HEIGHT;
++			AR_DEFAULT_WIDTH = AR0220_DEFAULT_WIDTH;
++			AR_DEFAULT_HEIGHT = AR0220_DEFAULT_HEIGHT;
+ 			AR_X_START = AR0220_X_START;
+ 			AR_Y_START = AR0220_Y_START;
+ 			AR_X_END = AR0220_X_END;
+@@ -532,6 +541,8 @@ static int ar0233_initialize(struct i2c_client *client)
+ 			strncpy(chip_name, "AR0233", 10);
+ 			AR_MAX_WIDTH = AR0233_MAX_WIDTH;
+ 			AR_MAX_HEIGHT = AR0233_MAX_HEIGHT;
++			AR_DEFAULT_WIDTH = AR0233_DEFAULT_WIDTH;
++			AR_DEFAULT_HEIGHT = AR0233_DEFAULT_HEIGHT;
+ 			AR_X_START = AR0233_X_START;
+ 			AR_Y_START = AR0233_Y_START;
+ 			AR_X_END = AR0233_X_END;
+@@ -693,8 +704,8 @@ static int ar0233_probe(struct i2c_client *client,
+ 
+ 	priv->rect.left = 0;
+ 	priv->rect.top = 0;
+-	priv->rect.width = AR_MAX_WIDTH;
+-	priv->rect.height = AR_MAX_HEIGHT;
++	priv->rect.width = AR_DEFAULT_WIDTH;
++	priv->rect.height = AR_DEFAULT_HEIGHT;
+ 
+ 	ret = v4l2_async_register_subdev(&priv->sd);
+ 	if (ret)
+diff --git a/drivers/media/i2c/soc_camera/ar0233.h b/drivers/media/i2c/soc_camera/ar0233.h
+index 33b661a..cb79421 100644
+--- a/drivers/media/i2c/soc_camera/ar0233.h
++++ b/drivers/media/i2c/soc_camera/ar0233.h
+@@ -12,16 +12,18 @@
+ //#define AR0233_DISPLAY_PATTERN_FIXED
+ //#define AR0233_DISPLAY_PATTERN_COLOR_BAR
+ 
++#define AR0233_DEFAULT_WIDTH	2048
++#define AR0233_DEFAULT_HEIGHT	1280
++
+ #define AR0233_MAX_WIDTH	2048
+ #define AR0233_MAX_HEIGHT	1280
+-
+ #define AR0233_SENSOR_WIDTH	2072
+ #define AR0233_SENSOR_HEIGHT	1296
+ 
+-#define AR0233_X_START		((AR0233_SENSOR_WIDTH - AR0233_MAX_WIDTH) / 2)
+-#define AR0233_Y_START		((AR0233_SENSOR_HEIGHT - AR0233_MAX_HEIGHT) / 2)
+-#define AR0233_X_END		(AR0233_X_START + AR0233_MAX_WIDTH - 1)
+-#define AR0233_Y_END		(AR0233_Y_START + AR0233_MAX_HEIGHT - 1)
++#define AR0233_X_START		((AR0233_SENSOR_WIDTH - AR0233_DEFAULT_WIDTH) / 2)
++#define AR0233_Y_START		((AR0233_SENSOR_HEIGHT - AR0233_DEFAULT_HEIGHT) / 2)
++#define AR0233_X_END		(AR0233_X_START + AR0233_DEFAULT_WIDTH - 1)
++#define AR0233_Y_END		(AR0233_Y_START + AR0233_DEFAULT_HEIGHT - 1)
+ 
+ #include "ar0233_rev1.h"
+ #include "ar0233_rev2.h"
+diff --git a/drivers/media/i2c/soc_camera/ar0233_rev1.h b/drivers/media/i2c/soc_camera/ar0233_rev1.h
+index 3ff944f..8b9638b 100644
+--- a/drivers/media/i2c/soc_camera/ar0233_rev1.h
++++ b/drivers/media/i2c/soc_camera/ar0233_rev1.h
+@@ -1156,7 +1156,7 @@ static const struct ar0xxx_reg ar0233_rev1_Full_resolution[] = {
+ }; /* Full_resolution */
+ 
+ static const struct ar0xxx_reg ar0233_rev1_disable_embed_data_stat[] = {
+-{0x3040, 0xC000}, //Embedded stat2 and data2 rows, hflip/vflip=1
++{0x3040, 0xC005}, //Embedded stat4 and data4 rows, hflip/vflip=1
+ #ifdef AR0233_EMBEDDED_LINE
+ {0x3064, 0x0180}, //Enable embedded data and stat
+ #else
+diff --git a/drivers/media/i2c/soc_camera/ar0233_rev2.h b/drivers/media/i2c/soc_camera/ar0233_rev2.h
+index 80572ff..bd508f0 100644
+--- a/drivers/media/i2c/soc_camera/ar0233_rev2.h
++++ b/drivers/media/i2c/soc_camera/ar0233_rev2.h
+@@ -2265,7 +2265,7 @@ static const struct ar0xxx_reg ar0233_rev2_O1_Recommended_Defaults_SE_T1_LIN_T2[
+ }; /* O1_Recommended_Defaults_SE_T1_LIN_T2 */
+ 
+ static const struct ar0xxx_reg ar0233_rev2_disable_embed_data_stat[] = {
+-{0x3040, 0xC000}, //Embedded stat2 and data2 rows, hflip/vflip=1
++{0x3040, 0xC005}, //Embedded stat4 and data4 rows, hflip/vflip=1
+ {0x350e, 0x2089}, // bit0 must be set for vflip=1
+ #ifdef AR0233_EMBEDDED_LINE
+ {0x3064, 0x0180}, // SMIA_TEST: enable emb data and stats
+-- 
+2.7.4
+

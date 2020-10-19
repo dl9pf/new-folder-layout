@@ -1,0 +1,59 @@
+From 076a4721fde3f02eca24e4e3a218b35c62127cb9 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Tue, 26 Nov 2019 21:53:28 +0300
+Subject: [PATCH 2/2] arm: dts: r8a77980: Disable RPC on all R-Car V3H boards
+
+This disables RPC device on all R-Car V3H boards.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm/dts/r8a77980-condor-u-boot.dts | 4 ++--
+ arch/arm/dts/r8a77980-v3hsk-u-boot.dts  | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/dts/r8a77980-condor-u-boot.dts b/arch/arm/dts/r8a77980-condor-u-boot.dts
+index 68897ed..8a101bf 100644
+--- a/arch/arm/dts/r8a77980-condor-u-boot.dts
++++ b/arch/arm/dts/r8a77980-condor-u-boot.dts
+@@ -16,7 +16,7 @@
+ 
+ &rpc {
+ 	num-cs = <1>;
+-	status = "okay";
++	status = "disabled";
+ 	spi-max-frequency = <50000000>;
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+@@ -29,6 +29,6 @@
+ 		spi-tx-bus-width = <1>;
+ 		spi-rx-bus-width = <1>;
+ 		reg = <0>;
+-		status = "okay";
++		status = "disabled";
+ 	};
+ };
+diff --git a/arch/arm/dts/r8a77980-v3hsk-u-boot.dts b/arch/arm/dts/r8a77980-v3hsk-u-boot.dts
+index d083df6..4842314 100644
+--- a/arch/arm/dts/r8a77980-v3hsk-u-boot.dts
++++ b/arch/arm/dts/r8a77980-v3hsk-u-boot.dts
+@@ -16,7 +16,7 @@
+ 
+ &rpc {
+ 	num-cs = <1>;
+-	status = "okay";
++	status = "disabled";
+ 	spi-max-frequency = <50000000>;
+ 	#address-cells = <1>;
+ 	#size-cells = <0>;
+@@ -29,7 +29,7 @@
+ 		spi-tx-bus-width = <1>;
+ 		spi-rx-bus-width = <1>;
+ 		reg = <0>;
+-		status = "okay";
++		status = "disabled";
+ 	};
+ };
+ 
+-- 
+2.7.4
+

@@ -1,0 +1,30 @@
+From 5946fbd2ca3a7f892b4ebc10090f62df6bb1ec88 Mon Sep 17 00:00:00 2001
+From: George Kiagiadakis <george.kiagiadakis@collabora.com>
+Date: Thu, 9 Jan 2020 19:27:23 +0200
+Subject: [PATCH] alsa-pcm: call reuse_buffers when resetting the state of the
+ buffers
+
+This allows the upstream node to put buffers back to its pool in case
+they were left around in the ready list locally when the alsa-pcm-sink
+was last paused.
+
+Fixes #203
+---
+ spa/plugins/alsa/alsa-pcm.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/spa/plugins/alsa/alsa-pcm.c b/spa/plugins/alsa/alsa-pcm.c
+index 63d75549..a6f22cf0 100644
+--- a/spa/plugins/alsa/alsa-pcm.c
++++ b/spa/plugins/alsa/alsa-pcm.c
+@@ -1115,6 +1115,7 @@ static void reset_buffers(struct state *this)
+ 		struct buffer *b = &this->buffers[i];
+ 		if (this->stream == SND_PCM_STREAM_PLAYBACK) {
+ 			SPA_FLAG_SET(b->flags, BUFFER_FLAG_OUT);
++			spa_node_call_reuse_buffer(&this->callbacks, 0, b->id);
+ 		} else {
+ 			spa_list_append(&this->free, &b->link);
+ 			SPA_FLAG_CLEAR(b->flags, BUFFER_FLAG_OUT);
+-- 
+2.24.1
+

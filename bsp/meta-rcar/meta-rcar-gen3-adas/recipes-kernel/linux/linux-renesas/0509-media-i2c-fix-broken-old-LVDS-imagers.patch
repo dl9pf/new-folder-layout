@@ -1,0 +1,33 @@
+From e24f11423cea901af73faaacbd3c1614f4be2954 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 30 Apr 2020 11:06:12 +0300
+Subject: [PATCH] media: i2c: fix broken old LVDS imagers
+
+This fixes broken old LVDS imagers from support.
+We temporary need to support these
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/soc_camera/Makefile b/drivers/media/i2c/soc_camera/Makefile
+index 5e08254..8640bac 100644
+--- a/drivers/media/i2c/soc_camera/Makefile
++++ b/drivers/media/i2c/soc_camera/Makefile
+@@ -11,10 +11,11 @@ obj-$(CONFIG_SOC_CAMERA_OV9640)		+= ov9640.o
+ obj-$(CONFIG_SOC_CAMERA_OV9740)		+= ov9740.o
+ obj-$(CONFIG_SOC_CAMERA_RJ54N1)		+= rj54n1cb0c.o
+ obj-$(CONFIG_SOC_CAMERA_TW9910)		+= tw9910.o
+-obj-$(CONFIG_SOC_CAMERA_OV106XX)	+= ov106xx.o
+ obj-$(CONFIG_SOC_CAMERA_IMX219)		+= imx219.o
+ 
+ obj-$(CONFIG_SOC_CAMERA_AR0147)		+= ar0147.o
+ obj-y += imagers/
+ obj-y += gmsl/
+ obj-y += fpdlink/
++
++obj-$(CONFIG_SOC_CAMERA_OV106XX)	+= ov106xx.o
+-- 
+2.7.4
+

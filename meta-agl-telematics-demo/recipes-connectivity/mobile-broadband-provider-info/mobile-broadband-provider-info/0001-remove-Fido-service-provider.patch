@@ -1,0 +1,31 @@
+diff --git a/serviceproviders.xml b/serviceproviders.xml
+index e7f36ac..f1a0ca3 100644
+--- a/serviceproviders.xml
++++ b/serviceproviders.xml
+@@ -2236,26 +2236,6 @@ conceived.
+ 
+ <!-- Canada -->
+ <country code="ca">
+-	<provider>
+-		<name>Fido</name>
+-		<gsm>
+-			<network-id mcc="302" mnc="370"/>
+-			<apn value="internet.fido.ca">
+-				<plan type="postpaid"/>
+-				<usage type="internet"/>
+-				<username>fido</username>
+-				<password>fido</password>
+-				<dns>204.92.15.211</dns>
+-				<dns>207.181.101.4</dns>
+-			</apn>
+-			<apn value="mms.fido.ca">
+-				<usage type="mms"/>
+-				<name>Fido MMS</name>
+-				<mmsc>http://mms.fido.ca</mmsc>
+-				<mmsproxy>mm1.fido.ca:80</mmsproxy>
+-			</apn>
+-		</gsm>
+-	</provider>
+ 	<provider>
+ 		<name>Rogers</name>
+ 		<gsm>

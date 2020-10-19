@@ -1,0 +1,35 @@
+From bbf9c767d5b353142e03080762bdd805e124d50b Mon Sep 17 00:00:00 2001
+From: Walter Lozano <walter.lozano@collabora.com>
+Date: Fri, 7 Aug 2020 10:58:29 -0300
+Subject: [PATCH] alsa: Set period_size depending on hardware
+
+Currently PipeWire is unable to reproduce audio in systems where DMA
+granularity is not burst.
+
+In order to mitigate this issue, set period_size depending on hardware,
+lowering it when snd_pcm_hw_params_is_batch == 1, to reduce DMA
+transfers size.
+
+Signed-off-by: Walter Lozano <walter.lozano@collabora.com>
+---
+ spa/plugins/alsa/alsa-pcm.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/spa/plugins/alsa/alsa-pcm.c b/spa/plugins/alsa/alsa-pcm.c
+index 63d75549..2d3850b7 100644
+--- a/spa/plugins/alsa/alsa-pcm.c
++++ b/spa/plugins/alsa/alsa-pcm.c
+@@ -463,6 +463,10 @@ int spa_alsa_set_format(struct state *state, struct spa_audio_info *fmt, uint32_
+ 
+ 	dir = 0;
+ 	period_size = 1024;
++	if (snd_pcm_hw_params_is_batch(params)) {
++		period_size = 512;
++		spa_log_warn(state->log, NAME" hardware does double buffering, changing period_size to %ld", period_size);
++	}
+ 	CHECK(snd_pcm_hw_params_set_period_size_near(hndl, params, &period_size, &dir), "set_period_size_near");
+ 	CHECK(snd_pcm_hw_params_get_buffer_size_max(params, &state->buffer_frames), "get_buffer_size_max");
+ 	CHECK(snd_pcm_hw_params_set_buffer_size_near(hndl, params, &state->buffer_frames), "set_buffer_size_near");
+-- 
+2.20.1
+

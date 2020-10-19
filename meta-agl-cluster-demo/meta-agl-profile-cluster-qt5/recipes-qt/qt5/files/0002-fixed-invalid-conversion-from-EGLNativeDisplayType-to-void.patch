@@ -1,0 +1,24 @@
+From 9514c51b5a6881c445586fa3a232ccd47fe4b1e5 Mon Sep 17 00:00:00 2001
+From: Stefan Zehetbauer
+Date: Fri, 14 Dec 2018 13:26:03 +0100
+Subject: [PATCH] fixed invalid conversion from EGLNativeDisplayType to void*
+
+---
+ .../eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp       | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp b/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp
+index d495a8d..34ca9e8 100644
+--- a/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp
++++ b/src/plugins/platforms/eglfs/deviceintegration/eglfs_kms/qeglfskmsgbmintegration.cpp
+@@ -82,7 +82,7 @@ EGLDisplay QEglFSKmsGbmIntegration::createDisplay(EGLNativeDisplayType nativeDis
+     }
+ 
+     if (getPlatformDisplay) {
+-        display = getPlatformDisplay(EGL_PLATFORM_GBM_KHR, nativeDisplay, nullptr);
++        display = getPlatformDisplay(EGL_PLATFORM_GBM_KHR, reinterpret_cast<void *>(&nativeDisplay), nullptr);
+     } else {
+         qCDebug(qLcEglfsKmsDebug, "No eglGetPlatformDisplay for GBM, falling back to eglGetDisplay");
+         display = eglGetDisplay(nativeDisplay);
+-- 
+1.9.1

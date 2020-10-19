@@ -1,0 +1,113 @@
+From ac078825fab834a524e45befa6a7f9de12317d16 Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Wed, 14 Feb 2018 12:10:09 +0300
+Subject: [PATCH] mmngr: Add kernelheap cached buffers support.
+
+---
+ libmmngr/mmngr/if/mmngr_if.c               | 49 ++++++++++++++++++++++++++++--
+ libmmngr/mmngr/include/mmngr_user_public.h |  4 +++
+ 2 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/libmmngr/mmngr/if/mmngr_if.c b/libmmngr/mmngr/if/mmngr_if.c
+index 670aa60..1096d14 100644
+--- a/libmmngr/mmngr/if/mmngr_if.c
++++ b/libmmngr/mmngr/if/mmngr_if.c
+@@ -216,7 +216,7 @@ int mmngr_alloc_in_user_ext(MMNGR_ID *pid, size_t size,
+ 		goto exit;
+ 	}
+ 
+-	if ((flag != MM_KERNELHEAP) && (flag != MM_CARVEOUT)
++	if ((flag != MM_KERNELHEAP) && (flag != MM_KERNELHEAP_CACHED) && (flag != MM_CARVEOUT)
+ 	&& (flag != MM_CARVEOUT_SSP) && (flag != MM_CARVEOUT_LOSSY)) {
+ 		ret = R_MM_PARE;
+ 		goto exit;
+@@ -243,7 +243,7 @@ int mmngr_alloc_in_user_ext(MMNGR_ID *pid, size_t size,
+ 		}
+ 	}
+ 
+-	if (flag == MM_KERNELHEAP) {
++	if (flag == MM_KERNELHEAP || flag == MM_KERNELHEAP_CACHED) {
+ 		ret = mm_alloc_kh_in_user(pid, size, phard_addr,
+ 					puser_virt_addr, flag);
+ 		if (ret)
+@@ -296,7 +296,7 @@ int mmngr_free_in_user_ext(MMNGR_ID id)
+ 		goto exit;
+ 	}
+ 
+-	if (p.flag == MM_KERNELHEAP) {
++	if (p.flag == MM_KERNELHEAP || p.flag == MM_KERNELHEAP_CACHED) {
+ 		ret = mm_free_kh_in_user(id);
+ 		if (ret)
+ 			goto exit;
+@@ -479,3 +479,46 @@ int mmngr_release_in_user(MMNGR_ID id)
+ 	ret = mmngr_release_in_user_ext(id);
+ 	return ret;
+ }
++
++int mmngr_inval(MMNGR_ID id, size_t offset, size_t len)
++{
++	int			ret;
++	struct MM_CACHE_PARAM	cachep;
++
++	cachep.offset = offset;
++	cachep.len = len;
++
++	ret = ioctl(id, MM_IOC_INVAL, &cachep);
++	if (ret) {
++		perror("MMI INVAL");
++		ret = R_MM_FATAL;
++		goto exit;
++	}
++
++	return R_MM_OK;
++
++exit:
++	return ret;
++
++}
++
++int mmngr_flush(MMNGR_ID id, size_t offset, size_t len)
++{
++	int			ret;
++	struct MM_CACHE_PARAM	cachep;
++
++	cachep.offset = offset;
++	cachep.len = len;
++
++	ret = ioctl(id, MM_IOC_FLUSH, &cachep);
++	if (ret) {
++		perror("MMI INVAL");
++		ret = R_MM_FATAL;
++		goto exit;
++	}
++
++	return R_MM_OK;
++
++exit:
++	return ret;
++}
+diff --git a/libmmngr/mmngr/include/mmngr_user_public.h b/libmmngr/mmngr/include/mmngr_user_public.h
+index e4e0e2a..9fc0c0a 100644
+--- a/libmmngr/mmngr/include/mmngr_user_public.h
++++ b/libmmngr/mmngr/include/mmngr_user_public.h
+@@ -54,6 +54,9 @@ int mmngr_share_in_user(MMNGR_ID *pid,
+ 			unsigned long *puser_virt_addr);
+ int mmngr_release_in_user(MMNGR_ID id);
+ 
++int mmngr_inval(MMNGR_ID id, size_t offset, size_t len);
++int mmngr_flush(MMNGR_ID id, size_t offset, size_t len);
++
+ #define R_MM_OK			0
+ #define R_MM_FATAL		-1
+ #define R_MM_SEQE		-2
+@@ -61,6 +64,7 @@ int mmngr_release_in_user(MMNGR_ID id);
+ #define R_MM_NOMEM		-4
+ 
+ #define MMNGR_VA_SUPPORT	MM_KERNELHEAP
++#define MMNGR_VA_SUPPORT_CACHED MM_KERNELHEAP_CACHED
+ #define MMNGR_PA_SUPPORT	MM_CARVEOUT
+ #define MMNGR_PA_SUPPORT_SSP	MM_CARVEOUT_SSP
+ #define MMNGR_PA_SUPPORT_LOSSY	MM_CARVEOUT_LOSSY
+-- 
+2.7.4
+

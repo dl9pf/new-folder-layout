@@ -1,0 +1,80 @@
+From f42db72c483cddaefd0196a0070882d40eeb52a7 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Wed, 17 Oct 2018 22:26:12 +0300
+Subject: [PATCH 102/211] arm64: dts: renesas: r8a77980: condor: Add GEther
+ support
+
+This is based on commit eab53fdfd60a84b0cc514d4f1f5d79226c76df01
+from Sergei Shtylyov, which adds GEther support to the R8A77980
+Condor board. The difference is that instead of removing AVB
+Ethernet we just disable it. The official Condor boards have
+GEther support by default, so we use ethernet0 alias to GEther.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-condor.dts | 28 +++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+index fe2e2c0..738edf0 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-condor.dts
+@@ -15,7 +15,8 @@
+ 
+ 	aliases {
+ 		serial0 = &scif0;
+-		ethernet0 = &avb;
++		ethernet0 = &gether;
++		ethernet1 = &avb;
+ 	};
+ 
+ 	chosen {
+@@ -104,7 +105,7 @@
+ 	phy-mode = "rgmii-id";
+ 	phy-handle = <&phy0>;
+ 	renesas,no-ether-link;
+-	status = "okay";
++	status = "disabled";
+ 
+ 	phy0: ethernet-phy@0 {
+ 		rxc-skew-ps = <1500>;
+@@ -139,6 +140,23 @@
+ 	clock-frequency = <32768>;
+ };
+ 
++&gether {
++	pinctrl-0 = <&gether_pins>;
++	pinctrl-names = "default";
++
++	phy-mode = "rgmii-id";
++	phy-handle = <&phy1>;
++	renesas,no-ether-link;
++	status = "okay";
++
++	phy1: ethernet-phy@1 {
++		rxc-skew-ps = <1500>;
++		reg = <0>;
++		interrupt-parent = <&gpio4>;
++		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
++	};
++};
++
+ &i2c0 {
+ 	pinctrl-0 = <&i2c0_pins>;
+ 	pinctrl-names = "default";
+@@ -246,6 +264,12 @@
+ 		function = "canfd0";
+ 	};
+ 
++	gether_pins: gether {
++		groups = "gether_mdio_a", "gether_rgmii",
++			 "gether_txcrefclk", "gether_txcrefclk_mega";
++		function = "gether";
++	};
++
+ 	i2c0_pins: i2c0 {
+ 		groups = "i2c0";
+ 		function = "i2c0";
+-- 
+2.7.4
+

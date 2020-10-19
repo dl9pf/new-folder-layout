@@ -1,0 +1,35 @@
+From 8eaec876f732c7e4b238ada5f9304c6da2380eb1 Mon Sep 17 00:00:00 2001
+From: Andrey Shvetsov <andrey.shvetsov@k2l.de>
+Date: Fri, 8 Feb 2019 22:44:32 +0000
+Subject: [PATCH] backport: usb: setup_timer
+
+---
+ driver/hdm-usb/hdm_usb.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/hdm-usb/hdm_usb.c b/hdm-usb/hdm_usb.c
+index 5b0af88..9896835 100644
+--- a/hdm-usb/hdm_usb.c
++++ b/hdm-usb/hdm_usb.c
+@@ -760,9 +760,9 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel,
+  * The handler runs in interrupt context. That's why we need to defer the
+  * tasks to a work queue.
+  */
+-static void link_stat_timer_handler(unsigned long data)
++static void link_stat_timer_handler(struct timer_list *t)
+ {
+-	struct most_dev *mdev = (struct most_dev *)data;
++	struct most_dev *mdev = from_timer(mdev, t, link_stat_timer);
+ 
+ 	schedule_work(&mdev->poll_work_obj);
+ 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
+@@ -1154,8 +1154,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
+ 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
+ 	mutex_init(&mdev->io_mutex);
+ 	INIT_WORK(&mdev->poll_work_obj, wq_netinfo);
+-	setup_timer(&mdev->link_stat_timer, link_stat_timer_handler,
+-		    (unsigned long)mdev);
++	timer_setup(&mdev->link_stat_timer, link_stat_timer_handler, 0);
+ 
+ 	mdev->usb_device = usb_dev;
+ 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);

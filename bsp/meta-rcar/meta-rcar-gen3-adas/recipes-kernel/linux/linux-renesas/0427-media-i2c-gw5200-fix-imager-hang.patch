@@ -1,0 +1,60 @@
+From 424d69732e6085cc527c66fef8e2bea5584ebc4f Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 7 Nov 2019 20:31:27 +0300
+Subject: [PATCH] media: i2c: gw5200: fix imager hang
+
+The LI-GW5200-IMX390 firmare may hang on any of 16bit i2c transaction.
+Since the GW5200 is forceed detection then no problem to put it head
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/gw5200_imx390.c |  2 +-
+ drivers/media/i2c/soc_camera/ov106xx.c       | 12 ++++++------
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/gw5200_imx390.c b/drivers/media/i2c/soc_camera/gw5200_imx390.c
+index e750a85..2fcfced 100644
+--- a/drivers/media/i2c/soc_camera/gw5200_imx390.c
++++ b/drivers/media/i2c/soc_camera/gw5200_imx390.c
+@@ -22,7 +22,7 @@
+ 
+ #include "gw5200_imx390.h"
+ 
+-static const int gw5200_i2c_addr[] = {0x6d};
++static const int gw5200_i2c_addr[] = {0x6c};
+ 
+ #define GW5200_PID		0x00
+ #define GW5200_VERSION_REG	0x00
+diff --git a/drivers/media/i2c/soc_camera/ov106xx.c b/drivers/media/i2c/soc_camera/ov106xx.c
+index 624f0be..208267c 100644
+--- a/drivers/media/i2c/soc_camera/ov106xx.c
++++ b/drivers/media/i2c/soc_camera/ov106xx.c
+@@ -61,6 +61,12 @@ static int ov106xx_probe(struct i2c_client *client,
+ 	int ret = -1;
+ 	chip_id = -EINVAL;
+ 
++	ret = gw5200_probe(client, did);
++	if (!ret) {
++		chip_id = ID_GW5200_IMX390;
++		goto out;
++	}
++
+ 	ret = ar0231_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_AR0231;
+@@ -151,12 +157,6 @@ static int ov106xx_probe(struct i2c_client *client,
+ 		goto out;
+ 	}
+ 
+-	ret = gw5200_probe(client, did);
+-	if (!ret) {
+-		chip_id = ID_GW5200_IMX390;
+-		goto out;
+-	}
+-
+ 	ret = imx390_probe(client, did);
+ 	if (!ret) {
+ 		chip_id = ID_IMX390;
+-- 
+2.7.4
+

@@ -1,0 +1,53 @@
+From 9098f3a6deac6fb81695cf7fbf97e32ac3e0c399 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Fri, 15 Nov 2019 14:31:52 +0300
+Subject: [PATCH] media: i2c: ti9x4: update remote gpio function
+
+Enable only FSIN for remote gpio, all permanent states (0 or 1) setup on serializer side:
+this avoids intermittent remote gpio noise (f.e. reset or spuriouse fsin) caused by
+unstable/bad link, hence unstable backchannel
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ti9x4.c | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ti9x4.c b/drivers/media/i2c/soc_camera/ti9x4.c
+index 0cfcfaa..aa85d92 100644
+--- a/drivers/media/i2c/soc_camera/ti9x4.c
++++ b/drivers/media/i2c/soc_camera/ti9x4.c
+@@ -327,14 +327,29 @@ static int ti9x4_initialize(struct i2c_client *client)
+ 		reg8_write(client, 0x4c, (idx << 4) | (1 << idx));		/* Select RX port number */
+ 		usleep_range(1000, 1500);					/* wait 1ms */
+ 
++		/*
++		 * Enable only FSIN for remote gpio, all permanent states (0 or 1) setup on serializer side:
++		 * this avoids intermittent remote gpio noise (f.e. reset or spuriouse fsin) caused by
++		 * unstable/bad link, hence unstable backchannel
++		 */
+ 		client->addr = priv->ti9x3_addr_map[idx];			/* TI9X3 I2C addr */
+ 		switch (priv->ser_id) {
+ 		case TI913_ID:
+ 			reg8_write(client, 0x0d, 0x55);				/* Enable remote GPIO0/1 */
+ 			break;
+ 		case TI953_ID:
+-			reg8_write(client, 0x0d, 0xf0);				/* Enable all remote GPIOs */
+-			reg8_write(client, 0x0e, 0xf0);				/* Enable serializer GPIOs */
++			reg8_write(client, 0x0d, (priv->gpio[0] & 0x1) << 0 |
++						 (priv->gpio[1] & 0x1) << 1 |
++						 (priv->gpio[2] & 0x1) << 2 |
++						 (priv->gpio[3] & 0x1) << 3 |
++						 (priv->gpio[0] & 0x2) << 3 |
++						 (priv->gpio[1] & 0x2) << 4 |
++						 (priv->gpio[2] & 0x2) << 5 |
++						 (priv->gpio[3] & 0x2) << 6);	/* Enable FSIN remote GPIOs and set local constant gpios */
++			reg8_write(client, 0x0e, (!!priv->gpio[0] << 4) |
++						 (!!priv->gpio[1] << 5) |
++						 (!!priv->gpio[2] << 6) |
++						 (!!priv->gpio[3] << 7));	/* Enable serializer GPIOs only for output */
+ 			break;
+ 		}
+ 		client->addr = priv->des_addr;
+-- 
+2.7.4
+

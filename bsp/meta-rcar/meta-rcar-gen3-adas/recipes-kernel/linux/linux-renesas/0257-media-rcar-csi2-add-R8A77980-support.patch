@@ -1,0 +1,62 @@
+From 23b44555c526c046bd1ce117c6ea19f20ba6e57c Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 6 Aug 2018 12:56:27 -0400
+Subject: [PATCH 077/211] media: rcar-csi2: add R8A77980 support
+
+Add the R-Car V3H (AKA R8A77980) SoC support to the R-Car CSI2 driver.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Acked-by: Rob Herring <robh@kernel.org>
+Signed-off-by: Hans Verkuil <hverkuil-cisco@xs4all.nl>
+Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+(cherry picked from commit 3ba37c2bcb0cb5dc9b278f730e520f61b2597fe3)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ Documentation/devicetree/bindings/media/renesas,rcar-csi2.txt |  1 +
+ drivers/media/platform/rcar-vin/rcar-csi2.c                   | 11 +++++++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/media/renesas,rcar-csi2.txt b/Documentation/devicetree/bindings/media/renesas,rcar-csi2.txt
+index 2824489..541d936 100644
+--- a/Documentation/devicetree/bindings/media/renesas,rcar-csi2.txt
++++ b/Documentation/devicetree/bindings/media/renesas,rcar-csi2.txt
+@@ -12,6 +12,7 @@ Mandatory properties
+    - "renesas,r8a7796-csi2" for the R8A7796 device.
+    - "renesas,r8a77965-csi2" for the R8A77965 device.
+    - "renesas,r8a77970-csi2" for the R8A77970 device.
++   - "renesas,r8a77980-csi2" for the R8A77980 device.
+    - "renesas,r8a77990-csi2" for the R8A77990 device.
+ 
+  - reg: the register base and size for the device registers
+diff --git a/drivers/media/platform/rcar-vin/rcar-csi2.c b/drivers/media/platform/rcar-vin/rcar-csi2.c
+index 52a6d52..c21cc80 100644
+--- a/drivers/media/platform/rcar-vin/rcar-csi2.c
++++ b/drivers/media/platform/rcar-vin/rcar-csi2.c
+@@ -1037,6 +1037,13 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a77970 = {
+ 	.init_v3m_e3_phtw = rcsi2_init_phtw_v3m_e3,
+ };
+ 
++static const struct rcar_csi2_info rcar_csi2_info_r8a77980 = {
++	.init_phtw = rcsi2_init_phtw_h3_v3h_m3n,
++	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
++	.csi0clkfreqrange = 0x20,
++	.clear_ulps = true,
++};
++
+ static const struct rcar_csi2_info rcar_csi2_info_r8a77990 = {
+ 	.init_v3m_e3_phtw = rcsi2_init_phtw_v3m_e3,
+ };
+@@ -1059,6 +1066,10 @@ static const struct of_device_id rcar_csi2_of_table[] = {
+ 		.data = &rcar_csi2_info_r8a77970,
+ 	},
+ 	{
++		.compatible = "renesas,r8a77980-csi2",
++		.data = &rcar_csi2_info_r8a77980,
++	},
++	{
+ 		.compatible = "renesas,r8a77990-csi2",
+ 		.data = &rcar_csi2_info_r8a77990,
+ 	},
+-- 
+2.7.4
+

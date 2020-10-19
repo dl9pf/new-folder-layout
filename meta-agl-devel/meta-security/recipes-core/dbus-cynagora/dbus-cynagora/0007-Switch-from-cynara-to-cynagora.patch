@@ -1,0 +1,1048 @@
+From 43cc361a5c32c81c0f93451bdb0ef781cd19a1cb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jos=C3=A9=20Bollo?= <jose.bollo@iot.bzh>
+Date: Tue, 4 Feb 2020 12:23:36 +0100
+Subject: [PATCH 7/8] Switch from cynara to cynagora
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: José Bollo <jose.bollo@iot.bzh>
+---
+ bus/Makefile.am                    |   8 +-
+ bus/bus.h                          |   2 +-
+ bus/check.c                        |  26 +-
+ bus/check.h                        |   2 +-
+ bus/connection.c                   |  27 ---
+ bus/connection.h                   |   3 -
+ bus/cynagora-check.c               | 330 +++++++++++++++++++++++++
+ bus/{cynara.h => cynagora-check.h} |  10 +-
+ bus/cynara.c                       | 373 -----------------------------
+ bus/system.conf.in                 |   6 +-
+ configure.ac                       |  18 +-
+ 11 files changed, 366 insertions(+), 439 deletions(-)
+ create mode 100644 bus/cynagora-check.c
+ rename bus/{cynara.h => cynagora-check.h} (81%)
+ delete mode 100644 bus/cynara.c
+
+diff --git a/bus/Makefile.am b/bus/Makefile.am
+index 2a8a72c..1720048 100644
+--- a/bus/Makefile.am
++++ b/bus/Makefile.am
+@@ -13,7 +13,7 @@ DBUS_BUS_LIBS = \
+ 	$(THREAD_LIBS) \
+ 	$(ADT_LIBS) \
+ 	$(NETWORK_libs) \
+-	$(CYNARA_LIBS) \
++	$(CYNAGORA_LIBS) \
+ 	$(NULL)
+ 
+ DBUS_LAUNCHER_LIBS = \
+@@ -31,7 +31,7 @@ AM_CPPFLAGS = \
+ 	$(APPARMOR_CFLAGS) \
+ 	-DDBUS_SYSTEM_CONFIG_FILE=\""$(dbusdatadir)/system.conf"\" \
+ 	-DDBUS_COMPILATION \
+-	$(CYNARA_CFLAGS) \
++	$(CYNAGORA_CFLAGS) \
+ 	$(NULL)
+ 
+ # if assertions are enabled, improve backtraces
+@@ -101,8 +101,8 @@ BUS_SOURCES=					\
+ 	config-parser-common.h			\
+ 	connection.c				\
+ 	connection.h				\
+-	cynara.c				\
+-	cynara.h				\
++	cynagora-check.c			\
++	cynagora-check.h			\
+ 	desktop-file.c				\
+ 	desktop-file.h				\
+ 	$(DIR_WATCH_SOURCE)			\
+diff --git a/bus/bus.h b/bus/bus.h
+index 1b08f7c..e167d9e 100644
+--- a/bus/bus.h
++++ b/bus/bus.h
+@@ -47,7 +47,7 @@ typedef struct BusMatchRule     BusMatchRule;
+ typedef struct BusActivationEntry BusActivationEntry;
+ typedef struct BusCheck         BusCheck;
+ typedef struct BusDeferredMessage BusDeferredMessage;
+-typedef struct BusCynara        BusCynara;
++typedef struct BusCynagora        BusCynagora;
+ 
+ /**
+  * BusResult is defined as a pointer to a dummy structure to allow detection of type mismatches.
+diff --git a/bus/check.c b/bus/check.c
+index b73d08b..ec30770 100644
+--- a/bus/check.c
++++ b/bus/check.c
+@@ -26,7 +26,7 @@
+ #include "check.h"
+ #include "connection.h"
+ #include "dispatch.h"
+-#include "cynara.h"
++#include "cynagora-check.h"
+ #include "utils.h"
+ #include <dbus/dbus-connection-internal.h>
+ #include <dbus/dbus-message-internal.h>
+@@ -38,7 +38,7 @@ typedef struct BusCheck
+   int refcount;
+ 
+   BusContext *context;
+-  BusCynara *cynara;
++  BusCynagora *cynagora;
+ } BusCheck;
+ 
+ typedef struct BusDeferredMessage
+@@ -81,7 +81,7 @@ bus_check_new (BusContext *context, DBusError *error)
+ 
+   check->refcount = 1;
+   check->context = context;
+-  check->cynara = bus_cynara_new(check, error);
++  check->cynagora = bus_cynagora_new(check, error);
+   if (dbus_error_is_set(error))
+     {
+       dbus_message_free_data_slot(&deferred_message_data_slot);
+@@ -110,7 +110,7 @@ bus_check_unref (BusCheck *check)
+ 
+   if (check->refcount == 0)
+     {
+-      bus_cynara_unref(check->cynara);
++      bus_cynagora_unref(check->cynagora);
+       dbus_message_free_data_slot(&deferred_message_data_slot);
+       dbus_free(check);
+     }
+@@ -122,10 +122,10 @@ bus_check_get_context (BusCheck *check)
+   return check->context;
+ }
+ 
+-BusCynara *
+-bus_check_get_cynara (BusCheck *check)
++BusCynagora *
++bus_check_get_cynagora (BusCheck *check)
+ {
+-  return check->cynara;
++  return check->cynagora;
+ }
+ 
+ static void
+@@ -276,8 +276,8 @@ bus_check_privilege (BusCheck *check,
+ {
+   BusDeferredMessage *previous_deferred_message;
+   BusResult result = BUS_RESULT_FALSE;
+-#ifdef DBUS_ENABLE_CYNARA
+-  BusCynara *cynara;
++#ifdef DBUS_ENABLE_CYNAGORA
++  BusCynagora *cynagora;
+ #endif
+   DBusConnection *connection;
+ 
+@@ -304,7 +304,7 @@ bus_check_privilege (BusCheck *check,
+            * Message has been deferred due to receive or own rule which means that sending this message
+            * is allowed - it must have been checked previously.
+            * This might happen when client calls RequestName method which depending on security
+-           * policy might result in both "can_send" and "can_own" Cynara checks.
++           * policy might result in both "can_send" and "can_own" Cynagora checks.
+            */
+           result = BUS_RESULT_TRUE;
+         }
+@@ -327,9 +327,9 @@ bus_check_privilege (BusCheck *check,
+   else
+     {
+       /* ask policy checkers */
+-#ifdef DBUS_ENABLE_CYNARA
+-      cynara = bus_check_get_cynara(check);
+-      result = bus_cynara_check_privilege(cynara, message, sender, addressed_recipient,
++#ifdef DBUS_ENABLE_CYNAGORA
++      cynagora = bus_check_get_cynagora(check);
++      result = bus_cynagora_check_privilege(cynagora, message, sender, addressed_recipient,
+           proposed_recipient, privilege, check_type, deferred_message);
+ #endif
+       if (result == BUS_RESULT_LATER && deferred_message != NULL)
+diff --git a/bus/check.h b/bus/check.h
+index d718a69..ab63c18 100644
+--- a/bus/check.h
++++ b/bus/check.h
+@@ -45,7 +45,7 @@ BusCheck   *bus_check_ref         (BusCheck *check);
+ void        bus_check_unref       (BusCheck *check);
+ 
+ BusContext *bus_check_get_context (BusCheck *check);
+-BusCynara  *bus_check_get_cynara  (BusCheck *check);
++BusCynagora  *bus_check_get_cynagora  (BusCheck *check);
+ BusResult   bus_check_privilege   (BusCheck *check,
+                                    DBusMessage *message,
+                                    DBusConnection *sender,
+diff --git a/bus/connection.c b/bus/connection.c
+index b520d57..48910e0 100644
+--- a/bus/connection.c
++++ b/bus/connection.c
+@@ -38,10 +38,6 @@
+ #include <dbus/dbus-connection-internal.h>
+ #include <dbus/dbus-internals.h>
+ #include <dbus/dbus-message-internal.h>
+-#ifdef DBUS_ENABLE_CYNARA
+-#include <stdlib.h>
+-#include <cynara-session.h>
+-#endif
+ 
+ /* Trim executed commands to this length; we want to keep logs readable */
+ #define MAX_LOG_COMMAND_LEN 50
+@@ -124,9 +120,6 @@ typedef struct
+ 
+   /** non-NULL if and only if this is a monitor */
+   DBusList *link_in_monitors;
+-#ifdef DBUS_ENABLE_CYNARA
+-  char *cynara_session_id;
+-#endif
+ } BusConnectionData;
+ 
+ static dbus_bool_t bus_pending_reply_expired (BusExpireList *list,
+@@ -461,10 +454,6 @@ free_connection_data (void *data)
+   
+   dbus_free (d->name);
+   
+-#ifdef DBUS_ENABLE_CYNARA
+-  free (d->cynara_session_id);
+-#endif
+-
+   dbus_free (d);
+ }
+ 
+@@ -1095,22 +1084,6 @@ bus_connection_get_policy (DBusConnection *connection)
+   return d->policy;
+ }
+ 
+-#ifdef DBUS_ENABLE_CYNARA
+-const char *bus_connection_get_cynara_session_id (DBusConnection *connection)
+-{
+-  BusConnectionData *d = BUS_CONNECTION_DATA (connection);
+-  _dbus_assert (d != NULL);
+-
+-  if (d->cynara_session_id == NULL)
+-    {
+-      unsigned long pid;
+-      if (dbus_connection_get_unix_process_id(connection, &pid))
+-        d->cynara_session_id = cynara_session_from_pid(pid);
+-    }
+-  return d->cynara_session_id;
+-}
+-#endif
+-
+ static dbus_bool_t
+ foreach_active (BusConnections               *connections,
+                 BusConnectionForeachFunction  function,
+diff --git a/bus/connection.h b/bus/connection.h
+index 6af7bf1..3116bcf 100644
+--- a/bus/connection.h
++++ b/bus/connection.h
+@@ -138,9 +138,6 @@ dbus_bool_t bus_connection_be_monitor (DBusConnection  *connection,
+                                        BusTransaction  *transaction,
+                                        DBusList       **rules,
+                                        DBusError       *error);
+-#ifdef DBUS_ENABLE_CYNARA
+-const char *bus_connection_get_cynara_session_id (DBusConnection *connection);
+-#endif
+ 
+ /* transaction API so we can send or not send a block of messages as a whole */
+ 
+diff --git a/bus/cynagora-check.c b/bus/cynagora-check.c
+new file mode 100644
+index 0000000..6c0c635
+--- /dev/null
++++ b/bus/cynagora-check.c
+@@ -0,0 +1,330 @@
++/* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
++/* cynagora.c  Cynagora runtime privilege checking
++ *
++ * Copyright (c) 2014 Samsung Electronics, Ltd.
++ *
++ * Licensed under the Academic Free License version 2.1
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ */
++
++#include <config.h>
++#include "cynagora-check.h"
++#include "check.h"
++#include "utils.h"
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <errno.h>
++
++#include <dbus/dbus.h>
++#include <dbus/dbus-watch.h>
++#include <dbus/dbus-connection-internal.h>
++#include <bus/connection.h>
++
++#ifndef DBUS_ENABLE_CYNAGORA
++
++BusCynagora *
++bus_cynagora_new(BusCheck *check, DBusError *error)
++{
++  return NULL;
++}
++
++BusCynagora *
++bus_cynagora_ref (BusCynagora *cynagora)
++{
++  return NULL;
++}
++
++void
++bus_cynagora_unref (BusCynagora *cynagora)
++{
++}
++
++BusResult
++bus_cynagora_check_privilege (BusCynagora *cynagora,
++                            DBusMessage *message,
++                            DBusConnection *sender,
++                            DBusConnection *addressed_recipient,
++                            DBusConnection *proposed_recipient,
++                            const char *privilege,
++                            BusDeferredMessageStatus check_type,
++                            BusDeferredMessage **deferred_message_param)
++{
++  return BUS_RESULT_FALSE;
++}
++
++#endif
++
++#ifdef DBUS_ENABLE_CYNAGORA
++
++#include <time.h>
++#include <sys/epoll.h>
++
++#include <cynagora.h>
++
++#ifndef CYNAGORA_CACHE_SIZE
++#define CYNAGORA_CACHE_SIZE 8000
++#endif
++
++typedef struct BusCynagora
++{
++  int refcount;
++
++  BusContext   *context;
++  BusCheck     *check;
++  cynagora_t   *cynagora;
++  DBusWatch    *cynagora_watch;
++} BusCynagora;
++
++static int async_callback(void *closure,
++                          int op,
++                          int fd,
++                          uint32_t events);
++
++BusCynagora *
++bus_cynagora_new(BusCheck *check, DBusError *error)
++{
++  BusContext *context;
++  BusCynagora *cynagora;
++  int ret;
++
++  cynagora = dbus_new(BusCynagora, 1);
++  if (cynagora == NULL)
++    {
++      BUS_SET_OOM(error);
++      return NULL;
++    }
++
++  context = bus_check_get_context(check);
++
++  cynagora->refcount = 1;
++  cynagora->check = check;
++  cynagora->context = context;
++  cynagora->cynagora_watch = NULL;
++
++  ret = cynagora_create(&cynagora->cynagora, cynagora_Check, CYNAGORA_CACHE_SIZE, NULL);
++  if (ret < 0)
++    {
++      dbus_set_error (error, DBUS_ERROR_FAILED, "Failed to create Cynagora configuration");
++    }
++  else
++    {
++      ret = cynagora_async_setup(cynagora->cynagora, async_callback, cynagora);
++      if (ret < 0)
++        {
++          dbus_set_error (error, DBUS_ERROR_FAILED, "Failed to initialize Cynagora client");
++        }
++        else
++        {
++          return cynagora;
++        }
++        cynagora_destroy(cynagora->cynagora);
++    }
++
++  dbus_free(cynagora);
++  return NULL;
++}
++
++BusCynagora *
++bus_cynagora_ref (BusCynagora *cynagora)
++{
++  _dbus_assert (cynagora->refcount > 0);
++  cynagora->refcount += 1;
++
++  return cynagora;
++}
++
++void
++bus_cynagora_unref (BusCynagora *cynagora)
++{
++  _dbus_assert (cynagora->refcount > 0);
++
++  cynagora->refcount -= 1;
++
++  if (cynagora->refcount == 0)
++    {
++      cynagora_destroy(cynagora->cynagora);
++      dbus_free(cynagora);
++    }
++}
++
++static void
++async_check_callback (void *closure, int status)
++{
++  BusDeferredMessage *deferred_message = closure;
++  BusResult result;
++
++  if (deferred_message == NULL)
++    return;
++
++  if (status == 1)
++    result = BUS_RESULT_TRUE;
++  else
++    result = BUS_RESULT_FALSE;
++
++  bus_deferred_message_response_received(deferred_message, result);
++  bus_deferred_message_unref(deferred_message);
++}
++
++BusResult
++bus_cynagora_check_privilege (BusCynagora *cynagora,
++                            DBusMessage *message,
++                            DBusConnection *sender,
++                            DBusConnection *addressed_recipient,
++                            DBusConnection *proposed_recipient,
++                            const char *permission,
++                            BusDeferredMessageStatus check_type,
++                            BusDeferredMessage **deferred_message_param)
++{
++  int result;
++  unsigned long uid;
++  unsigned long pid;
++  char *label;
++  char user[32];
++  char session[32];
++  DBusConnection *connection = check_type == BUS_DEFERRED_MESSAGE_CHECK_RECEIVE ? proposed_recipient : sender;
++  BusDeferredMessage *deferred_message;
++  BusResult ret;
++  cynagora_key_t key;
++
++  _dbus_assert(connection != NULL);
++
++  if (dbus_connection_get_unix_user(connection, &uid) == FALSE)
++      return BUS_RESULT_FALSE;
++
++  if (dbus_connection_get_unix_process_id(connection, &pid) == FALSE)
++      return BUS_RESULT_FALSE;
++
++  if (_dbus_connection_get_linux_security_label(connection, &label) == FALSE || label == NULL)
++    {
++      _dbus_warn("Failed to obtain security label for connection\n");
++      return BUS_RESULT_FALSE;
++    }
++
++  snprintf(user, sizeof(user), "%lu", uid);
++  snprintf(session, sizeof(session), "%lu", pid);
++
++  key.client = label;
++  key.session = session;
++  key.user = user;
++  key.permission = permission;
++
++  result = cynagora_cache_check(cynagora->cynagora, &key);
++  switch (result)
++  {
++  case 1:
++    _dbus_verbose("Cynagora: got ALLOWED answer from cache (client=%s session_id=%s user=%s permission=%s)\n",
++               label, session_id, user, permission);
++    ret = BUS_RESULT_TRUE;
++    break;
++
++  case 0:
++    _dbus_verbose("Cynagora: got DENIED answer from cache (client=%s session_id=%s user=%s permission=%s)\n",
++               label, session_id, user, permission);
++    ret = BUS_RESULT_FALSE;
++    break;
++
++  default:
++     deferred_message = bus_deferred_message_new(message, sender, addressed_recipient,
++         proposed_recipient, BUS_RESULT_LATER);
++     if (deferred_message == NULL)
++       {
++         _dbus_verbose("Failed to allocate memory for deferred message\n");
++         ret = BUS_RESULT_FALSE;
++         goto out;
++       }
++
++    /* callback is supposed to unref deferred_message*/
++    result = cynagora_async_check(cynagora->cynagora, &key, 1, 0, async_check_callback, deferred_message);
++    if (result == 0)
++      {
++        _dbus_verbose("Created Cynagora request: client=%s session_id=%s user=%s permission=%s "
++            "deferred_message=%p\n", label, session_id, user, permission, deferred_message);
++        if (deferred_message_param != NULL)
++          *deferred_message_param = deferred_message;
++        ret = BUS_RESULT_LATER;
++      }
++    else
++      {
++        _dbus_verbose("Error on cynagora request create: %i\n", result);
++        bus_deferred_message_unref(deferred_message);
++        ret = BUS_RESULT_FALSE;
++      }
++    break;
++  }
++out:
++  dbus_free(label);
++  return ret;
++}
++
++static dbus_bool_t
++watch_handler_callback(DBusWatch    *watch,
++                       unsigned int  flags,
++                       void         *data)
++{
++  BusCynagora *cynagora = (BusCynagora *)data;
++  int result = cynagora_async_process(cynagora->cynagora);
++  if (result < 0)
++      _dbus_verbose("cynagora_async_process returned %d\n", result);
++
++  return result != -ENOMEM ? TRUE : FALSE;
++}
++
++static int
++async_callback(void *closure, int op, int fd, uint32_t events)
++{
++  BusCynagora *cynagora = (BusCynagora *)closure;
++  DBusLoop *loop = bus_context_get_loop(cynagora->context);
++  unsigned int flags;
++  DBusWatch *watch;
++
++  /* compute flags */
++  flags = 0;
++  if (events & EPOLLIN)
++    flags |= DBUS_WATCH_READABLE;
++  if (events & EPOLLOUT)
++    flags |= DBUS_WATCH_WRITABLE;
++
++  /* remove the watch if needed */
++  watch = cynagora->cynagora_watch;
++  if (watch != NULL)
++    {
++      cynagora->cynagora_watch = NULL;
++      _dbus_loop_remove_watch(loop, watch);
++      _dbus_watch_invalidate(watch);
++      _dbus_watch_unref(watch);
++    }
++
++  /* create the watch if needed */
++  watch = cynagora->cynagora_watch;
++  if (op != EPOLL_CTL_DEL)
++    {
++      watch = _dbus_watch_new(fd, flags, TRUE, watch_handler_callback, cynagora, NULL);
++      if (watch == NULL)
++        return -ENOMEM;
++      if (_dbus_loop_add_watch(loop, watch) != TRUE)
++        {
++          _dbus_watch_invalidate(watch);
++          _dbus_watch_unref(watch);
++          return -ENOMEM;
++        }
++      cynagora->cynagora_watch = watch;
++    }
++  return 0;
++}
++
++#endif /* DBUS_ENABLE_CYNAGORA */
+diff --git a/bus/cynara.h b/bus/cynagora-check.h
+similarity index 81%
+rename from bus/cynara.h
+rename to bus/cynagora-check.h
+index c4728bb..c0892c3 100644
+--- a/bus/cynara.h
++++ b/bus/cynagora-check.h
+@@ -1,5 +1,5 @@
+ /* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
+-/* cynara.h  Cynara runtime privilege checking
++/* cynagora.h  Cynagora runtime privilege checking
+  *
+  * Copyright (c) 2014 Samsung Electronics, Ltd.
+  *
+@@ -24,10 +24,10 @@
+ #include "bus.h"
+ #include "check.h"
+ 
+-BusCynara *bus_cynara_new             (BusCheck *check, DBusError *error);
+-BusCynara *bus_cynara_ref             (BusCynara *cynara);
+-void       bus_cynara_unref           (BusCynara *cynara);
+-BusResult  bus_cynara_check_privilege (BusCynara *cynara,
++BusCynagora *bus_cynagora_new             (BusCheck *check, DBusError *error);
++BusCynagora *bus_cynagora_ref             (BusCynagora *cynagora);
++void       bus_cynagora_unref           (BusCynagora *cynagora);
++BusResult  bus_cynagora_check_privilege (BusCynagora *cynagora,
+                                        DBusMessage *message,
+                                        DBusConnection *sender,
+                                        DBusConnection *addressed_recipient,
+diff --git a/bus/cynara.c b/bus/cynara.c
+deleted file mode 100644
+index 77aed62..0000000
+--- a/bus/cynara.c
++++ /dev/null
+@@ -1,373 +0,0 @@
+-/* -*- mode: C; c-file-style: "gnu"; indent-tabs-mode: nil; -*- */
+-/* cynara.c  Cynara runtime privilege checking
+- *
+- * Copyright (c) 2014 Samsung Electronics, Ltd.
+- *
+- * Licensed under the Academic Free License version 2.1
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
+- * (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+- *
+- */
+-
+-#include <config.h>
+-#include "cynara.h"
+-#include "check.h"
+-#include "utils.h"
+-
+-#include <stdio.h>
+-
+-#include <dbus/dbus.h>
+-#include <dbus/dbus-watch.h>
+-#include <dbus/dbus-connection-internal.h>
+-#include <bus/connection.h>
+-#ifdef DBUS_ENABLE_CYNARA
+-#include <cynara-client-async.h>
+-#endif
+-
+-#ifdef DBUS_ENABLE_CYNARA
+-typedef struct BusCynara
+-{
+-  int refcount;
+-
+-  BusContext   *context;
+-  BusCheck     *check;
+-  cynara_async *cynara;
+-  DBusWatch    *cynara_watch;
+-} BusCynara;
+-
+-#define USE_CYNARA_CACHE 1
+-#ifdef USE_CYNARA_CACHE
+-#define CYNARA_CACHE_SIZE 1000
+-#endif
+-
+-static dbus_bool_t bus_cynara_watch_callback(DBusWatch *watch,
+-                                             unsigned int flags,
+-                                             void *data);
+-
+-static void status_callback(int old_fd,
+-                            int new_fd,
+-                            cynara_async_status status,
+-                            void *user_status_data);
+-static void bus_cynara_check_response_callback (cynara_check_id check_id,
+-                                                cynara_async_call_cause cause,
+-                                                int response,
+-                                                void *user_response_data);
+-#endif
+-
+-
+-BusCynara *
+-bus_cynara_new(BusCheck *check, DBusError *error)
+-{
+-#ifdef DBUS_ENABLE_CYNARA
+-  BusContext *context;
+-  BusCynara *cynara;
+-  cynara_async_configuration *conf = NULL;
+-  int ret;
+-
+-  cynara = dbus_new(BusCynara, 1);
+-  if (cynara == NULL)
+-    {
+-      BUS_SET_OOM(error);
+-      return NULL;
+-    }
+-
+-  context = bus_check_get_context(check);
+-
+-  cynara->refcount = 1;
+-  cynara->check = check;
+-  cynara->context = context;
+-  cynara->cynara_watch = NULL;
+-
+-  ret = cynara_async_configuration_create(&conf);
+-  if (ret != CYNARA_API_SUCCESS)
+-    {
+-      dbus_set_error (error, DBUS_ERROR_FAILED, "Failed to create Cynara configuration");
+-      goto out;
+-    }
+-
+-#ifdef CYNARA_CACHE_SIZE
+-  ret = cynara_async_configuration_set_cache_size(conf, CYNARA_CACHE_SIZE);
+-  if (ret != CYNARA_API_SUCCESS)
+-    {
+-      dbus_set_error (error, DBUS_ERROR_FAILED, "Failed to Cynara cache size");
+-      goto out;
+-    }
+-#endif
+-
+-  ret = cynara_async_initialize(&cynara->cynara, conf, &status_callback, cynara);
+-  if (ret != CYNARA_API_SUCCESS)
+-    {
+-      dbus_set_error (error, DBUS_ERROR_FAILED, "Failed to initialize Cynara client");
+-      goto out;
+-    }
+-
+-out:
+-  cynara_async_configuration_destroy(conf);
+-  if (ret != CYNARA_API_SUCCESS)
+-    {
+-      dbus_free(cynara);
+-      return NULL;
+-    }
+-
+-  return cynara;
+-#else
+-  return NULL;
+-#endif
+-}
+-
+-BusCynara *
+-bus_cynara_ref (BusCynara *cynara)
+-{
+-#ifdef DBUS_ENABLE_CYNARA
+-  _dbus_assert (cynara->refcount > 0);
+-  cynara->refcount += 1;
+-
+-  return cynara;
+-#else
+-  return NULL;
+-#endif
+-}
+-
+-void
+-bus_cynara_unref (BusCynara *cynara)
+-{
+-#ifdef DBUS_ENABLE_CYNARA
+-  _dbus_assert (cynara->refcount > 0);
+-
+-  cynara->refcount -= 1;
+-
+-  if (cynara->refcount == 0)
+-    {
+-      cynara_async_finish(cynara->cynara);
+-      dbus_free(cynara);
+-    }
+-#endif
+-}
+-
+-BusResult
+-bus_cynara_check_privilege (BusCynara *cynara,
+-                            DBusMessage *message,
+-                            DBusConnection *sender,
+-                            DBusConnection *addressed_recipient,
+-                            DBusConnection *proposed_recipient,
+-                            const char *privilege,
+-                            BusDeferredMessageStatus check_type,
+-                            BusDeferredMessage **deferred_message_param)
+-{
+-#ifdef DBUS_ENABLE_CYNARA
+-  int result;
+-  unsigned long uid;
+-  char *label;
+-  const char *session_id;
+-  char user[32];
+-  cynara_check_id check_id;
+-  DBusConnection *connection = check_type == BUS_DEFERRED_MESSAGE_CHECK_RECEIVE ? proposed_recipient : sender;
+-  BusDeferredMessage *deferred_message;
+-  BusResult ret;
+-
+-  _dbus_assert(connection != NULL);
+-
+-  if (dbus_connection_get_unix_user(connection, &uid) == FALSE)
+-      return BUS_RESULT_FALSE;
+-
+-  if (_dbus_connection_get_linux_security_label(connection, &label) == FALSE || label == NULL)
+-    {
+-      _dbus_warn("Failed to obtain security label for connection\n");
+-      return BUS_RESULT_FALSE;
+-    }
+-
+-  session_id = bus_connection_get_cynara_session_id (connection);
+-  if (session_id == NULL)
+-    {
+-      ret = BUS_RESULT_FALSE;
+-      goto out;
+-    }
+-
+-  snprintf(user, sizeof(user), "%lu", uid);
+-
+-#if USE_CYNARA_CACHE
+-  result = cynara_async_check_cache(cynara->cynara, label, session_id, user, privilege);
+-#else
+-  result = CYNARA_API_CACHE_MISS;
+-#endif
+-
+-  switch (result)
+-  {
+-  case CYNARA_API_ACCESS_ALLOWED:
+-    _dbus_verbose("Cynara: got ALLOWED answer from cache (client=%s session_id=%s user=%s privilege=%s)\n",
+-               label, session_id, user, privilege);
+-    ret = BUS_RESULT_TRUE;
+-    break;
+-
+-  case CYNARA_API_ACCESS_DENIED:
+-    _dbus_verbose("Cynara: got DENIED answer from cache (client=%s session_id=%s user=%s privilege=%s)\n",
+-               label, session_id, user, privilege);
+-    ret = BUS_RESULT_FALSE;
+-    break;
+-
+-  case CYNARA_API_CACHE_MISS:
+-     deferred_message = bus_deferred_message_new(message, sender, addressed_recipient,
+-         proposed_recipient, BUS_RESULT_LATER);
+-     if (deferred_message == NULL)
+-       {
+-         _dbus_verbose("Failed to allocate memory for deferred message\n");
+-         ret = BUS_RESULT_FALSE;
+-         goto out;
+-       }
+-
+-    /* callback is supposed to unref deferred_message*/
+-    result = cynara_async_create_request(cynara->cynara, label, session_id, user, privilege, &check_id,
+-        &bus_cynara_check_response_callback, deferred_message);
+-    if (result == CYNARA_API_SUCCESS)
+-      {
+-        _dbus_verbose("Created Cynara request: client=%s session_id=%s user=%s privilege=%s check_id=%u "
+-            "deferred_message=%p\n", label, session_id, user, privilege, (unsigned int)check_id, deferred_message);
+-        if (deferred_message_param != NULL)
+-          *deferred_message_param = deferred_message;
+-        ret = BUS_RESULT_LATER;
+-      }
+-    else
+-      {
+-        _dbus_verbose("Error on cynara request create: %i\n", result);
+-        bus_deferred_message_unref(deferred_message);
+-        ret = BUS_RESULT_FALSE;
+-      }
+-    break;
+-  default:
+-    _dbus_verbose("Error when accessing Cynara cache: %i\n", result);
+-    ret = BUS_RESULT_FALSE;
+-  }
+-out:
+-  dbus_free(label);
+-  return ret;
+-
+-#else
+-  return BUS_RESULT_FALSE;
+-#endif
+-}
+-
+-
+-
+-#ifdef DBUS_ENABLE_CYNARA
+-static void
+-status_callback(int old_fd, int new_fd, cynara_async_status status,
+-                void *user_status_data)
+-{
+-  BusCynara *cynara = (BusCynara *)user_status_data;
+-  DBusLoop *loop = bus_context_get_loop(cynara->context);
+-
+-  if (cynara->cynara_watch != NULL)
+-    {
+-      _dbus_loop_remove_watch(loop, cynara->cynara_watch);
+-      _dbus_watch_invalidate(cynara->cynara_watch);
+-      _dbus_watch_unref(cynara->cynara_watch);
+-      cynara->cynara_watch = NULL;
+-    }
+-
+-  if (new_fd != -1)
+-    {
+-      unsigned int flags;
+-      DBusWatch *watch;
+-
+-      switch (status)
+-      {
+-      case CYNARA_STATUS_FOR_READ:
+-        flags = DBUS_WATCH_READABLE;
+-        break;
+-      case CYNARA_STATUS_FOR_RW:
+-        flags = DBUS_WATCH_READABLE | DBUS_WATCH_WRITABLE;
+-        break;
+-      default:
+-        /* Cynara passed unknown status - warn and add RW watch */
+-        _dbus_verbose("Cynara passed unknown status value: 0x%08X\n", (unsigned int)status);
+-        flags = DBUS_WATCH_READABLE | DBUS_WATCH_WRITABLE;
+-        break;
+-      }
+-
+-      watch = _dbus_watch_new(new_fd, flags, TRUE, &bus_cynara_watch_callback, cynara, NULL);
+-      if (watch != NULL)
+-        {
+-          if (_dbus_loop_add_watch(loop, watch) == TRUE)
+-            {
+-              cynara->cynara_watch = watch;
+-              return;
+-            }
+-
+-          _dbus_watch_invalidate(watch);
+-          _dbus_watch_unref(watch);
+-        }
+-
+-      /* It seems like not much can be done at this point. Cynara events won't be processed
+-       * until next Cynara function call triggering status callback */
+-      _dbus_verbose("Failed to add dbus watch\n");
+-    }
+-}
+-
+-static dbus_bool_t
+-bus_cynara_watch_callback(DBusWatch    *watch,
+-                          unsigned int  flags,
+-                          void         *data)
+-{
+-  BusCynara *cynara = (BusCynara *)data;
+-  int result = cynara_async_process(cynara->cynara);
+-  if (result != CYNARA_API_SUCCESS)
+-      _dbus_verbose("cynara_async_process returned %d\n", result);
+-
+-  return result != CYNARA_API_OUT_OF_MEMORY ? TRUE : FALSE;
+-}
+-
+-static inline const char *
+-call_cause_to_string(cynara_async_call_cause cause)
+-{
+-  switch (cause)
+-  {
+-  case CYNARA_CALL_CAUSE_ANSWER:
+-    return "ANSWER";
+-  case CYNARA_CALL_CAUSE_CANCEL:
+-    return "CANCEL";
+-  case CYNARA_CALL_CAUSE_FINISH:
+-    return "FINSIH";
+-  case CYNARA_CALL_CAUSE_SERVICE_NOT_AVAILABLE:
+-    return "SERVICE NOT AVAILABLE";
+-  default:
+-    return "INVALID";
+-  }
+-}
+-
+-static void
+-bus_cynara_check_response_callback (cynara_check_id check_id,
+-                                    cynara_async_call_cause cause,
+-                                    int response,
+-                                    void *user_response_data)
+-{
+-  BusDeferredMessage *deferred_message = user_response_data;
+-  BusResult result;
+-
+-  _dbus_verbose("Cynara callback: check_id=%u, cause=%s response=%i response_data=%p\n",
+-      (unsigned int)check_id, call_cause_to_string(cause), response, user_response_data);
+-
+-  if (deferred_message == NULL)
+-    return;
+-
+-  if (cause == CYNARA_CALL_CAUSE_ANSWER && response == CYNARA_API_ACCESS_ALLOWED)
+-    result = BUS_RESULT_TRUE;
+-  else
+-    result = BUS_RESULT_FALSE;
+-
+-  bus_deferred_message_response_received(deferred_message, result);
+-  bus_deferred_message_unref(deferred_message);
+-}
+-
+-#endif /* DBUS_ENABLE_CYNARA */
+diff --git a/bus/system.conf.in b/bus/system.conf.in
+index 19d0c04..81c39c8 100644
+--- a/bus/system.conf.in
++++ b/bus/system.conf.in
+@@ -72,10 +72,10 @@
+            send_interface="org.freedesktop.DBus.Introspectable"/>
+     <allow send_destination="org.freedesktop.DBus"
+            send_interface="org.freedesktop.DBus.Properties"/>
+-    <!-- If there is a need specific bus services could be protected by Cynara as well.
++    <!-- If there is a need specific bus services could be protected by Cynagora as well.
+          However, this can lead to deadlock during the boot process when such check is made and
+-         Cynara is not yet activated (systemd calls protected method synchronously,
+-         dbus daemon tries to consult Cynara, Cynara waits for systemd activation).
++         Cynagora is not yet activated (systemd calls protected method synchronously,
++         dbus daemon tries to consult Cynagora, Cynagora waits for systemd activation).
+          Therefore it is advised to allow root processes to use bus services.
+          Currently anyone is allowed to talk to the message bus -->
+     <allow receive_sender="org.freedesktop.DBus"/>
+diff --git a/configure.ac b/configure.ac
+index 11b5ffd..df9341c 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1742,16 +1742,16 @@ AC_ARG_ENABLE([user-session],
+ AM_CONDITIONAL([DBUS_ENABLE_USER_SESSION],
+   [test "x$enable_user_session" = xyes])
+ 
+-#enable cynara integration
+-AC_ARG_ENABLE([cynara], [AS_HELP_STRING([--enable-cynara], [enable Cynara integration])], [], [enable_cynara=no])
+-if test "x$enable_cynara" = xyes; then
+-  PKG_CHECK_MODULES([CYNARA], [cynara-client-async >= 0.6.0 cynara-session >= 0.6.0],
+-     [AC_DEFINE([DBUS_ENABLE_CYNARA], [1], [Define to enable Cynara privilege checks in dbus-daemon])],
+-     [AC_MSG_ERROR([libcynara-client-async and cynara-session are required to enable Cynara integration])])
++#enable cynagora integration
++AC_ARG_ENABLE([cynagora], [AS_HELP_STRING([--enable-cynagora], [enable Cynagora integration])], [], [enable_cynagora=no])
++if test "x$enable_cynagora" = xyes; then
++  PKG_CHECK_MODULES([CYNAGORA], [cynagora],
++     [AC_DEFINE([DBUS_ENABLE_CYNAGORA], [1], [Define to enable Cynagora privilege checks in dbus-daemon])],
++     [AC_MSG_ERROR([libcynagora is required to enable Cynagora integration])])
+ fi
+ 
+-AC_SUBST([CYNARA_CFLAGS])
+-AC_SUBST([CYNARA_LIBS])
++AC_SUBST([CYNAGORA_CFLAGS])
++AC_SUBST([CYNAGORA_LIBS])
+ 
+ AC_CONFIG_FILES([
+ Doxyfile
+@@ -1835,7 +1835,7 @@ echo "
+         Building bus stats API:   ${enable_stats}
+         Building SELinux support: ${have_selinux}
+         Building AppArmor support: ${have_apparmor}
+-        Building Cynara support:  ${enable_cynara}
++        Building Cynagora support: ${enable_cynagora}
+         Building inotify support: ${have_inotify}
+         Building kqueue support:  ${have_kqueue}
+         Building systemd support: ${have_systemd}
+-- 
+2.21.1
+

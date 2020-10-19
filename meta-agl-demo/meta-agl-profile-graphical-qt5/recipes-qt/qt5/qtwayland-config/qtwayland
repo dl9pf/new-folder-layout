@@ -1,0 +1,12 @@
+QT_WAYLAND_SHELL_INTEGRATION=@QT_WAYLAND_DEFAULT_SHELL@
+# The following might be necessary when multiple/split surfaces are created.
+# Without this, QtWayland will sometimes maintain the same/old size even if the
+# split surface is destroyed.
+# We keep it disabled by default as it causes an additional repaint of the
+# surface until the compositor sends a configure event to scale the window to
+# the actual area. Typical windows will, by default, have an initial size set
+# by qtwayland when starting-up (without an explicit size specified by the
+# application).
+# Note that QtWayland will only test the presence of the environment variable
+# so it will be enabled even if set to 0
+# QT_WAYLAND_RESIZE_AFTER_SWAP=1

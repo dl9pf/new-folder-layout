@@ -1,0 +1,429 @@
+From 07c0308d3c5991ff67c32329d56f14e375e3e981 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Mon, 10 Feb 2020 18:46:46 +0300
+Subject: [PATCH] media: i2c: add fps setup
+
+This adds FPS setup for max9286/ti9x4 with ar0143/147 imagers
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ drivers/media/i2c/soc_camera/ar0143.c  | 66 ++++++++++++++++++++++++++++++++--
+ drivers/media/i2c/soc_camera/ar0147.c  | 64 +++++++++++++++++++++++++++++++--
+ drivers/media/i2c/soc_camera/max9286.c | 42 ++++++++++++++++++++++
+ drivers/media/i2c/soc_camera/ti9x4.c   | 54 ++++++++++++++++++++++++----
+ 4 files changed, 215 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/media/i2c/soc_camera/ar0143.c b/drivers/media/i2c/soc_camera/ar0143.c
+index d81871b..de4ca3c 100644
+--- a/drivers/media/i2c/soc_camera/ar0143.c
++++ b/drivers/media/i2c/soc_camera/ar0143.c
+@@ -35,6 +35,8 @@ struct ar0143_priv {
+ 	struct v4l2_ctrl_handler	hdl;
+ 	struct media_pad		pad;
+ 	struct v4l2_rect		rect;
++	int				fps_numerator;
++	int				fps_denominator;
+ 	int				init_complete;
+ 	u8				id[6];
+ 	int				setup;
+@@ -297,6 +299,61 @@ static int ar0143_g_mbus_config(struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
++static int ar0143_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0143_priv *priv = to_ar0143(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++
++	memset(cp, 0, sizeof(struct v4l2_captureparm));
++	cp->capability = V4L2_CAP_TIMEPERFRAME;
++	cp->timeperframe.numerator = priv->fps_numerator;
++	cp->timeperframe.denominator = priv->fps_denominator;
++
++	return 0;
++}
++
++static int ar0143_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0143_priv *priv = to_ar0143(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++	int ret = 0;
++	int tmp_addr;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		if (priv->ti9x4_addr)
++			priv->vts = (AR0143_SENSOR_HEIGHT + 157) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++		else
++			priv->vts = (AR0143_SENSOR_HEIGHT + 142) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++
++		ret = reg16_write16(client, 0x300A, priv->vts);		/* FRAME_LENGTH_LINES_ */
++
++		tmp_addr = client->addr;
++		if (priv->max9271_addr) {
++			client->addr = priv->max9271_addr;		/* Serializer I2C address */
++			reg8_write(client, 0x58, priv->vts >> 8);	/* HS count */
++			reg8_write(client, 0x59, priv->vts & 0xff);
++		}
++		client->addr = tmp_addr;
++
++		priv->fps_denominator = cp->timeperframe.numerator;
++		priv->fps_denominator = cp->timeperframe.denominator;
++	}
++out:
++	return ret;
++}
++
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int ar0143_g_register(struct v4l2_subdev *sd,
+ 			    struct v4l2_dbg_register *reg)
+@@ -361,7 +418,8 @@ static int ar0143_s_ctrl(struct v4l2_ctrl *ctrl)
+ 		break;
+ 	case V4L2_CID_EXPOSURE:
+ 		/* T1 exposure */
+-		ret = reg16_write16(client, 0x3012, ctrl->val);
++		if (ctrl->val < 0x400 * 30 * priv->fps_numerator / priv->fps_denominator)
++			ret = reg16_write16(client, 0x3012, ctrl->val);
+ 		break;
+ 	case V4L2_CID_HFLIP:
+ 		ret = reg16_read16(client, 0x3040, &val);
+@@ -394,6 +452,8 @@ static const struct v4l2_ctrl_ops ar0143_ctrl_ops = {
+ static struct v4l2_subdev_video_ops ar0143_video_ops = {
+ 	.s_stream	= ar0143_s_stream,
+ 	.g_mbus_config	= ar0143_g_mbus_config,
++	.g_parm		= ar0143_g_parm,
++	.s_parm		= ar0143_s_parm,
+ };
+ 
+ static const struct v4l2_subdev_pad_ops ar0143_subdev_pad_ops = {
+@@ -617,6 +677,8 @@ static int ar0143_probe(struct i2c_client *client,
+ 
+ 	v4l2_i2c_subdev_init(&priv->sd, client, &ar0143_subdev_ops);
+ 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
++	priv->fps_numerator = 1;
++	priv->fps_denominator = 30;
+ 
+ 	v4l2_ctrl_handler_init(&priv->hdl, 4);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0143_ctrl_ops,
+@@ -638,7 +700,7 @@ static int ar0143_probe(struct i2c_client *client,
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0143_ctrl_ops,
+ 			  V4L2_CID_ANALOGUE_GAIN, 1, 0xe, 1, 0x7);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0143_ctrl_ops,
+-			  V4L2_CID_EXPOSURE, 1, 0x400, 1, 0x300);
++			  V4L2_CID_EXPOSURE, 1, 0x400 * 30, 1, 0x300);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0143_ctrl_ops,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0143_ctrl_ops,
+diff --git a/drivers/media/i2c/soc_camera/ar0147.c b/drivers/media/i2c/soc_camera/ar0147.c
+index fc2a09e..e3ecec2 100644
+--- a/drivers/media/i2c/soc_camera/ar0147.c
++++ b/drivers/media/i2c/soc_camera/ar0147.c
+@@ -36,6 +36,8 @@ struct ar0147_priv {
+ 	struct v4l2_ctrl_handler	hdl;
+ 	struct media_pad		pad;
+ 	struct v4l2_rect		rect;
++	int				fps_denominator;
++	int				fps_numerator;
+ 	int				init_complete;
+ 	u8				id[6];
+ 	/* serializers */
+@@ -146,7 +148,7 @@ static int ar0147_set_regs(struct i2c_client *client, const struct ar0147_reg **
+ 					reg16_write16(client, regs[i].reg, 1); // OP_SYS_CLK_DIV
+ 					continue;
+ 				case 0x300A:
+-					reg16_write16(client, regs[i].reg, AR0147_SENSOR_HEIGHT + 142); // FRAME_LENGTH_LINES_
++					reg16_write16(client, regs[i].reg, AR0147_SENSOR_HEIGHT + 226); // FRAME_LENGTH_LINES_
+ 					continue;
+ 				}
+ 			}
+@@ -317,6 +319,57 @@ static int ar0147_g_mbus_config(struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
++static int ar0147_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0147_priv *priv = to_ar0147(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++
++	memset(cp, 0, sizeof(struct v4l2_captureparm));
++	cp->capability = V4L2_CAP_TIMEPERFRAME;
++	cp->timeperframe.numerator = priv->fps_numerator;
++	cp->timeperframe.denominator = priv->fps_denominator;
++
++	return 0;
++}
++
++static int ar0147_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++	struct ar0147_priv *priv = to_ar0147(client);
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++	int ret = 0;
++	int tmp_addr;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		priv->vts = (AR0147_SENSOR_HEIGHT + 226) * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++
++		ret = reg16_write16(client, 0x300A, priv->vts);		/* FRAME_LENGTH_LINES_ */
++
++		tmp_addr = client->addr;
++		if (priv->max9271_addr) {
++			client->addr = priv->max9271_addr;		/* Serializer I2C address */
++			reg8_write(client, 0x58, priv->vts >> 8);	/* HS count */
++			reg8_write(client, 0x59, priv->vts & 0xff);
++		}
++		client->addr = tmp_addr;
++
++		priv->fps_numerator = cp->timeperframe.numerator;
++		priv->fps_denominator = cp->timeperframe.denominator;
++	}
++out:
++	return ret;
++}
++
+ #ifdef CONFIG_VIDEO_ADV_DEBUG
+ static int ar0147_g_register(struct v4l2_subdev *sd,
+ 			    struct v4l2_dbg_register *reg)
+@@ -381,7 +434,8 @@ static int ar0147_s_ctrl(struct v4l2_ctrl *ctrl)
+ 		break;
+ 	case V4L2_CID_EXPOSURE:
+ 		/* T1 exposure */
+-		ret = reg16_write16(client, 0x3012, ctrl->val);
++		if (ctrl->val < 0x400 * 30 * priv->fps_numerator / priv->fps_denominator)
++			ret = reg16_write16(client, 0x3012, ctrl->val);
+ 		break;
+ 	case V4L2_CID_HFLIP:
+ 		ret = reg16_read16(client, 0x3040, &val);
+@@ -414,6 +468,8 @@ static const struct v4l2_ctrl_ops ar0147_ctrl_ops = {
+ static struct v4l2_subdev_video_ops ar0147_video_ops = {
+ 	.s_stream	= ar0147_s_stream,
+ 	.g_mbus_config	= ar0147_g_mbus_config,
++	.g_parm		= ar0147_g_parm,
++	.s_parm		= ar0147_s_parm,
+ };
+ 
+ static const struct v4l2_subdev_pad_ops ar0147_subdev_pad_ops = {
+@@ -648,6 +704,8 @@ static int ar0147_probe(struct i2c_client *client,
+ 
+ 	v4l2_i2c_subdev_init(&priv->sd, client, &ar0147_subdev_ops);
+ 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
++	priv->fps_numerator = 1;
++	priv->fps_denominator = 30;
+ 
+ 	v4l2_ctrl_handler_init(&priv->hdl, 4);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0147_ctrl_ops,
+@@ -669,7 +727,7 @@ static int ar0147_probe(struct i2c_client *client,
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0147_ctrl_ops,
+ 			  V4L2_CID_ANALOGUE_GAIN, 1, 0xe, 1, 0x7);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0147_ctrl_ops,
+-			  V4L2_CID_EXPOSURE, 1, 0x400, 1, 0x300);
++			  V4L2_CID_EXPOSURE, 1, 0x400 * 30, 1, 0x300);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0147_ctrl_ops,
+ 			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+ 	v4l2_ctrl_new_std(&priv->hdl, &ar0147_ctrl_ops,
+diff --git a/drivers/media/i2c/soc_camera/max9286.c b/drivers/media/i2c/soc_camera/max9286.c
+index 0a1732a..343b8ab 100644
+--- a/drivers/media/i2c/soc_camera/max9286.c
++++ b/drivers/media/i2c/soc_camera/max9286.c
+@@ -43,6 +43,8 @@ struct max9286_priv {
+ 	int			csi_rate;
+ 	const char		*fsync_mode;
+ 	int			fsync_period;
++	int			fps_numerator;
++	int			fps_denominator;
+ 	int			pclk;
+ 	char			pclk_rising_edge;
+ 	int			gpio_resetb;
+@@ -650,8 +652,46 @@ static struct v4l2_subdev_core_ops max9286_subdev_core_ops = {
+ 	.registered_async	= max9286_registered_async,
+ };
+ 
++static int max9286_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	return 0;
++}
++
++static int max9286_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct max9286_priv *priv = v4l2_get_subdevdata(sd);
++	struct i2c_client *client = priv->client;
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		int f_period;
++
++		f_period = priv->fsync_period * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++		reg8_write(client, 0x06, f_period & 0xff);
++		reg8_write(client, 0x07, (f_period >> 8) & 0xff);
++		reg8_write(client, 0x08, f_period >> 16);
++
++		priv->fps_numerator = cp->timeperframe.numerator;
++		priv->fps_denominator = cp->timeperframe.denominator;
++	}
++
++	return 0;
++}
++
++static struct v4l2_subdev_video_ops max9286_video_ops = {
++	.g_parm	= max9286_g_parm,
++	.s_parm	= max9286_s_parm,
++};
++
+ static struct v4l2_subdev_ops max9286_subdev_ops = {
+ 	.core	= &max9286_subdev_core_ops,
++	.video	= &max9286_video_ops,
+ };
+ 
+ static int max9286_parse_dt(struct i2c_client *client)
+@@ -926,6 +966,8 @@ static int max9286_probe(struct i2c_client *client,
+ 	priv->client = client;
+ 	atomic_set(&priv->use_count, 0);
+ 	priv->csi2_outord = 0xff;
++	priv->fps_numerator = 1;
++	priv->fps_denominator = 30;
+ 
+ 	err = max9286_parse_dt(client);
+ 	if (err)
+diff --git a/drivers/media/i2c/soc_camera/ti9x4.c b/drivers/media/i2c/soc_camera/ti9x4.c
+index aa85d92..b671736 100644
+--- a/drivers/media/i2c/soc_camera/ti9x4.c
++++ b/drivers/media/i2c/soc_camera/ti9x4.c
+@@ -32,6 +32,9 @@ struct ti9x4_priv {
+ 	int			lanes;
+ 	int			csi_rate;
+ 	const char		*forwarding_mode;
++	int			fs_time;
++	int			fps_numerator;
++	int			fps_denominator;
+ 	int			is_coax;
+ 	int			dvp_bus;
+ 	int			dvp_lsb;
+@@ -139,7 +142,6 @@ static void ti9x4_read_chipid(struct i2c_client *client)
+ static void ti9x4_initial_setup(struct i2c_client *client)
+ {
+ 	struct ti9x4_priv *priv = i2c_get_clientdata(client);
+-	int fs_time = 0;
+ 
+ 	/* Initial setup */
+ 	client->addr = priv->des_addr;				/* TI9x4 I2C */
+@@ -175,20 +177,21 @@ static void ti9x4_initial_setup(struct i2c_client *client)
+ 	case 800:
+ 	case 400:
+ 		/* FrameSync setup for REFCLK=25MHz,   FPS=30: period_counts=1/FPS/12mks=1/30/12e-6=2777 -> HI=2, LO=2775 */
+-		fs_time = 2790;
++		priv->fs_time = 2790;
+ 		break;
+ 	case 1500:
+ 		/* FrameSync setup for REFCLK=23MHz, FPS=30: period_counts=1/FPS/13.043mks=1/30/13.043e-6=2556 -> HI=2, LO=2554 */
+-		fs_time = 2570;
++		priv->fs_time = 2570;
+ 		break;
+ 	case 1450:
+ 	case 1100:
+ 	case 700:
+ 	case 350:
+ 		/* FrameSync setup for REFCLK=22.5MHz, FPS=30: period_counts=1/FPS/13.333mks=1/30/13.333e-6=2500 -> HI=2, LO=2498 */
+-		fs_time = 2513;
++		priv->fs_time = 2513;
+ 		break;
+ 	default:
++		priv->fs_time = 0;
+ 		dev_err(&client->dev, "unsupported CSI rate %d\n", priv->csi_rate);
+ 	}
+ 
+@@ -213,8 +216,8 @@ static void ti9x4_initial_setup(struct i2c_client *client)
+ #else
+ 	reg8_write(client, 0x19, 2 >> 8);			/* FrameSync high time MSB */
+ 	reg8_write(client, 0x1a, 2 & 0xff);			/* FrameSync high time LSB */
+-	reg8_write(client, 0x1b, fs_time >> 8);			/* FrameSync low time MSB */
+-	reg8_write(client, 0x1c, fs_time & 0xff);		/* FrameSync low time LSB */
++	reg8_write(client, 0x1b, priv->fs_time >> 8);			/* FrameSync low time MSB */
++	reg8_write(client, 0x1c, priv->fs_time & 0xff);		/* FrameSync low time LSB */
+ 	reg8_write(client, 0x18, 0x01);				/* Enable FrameSync, HI/LO mode, Frame clock from port0 */
+ //	reg8_write(client, 0x18, 0x80);				/* Enable FrameSync, HI/LO mode, Frame clock from port0 */
+ #endif
+@@ -425,8 +428,45 @@ static struct v4l2_subdev_core_ops ti9x4_subdev_core_ops = {
+ 	.registered_async	= ti9x4_registered_async,
+ };
+ 
++static int ti9x4_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	return 0;
++}
++
++static int ti9x4_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
++{
++	struct ti9x4_priv *priv = v4l2_get_subdevdata(sd);
++	struct i2c_client *client = priv->client;
++	struct v4l2_captureparm *cp = &parms->parm.capture;
++
++	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
++		return -EINVAL;
++	if (cp->extendedmode != 0)
++		return -EINVAL;
++
++	if (priv->fps_denominator != cp->timeperframe.denominator ||
++	    priv->fps_numerator != cp->timeperframe.numerator) {
++		int f_time;
++
++		f_time = priv->fs_time * 30 * cp->timeperframe.numerator / cp->timeperframe.denominator;
++		reg8_write(client, 0x1b, f_time >> 8);			/* FrameSync low time MSB */
++		reg8_write(client, 0x1c, f_time & 0xff);		/* FrameSync low time LSB */
++
++		priv->fps_denominator = cp->timeperframe.denominator;
++		priv->fps_numerator = cp->timeperframe.numerator;
++	}
++
++	return 0;
++}
++
++static struct v4l2_subdev_video_ops ti9x4_video_ops = {
++	.g_parm	= ti9x4_g_parm,
++	.s_parm	= ti9x4_s_parm,
++};
++
+ static struct v4l2_subdev_ops ti9x4_subdev_ops = {
+ 	.core	= &ti9x4_subdev_core_ops,
++	.video	= &ti9x4_video_ops,
+ };
+ 
+ static int ti9x4_parse_dt(struct i2c_client *client)
+@@ -607,6 +647,8 @@ static int ti9x4_probe(struct i2c_client *client,
+ 	priv->des_addr = client->addr;
+ 	priv->client = client;
+ 	atomic_set(&priv->use_count, 0);
++	priv->fps_numerator = 1;
++	priv->fps_denominator = 30;
+ 
+ 	err = ti9x4_parse_dt(client);
+ 	if (err)
+-- 
+2.7.4
+

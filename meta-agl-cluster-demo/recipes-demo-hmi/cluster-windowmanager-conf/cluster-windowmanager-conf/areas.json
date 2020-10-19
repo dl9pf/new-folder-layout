@@ -1,0 +1,40 @@
+{
+    "areas": [
+        {
+            "name": "fullscreen",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 1920,
+                "h": 1080
+            }
+        },
+        {
+            "name": "normal.full",
+            "rect": {
+                "x": 640,
+                "y": 180,
+                "w": 640,
+                "h": 720
+            }
+        },
+        {
+            "name": "restriction.normal",
+            "rect": {
+                "x": 640,
+                "y": 180,
+                "w": 640,
+                "h": 720
+            }
+        },
+        {
+            "name": "on_screen",
+            "rect": {
+                "x": 640,
+                "y": 180,
+                "w": 640,
+                "h": 720
+            }
+        }
+    ]
+}

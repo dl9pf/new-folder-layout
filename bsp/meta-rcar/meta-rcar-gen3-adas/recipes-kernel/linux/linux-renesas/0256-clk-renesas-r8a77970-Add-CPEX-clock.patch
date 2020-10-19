@@ -1,0 +1,31 @@
+From 3674769e16cf1368462cb8e57d111a0937c4d329 Mon Sep 17 00:00:00 2001
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Date: Wed, 21 Nov 2018 10:44:32 +0100
+Subject: [PATCH 076/211] clk: renesas: r8a77970: Add CPEX clock
+
+Implement support for the CPEX clock on R-Car V3M.  This clock can be
+selected as a clock source for CMT1 (Compare Match Timer Type 1).
+
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Acked-by: Stephen Boyd <sboyd@kernel.org>
+(cherry picked from commit 396bc9d40d694befa1c2c88f9873afc62a189b5f)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/r8a77970-cpg-mssr.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/clk/renesas/r8a77970-cpg-mssr.c b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+index 6885c62..cbac67e 100644
+--- a/drivers/clk/renesas/r8a77970-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77970-cpg-mssr.c
+@@ -99,6 +99,7 @@ static const struct cpg_core_clk r8a77970_core_clks[] __initconst = {
+ 
+ 	DEF_FIXED("cl",		R8A77970_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
+ 	DEF_FIXED("cp",		R8A77970_CLK_CP,    CLK_EXTAL,	    2, 1),
++	DEF_FIXED("cpex",	R8A77970_CLK_CPEX,  CLK_EXTAL,	    2, 1),
+ 
+ 	DEF_DIV6P1("canfd",	R8A77970_CLK_CANFD, CLK_PLL1_DIV4, 0x244),
+ 	DEF_DIV6P1("mso",	R8A77970_CLK_MSO,   CLK_PLL1_DIV4, 0x014),
+-- 
+2.7.4
+

@@ -1,0 +1,106 @@
+From b025c0676549f2a075269e09ca9fc88b62a1c5af Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 3 Jun 2020 18:44:06 +0300
+Subject: [PATCH] arm64: dts: renesas: vb-gmsl2: fix typos
+
+This fixes varius typos on GMSL2 Videobox ECUs
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-2x2.dts | 12 ++++++------
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-4.dts   |  8 ++++----
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-2x2.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-2x2.dts
+index 4d284b1..c56adc0 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-2x2.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-2x2.dts
+@@ -1,7 +1,7 @@
+ /*
+- * Device Tree Source for the V3HSK Videobox Mini board on r8a7798
++ * Device Tree Source for the V3HSK GMSL2 Dual Videobox Mini board on r8a7798
+  *
+- * Copyright (C) 2018 Cogent Embedded, Inc.
++ * Copyright (C) 2020 Cogent Embedded, Inc.
+  *
+  * This file is licensed under the terms of the GNU General Public License
+  * version 2.  This program is licensed "as is" without any warranty of any
+@@ -254,7 +254,7 @@
+ 				clock-names = "ref_clk";
+ 				shutdown-gpios = <&gpio_exp_ch0 1 GPIO_ACTIVE_LOW>;
+ 
+-				maxim,link-mipi-map = <1 1>;
++				maxim,links-mipi-map = <1 1>;
+ 
+ 				poc0-supply = <&regulator_poc_0>;
+ 				poc1-supply = <&regulator_poc_1>;
+@@ -342,7 +342,7 @@
+ 				clock-names = "ref_clk";
+ 				shutdown-gpios = <&gpio_exp_ch0 0 GPIO_ACTIVE_LOW>;
+ 
+-				maxim,link-mipi-map = <1 1>;
++				maxim,links-mipi-map = <1 1>;
+ 
+ 				poc0-supply = <&regulator_poc_2>;
+ 				poc1-supply = <&regulator_poc_3>;
+@@ -353,7 +353,7 @@
+ 						remote-endpoint = <&camera_in2>;
+ 					};
+ 					max9296_des1ep1: endpoint@1 {
+-						ser-addr = <0x51>;
++						ser-addr = <0x0d>;
+ 						remote-endpoint = <&camera_in3>;
+ 					};
+ 				};
+@@ -396,7 +396,7 @@
+ 
+ 					camera@61 {
+ 						compatible = COMPATIBLE_CAMERAS;
+-						reg = <0x61 0x0c>;
++						reg = <0x61 0x0d>;
+ 
+ 						port@0 {
+ 							camera_in3: endpoint {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-4.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-4.dts
+index ac2d825..919e775 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-4.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl2-4.dts
+@@ -566,7 +566,7 @@
+ 			};
+ 		};
+ 		port@1 {
+-			csi1ep0: endpoint {
++			csi0ep0: endpoint {
+ 				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+@@ -594,7 +594,7 @@
+ 			};
+ 		};
+ 		port@1 {
+-			csi1ep1: endpoint {
++			csi0ep1: endpoint {
+ 				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+@@ -622,7 +622,7 @@
+ 			};
+ 		};
+ 		port@1 {
+-			csi1ep2: endpoint {
++			csi0ep2: endpoint {
+ 				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+@@ -650,7 +650,7 @@
+ 			};
+ 		};
+ 		port@1 {
+-			csi1ep3: endpoint {
++			csi0ep3: endpoint {
+ 				remote-endpoint = <&csi40_ep>;
+ 			};
+ 		};
+-- 
+2.7.4
+

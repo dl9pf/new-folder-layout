@@ -1,0 +1,68 @@
+From 7d99fda5fcfea599b9611f4af562b5ee327e8745 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Wed, 25 Mar 2020 15:12:47 +0300
+Subject: [PATCH] arm64: dts: renesas: block i2c pm runtime
+
+Block i2c pm runtime on video boxes.
+This speed up i2c under stress cases: imagers control over
+FPDLINK or GMSL
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts         | 1 +
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts      | 2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts      | 1 +
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl-8ch.dts | 1 +
+ 4 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
+index 7ab71c8..4eb160c 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk-vbm.dts
+@@ -75,6 +75,7 @@
+ 	status = "okay";
+ 
+ 	clock-frequency = <400000>;
++	multi-master;
+ 
+ 	i2cswitch1: i2c-switch@74 {
+ 		compatible = "nxp,pca9548";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index 4ca62c6..7c84657 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -143,6 +143,7 @@
+ 	status = "okay";
+ 
+ 	clock-frequency = <400000>;
++	multi-master;
+ 
+ 	i2cswitch1: i2c-switch@74 {
+ 		compatible = "nxp,pca9548";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index b635132..47f4408 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -143,6 +143,7 @@
+ 	status = "okay";
+ 
+ 	clock-frequency = <400000>;
++	multi-master;
+ 
+ 	i2cswitch1: i2c-switch@74 {
+ 		compatible = "nxp,pca9548";
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl-8ch.dts
+index f90951d..dc7938b 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-gmsl-8ch.dts
+@@ -137,6 +137,7 @@
+ 	status = "okay";
+ 
+ 	clock-frequency = <400000>;
++	multi-master;
+ 
+ 	i2cswitch1: i2c-switch@74 {
+ 		compatible = "nxp,pca9548";
+-- 
+2.7.4
+

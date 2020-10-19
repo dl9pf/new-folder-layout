@@ -1,0 +1,50 @@
+From 03b06b8d0210a6fd5f417515eb40af24c2a60878 Mon Sep 17 00:00:00 2001
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Date: Thu, 29 Nov 2018 11:56:15 +0100
+Subject: [PATCH 072/211] soc: renesas: r8a77970-sysc: Remove non-existent CR7
+ power domain
+
+The R-Car Gen3 HardWare Manual Errata for Rev. 0.80 (Feb 28, 2018)
+removed the CR7 power domain on R-Car V3M, as this SoC does not have an
+ARM Cortex-R7 Realtime Core.
+
+As this definition was never used from DT, it can just be removed.
+
+Fixes: 833bdb47c826a1a6 ("dt-bindings: power: add R8A77970 SYSC power domain definitions")
+Fixes: bab9b2a74fe9da96 ("soc: renesas: rcar-sysc: add R8A77970 support")
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+Signed-off-by: Simon Horman <horms+renesas@verge.net.au>
+(cherry picked from commit da3e1c57caf93ed379f14686e877f806111abe7c)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/soc/renesas/r8a77970-sysc.c       | 1 -
+ include/dt-bindings/power/r8a77970-sysc.h | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/drivers/soc/renesas/r8a77970-sysc.c b/drivers/soc/renesas/r8a77970-sysc.c
+index a6ce15d..bd0263f 100644
+--- a/drivers/soc/renesas/r8a77970-sysc.c
++++ b/drivers/soc/renesas/r8a77970-sysc.c
+@@ -24,7 +24,6 @@ static const struct rcar_sysc_area r8a77970_areas[] __initconst = {
+ 	  PD_CPU_NOCR },
+ 	{ "ca53-cpu1",	0x200, 1, R8A77970_PD_CA53_CPU1, R8A77970_PD_CA53_SCU,
+ 	  PD_CPU_NOCR },
+-	{ "cr7",	0x240, 0, R8A77970_PD_CR7,	R8A77970_PD_ALWAYS_ON },
+ 	{ "a3ir",	0x180, 0, R8A77970_PD_A3IR,	R8A77970_PD_ALWAYS_ON },
+ 	{ "a2ir0",	0x400, 0, R8A77970_PD_A2IR0,	R8A77970_PD_A3IR },
+ 	{ "a2ir1",	0x400, 1, R8A77970_PD_A2IR1,	R8A77970_PD_A3IR },
+diff --git a/include/dt-bindings/power/r8a77970-sysc.h b/include/dt-bindings/power/r8a77970-sysc.h
+index bf54779..5c1ef13 100644
+--- a/include/dt-bindings/power/r8a77970-sysc.h
++++ b/include/dt-bindings/power/r8a77970-sysc.h
+@@ -16,7 +16,6 @@
+ 
+ #define R8A77970_PD_CA53_CPU0		 5
+ #define R8A77970_PD_CA53_CPU1		 6
+-#define R8A77970_PD_CR7			13
+ #define R8A77970_PD_CA53_SCU		21
+ #define R8A77970_PD_A2IR0		23
+ #define R8A77970_PD_A3IR			24
+-- 
+2.7.4
+

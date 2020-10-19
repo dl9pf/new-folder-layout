@@ -1,0 +1,28 @@
+From 0eaccc1648824c2059d93d0395552efe5c057e38 Mon Sep 17 00:00:00 2001
+From: Valentine Barshak <valentine.barshak@cogentembedded.com>
+Date: Fri, 9 Aug 2019 01:36:33 +0300
+Subject: [PATCH] arm64: dts: renesas: r8a77970-v3msk: Fix memory size
+
+The V3MSK board has 2GB RAM according to the datasheet.
+
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+index 107d041..d6deffe 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77970-v3msk.dts
+@@ -25,7 +25,7 @@
+ 	memory@48000000 {
+ 		device_type = "memory";
+ 		/* first 128MB is reserved for secure area. */
+-		reg = <0x0 0x48000000 0x0 0x38000000>;
++		reg = <0x0 0x48000000 0x0 0x78000000>;
+ 	};
+ 
+ 	reserved-memory {
+-- 
+2.7.4
+

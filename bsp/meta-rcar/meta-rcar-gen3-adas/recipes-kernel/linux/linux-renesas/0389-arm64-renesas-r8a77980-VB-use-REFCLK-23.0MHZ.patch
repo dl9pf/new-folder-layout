@@ -1,0 +1,78 @@
+From 0e76e0d714d4da7b4572c915fc588d111ac659e6 Mon Sep 17 00:00:00 2001
+From: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+Date: Thu, 7 Feb 2019 11:44:37 +0300
+Subject: [PATCH 209/211] arm64: renesas: r8a77980: VB: use REFCLK=23.0MHZ
+
+This fixes data integrity on FPDLink
+
+Signed-off-by: Vladimir Barinov <vladimir.barinov@cogentembedded.com>
+---
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts |  2 +-
+ arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+index cb9cd54..81f9edb 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-4ch.dts
+@@ -324,7 +324,7 @@
+ 				clock-names = "clk_in";
+ 
+ 				assigned-clocks = <&cs2300>;
+-				assigned-clock-rates = <23500000>;
++				assigned-clock-rates = <23000000>;
+ 			};
+ 		};
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+index f23f2d0..8749c94 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
++++ b/arch/arm64/boot/dts/renesas/r8a77980-v3hsk-vb-8ch.dts
+@@ -115,7 +115,7 @@
+ 		csi40_ep: endpoint {
+ 			clock-lanes = <0>;
+ 			data-lanes = <1 2 3 4>;
+-			csi-rate = <1450>;
++			csi-rate = <1500>;
+ 		};
+ 	};
+ };
+@@ -130,7 +130,7 @@
+ 		csi41_ep: endpoint {
+ 			clock-lanes = <0>;
+ 			data-lanes = <1 2 3 4>;
+-			csi-rate = <1450>;
++			csi-rate = <1500>;
+ 		};
+ 	};
+ };
+@@ -267,7 +267,7 @@
+ 				};
+ 				port@1 {
+ 					ti9x4_csi0ep0: endpoint {
+-						csi-rate = <1450>;
++						csi-rate = <1500>;
+ 						remote-endpoint = <&csi40_ep>;
+ 					};
+ 				};
+@@ -425,7 +425,7 @@
+ 				};
+ 				port@1 {
+ 					ti9x4_csi1ep0: endpoint {
+-						csi-rate = <1450>;
++						csi-rate = <1500>;
+ 						remote-endpoint = <&csi41_ep>;
+ 					};
+ 				};
+@@ -447,7 +447,7 @@
+ 				clock-names = "clk_in";
+ 
+ 				assigned-clocks = <&cs2300>;
+-				assigned-clock-rates = <22500000>;
++				assigned-clock-rates = <23000000>;
+ 			};
+ 
+ 			gpio_exp_ch1: gpio_ch1@6c {
+-- 
+2.7.4
+

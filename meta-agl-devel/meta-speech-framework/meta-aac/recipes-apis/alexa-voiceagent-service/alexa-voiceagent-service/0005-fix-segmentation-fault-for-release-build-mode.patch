@@ -1,0 +1,33 @@
+Fix segmentation fault for release build mode
+
+'int IAFBApi::callSync(...)' is missing a return
+statement. When the sdk is compiled in release mode
+executing this code results in a segmentation fault.
+
+According to the C++ standard, a return statement is
+required on a function that returns a non-void value.
+Specifically: <<Flowing off the end of a function is
+equivalent to a return with no value; this results in
+undefined behaviour in a value-returning function.>>
+
+The proposed fix provides the missing return statement
+for IAFBApi's callSync method.
+
+Upstream-Status: Pending
+
+Signed-off-by: Raquel Medina <raquel.medina@konsulko.com>
+
+diff --git a/platforms/agl/alexa-voiceagent-service/src/plugins/afb/AFBApiImpl.cpp b/platforms/agl/alexa-voiceagent-service/src/plugins/afb/AFBApiImpl.cpp
+index 5ed9bce..e68ef7f 100644
+--- a/src/plugins/afb/AFBApiImpl.cpp
++++ b/src/plugins/afb/AFBApiImpl.cpp
+@@ -77,6 +77,8 @@ int AFBApiImpl::callSync(
+         info = infoStr;
+         free(infoStr);
+     }
++
++    return rc;
+ }
+
+ /// Shim to transfer C++ function to C callback using void*
+

@@ -1,0 +1,17 @@
+# daemon config file for PipeWire version "0.2.9"
+# distributed by Automotive Grade Linux
+
+add-spa-lib audio.convert* audioconvert/libspa-audioconvert
+add-spa-lib api.alsa.* alsa/libspa-alsa
+add-spa-lib api.v4l2.* v4l2/libspa-v4l2
+add-spa-lib api.bluez5.* bluez5/libspa-bluez5
+
+load-module libpipewire-module-protocol-native
+load-module libpipewire-module-spa-node-factory
+load-module libpipewire-module-client-node
+load-module libpipewire-module-client-device
+load-module libpipewire-module-access same-sec-label-mode=1
+load-module libpipewire-module-adapter
+load-module libpipewire-module-link-factory
+load-module libpipewire-module-session-manager
+exec /usr/bin/wireplumber

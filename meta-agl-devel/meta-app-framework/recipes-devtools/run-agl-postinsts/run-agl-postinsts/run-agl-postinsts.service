@@ -1,0 +1,17 @@
+[Unit]
+Description=Run pending agl postinsts
+DefaultDependencies=no
+After=#SYSTEMD_SERVICE_AFTER#
+Before=#SYSTEMD_SERVICE_BEFORE#
+ConditionPathExists=#SYSCONFDIR#/agl-postinsts
+
+[Service]
+Type=oneshot
+StandardOutput=journal+console
+ExecStart=#SBINDIR#/run-agl-postinsts
+ExecStartPost=#BASE_BINDIR#/systemctl disable run-agl-postinsts.service
+RemainAfterExit=No
+TimeoutSec=0
+
+[Install]
+WantedBy=multi-user.target

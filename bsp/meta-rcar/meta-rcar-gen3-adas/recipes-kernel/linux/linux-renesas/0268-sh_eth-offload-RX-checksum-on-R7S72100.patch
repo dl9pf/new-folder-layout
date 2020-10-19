@@ -1,0 +1,31 @@
+From 026258a2809e44f4e689e75b809d49f8d3865fc0 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Mon, 4 Feb 2019 21:07:53 +0300
+Subject: [PATCH 088/211] sh_eth: offload RX checksum on R7S72100
+
+The RZ/A1H (R7S721000) SoC manual describes the Ether MAC's RX checksum
+offload the same way as it's implemented in the EtherAVB MACs...
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+(cherry picked from commit 48132cd0c6317701421df3232a77c0a642292859)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/net/ethernet/renesas/sh_eth.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ethernet/renesas/sh_eth.c b/drivers/net/ethernet/renesas/sh_eth.c
+index 959e0cb..e1ec382 100644
+--- a/drivers/net/ethernet/renesas/sh_eth.c
++++ b/drivers/net/ethernet/renesas/sh_eth.c
+@@ -626,6 +626,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
+ 	.no_ade		= 1,
+ 	.xdfar_rw	= 1,
+ 	.csmr		= 1,
++	.rx_csum	= 1,
+ 	.tsu		= 1,
+ 	.no_tx_cntrs	= 1,
+ };
+-- 
+2.7.4
+

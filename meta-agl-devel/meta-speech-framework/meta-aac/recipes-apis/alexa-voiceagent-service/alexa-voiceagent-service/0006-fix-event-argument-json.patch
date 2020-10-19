@@ -1,0 +1,183 @@
+Fix event argument JSON
+
+It was discovered while trying to use some of the capabilities events
+that the argument JSON was incorrectly formatted, with instances of
+all or part of it being double-quoted as strings with escaping.  A
+couple instances of this had previously been worked around by hacks
+involving reparsing all or some parts of the arguments a second time
+with a JSON parser, but it seems better to fix it at the source so
+that the events match documentation and are usable as is.
+
+Note that it is ATM not clear if all affected event argument payloads
+are correct, e.g. LocalMediaSource may need some more work.
+
+Upstream-Status: Pending
+
+Signed-off-by: Scott Murray <scott.murray@konsulko.com>
+
+diff --git a/src/plugins/aasb-client/AlexaCapabilityDirectiveRouterImpl.cpp b/src/plugins/aasb-client/AlexaCapabilityDirectiveRouterImpl.cpp
+index 6aea920..23ed90c 100644
+--- a/src/plugins/aasb-client/AlexaCapabilityDirectiveRouterImpl.cpp
++++ b/src/plugins/aasb-client/AlexaCapabilityDirectiveRouterImpl.cpp
+@@ -17,6 +17,8 @@
+ 
+ #include <sstream>
+ 
++#include <json-c/json.h>
++
+ #include <aasb/Consts.h>
+ 
+ #include "AlexaConsts.h"
+@@ -322,7 +324,16 @@ void AlexaCapabilityDirectiveRouterImpl::processTemplateRuntimeAction(
+ 
+     json_object* argsJ = json_object_new_object();
+     json_object* actionJ = json_object_new_string(vshlCapabilityAction.c_str());
+-    json_object* payloadJ = json_object_new_string(payload.c_str());
++    json_object* payloadJ = NULL;
++    if(payload.length()) {
++        payloadJ = json_tokener_parse(payload.c_str());
++    } else {
++        payloadJ = json_object_new_string("");
++    }
++    if(!payloadJ) {
++        m_logger->log(Level::ERROR, TAG, "Unable to parse payload JSON: " + payload);
++        return;
++    }
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_ACTION.c_str(), actionJ);
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+ 
+@@ -343,24 +354,40 @@ void AlexaCapabilityDirectiveRouterImpl::processCBLAction(
+     const std::string& payload) {
+     m_logger->log(Level::DEBUG, TAG, "Processing CBL action: " + action);
+ 
+-    json_object* eventDataJ = json_object_new_object();
++    json_object* payloadJ = NULL;
++    if(payload.length()) {
++        payloadJ = json_tokener_parse(payload.c_str());
++    } else {
++        payloadJ = json_object_new_string("");
++    }
++    if(!payloadJ) {
++        m_logger->log(Level::ERROR, TAG, "Unable to parse payload JSON: " + payload);
++        return;
++    }
++    // The payload string may already be of the form of a document like
++    // "{ "payload" : { ... } }", the simplest way to handle that is to use
++    // it as the event json_object if that's the case, that way we avoid
++    // having to worry about copying.
++    json_object* eventDataJ = NULL;
++    if(json_object_object_get_ex(payloadJ, "payload", NULL)) {
++        eventDataJ = payloadJ;
++    } else {
++        eventDataJ = json_object_new_object();
++        json_object_object_add(eventDataJ, JSON_ATTR_PAYLOAD.c_str(), payloadJ);
++    }
+     json_object* vaIdJ = json_object_new_string(m_alexaVoiceAgentId.c_str());
+-
+     json_object_object_add(eventDataJ, JSON_ATTR_VOICEAGENT_ID.c_str(), vaIdJ);
+ 
+     int observers = 0;
+     if (action == aasb::bridge::ACTION_CBL_CODEPAIR_RECEIVED) {
+         m_logger->log(Level::INFO, TAG, "CBL codepair received: " + payload);
+-        json_object* payloadJ = json_object_new_string(payload.c_str());
+-        json_object_object_add(eventDataJ, JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+         observers = m_cblCodePairReceivedEvent->publishEvent(eventDataJ);
+     } else if (action == aasb::bridge::ACTION_CBL_CODEPAIR_EXPIRED) {
+         m_logger->log(Level::INFO, TAG, "CBL codepair expired: " + payload);
+-        json_object* payloadJ = json_object_new_string(payload.c_str());
+-        json_object_object_add(eventDataJ, JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+         observers = m_cblCodePairExpiredEvent->publishEvent(eventDataJ);
+     } else {
+         m_logger->log(Level::INFO, TAG, "Unhandled action: " + action);
++        json_object_put(eventDataJ);
+     }
+ 
+     std::stringstream logMsg;
+diff --git a/src/plugins/dispatchers/local-voice-control/car-control/CarControlDispatcher.cpp b/src/plugins/dispatchers/local-voice-control/car-control/CarControlDispatcher.cpp
+index 096f72f..75108d4 100644
+--- a/src/plugins/dispatchers/local-voice-control/car-control/CarControlDispatcher.cpp
++++ b/src/plugins/dispatchers/local-voice-control/car-control/CarControlDispatcher.cpp
+@@ -72,7 +72,16 @@ void CarControlDispatcher::onReceivedDirective(
+ 
+     json_object* argsJ = json_object_new_object();
+     json_object* actionJ = json_object_new_string(vshlCapabilityAction.c_str());
+-    json_object* payloadJ = json_object_new_string(payload.c_str());
++    json_object* payloadJ = NULL;
++    if(payload.length()) {
++        payloadJ = json_tokener_parse(payload.c_str());
++    } else {
++        payloadJ = json_object_new_string("");
++    }
++    if(!payloadJ) {
++        m_logger->log(Level::ERROR, TAG, "Unable to parse payload JSON: " + payload);
++        return;
++    }
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_ACTION.c_str(), actionJ);
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+ 
+diff --git a/src/plugins/dispatchers/localmediasource/LocalMediaSourceDispatcher.cpp b/src/plugins/dispatchers/localmediasource/LocalMediaSourceDispatcher.cpp
+index c261a56..04ac10c 100644
+--- a/src/plugins/dispatchers/localmediasource/LocalMediaSourceDispatcher.cpp
++++ b/src/plugins/dispatchers/localmediasource/LocalMediaSourceDispatcher.cpp
+@@ -71,7 +71,16 @@ void LocalMediaSourceDispatcher::onReceivedDirective(
+ 
+     json_object* argsJ = json_object_new_object();
+     json_object* actionJ = json_object_new_string(vshlCapabilityAction.c_str());
+-    json_object* payloadJ = json_object_new_string(payload.c_str());
++    json_object* payloadJ = NULL;
++    if(payload.length()) {
++        payloadJ = json_tokener_parse(payload.c_str());
++    } else {
++        payloadJ = json_object_new_string("");
++    }
++    if(!payloadJ) {
++        m_logger->log(Level::ERROR, TAG, "Unable to parse payload JSON: " + payload);
++        return;
++    }
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_ACTION.c_str(), actionJ);
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+ 
+diff --git a/src/plugins/dispatchers/navigation/NavigationDispatcher.cpp b/src/plugins/dispatchers/navigation/NavigationDispatcher.cpp
+index 55a6017..283b42b 100644
+--- a/src/plugins/dispatchers/navigation/NavigationDispatcher.cpp
++++ b/src/plugins/dispatchers/navigation/NavigationDispatcher.cpp
+@@ -68,7 +68,16 @@ void NavigationDispatcher::onReceivedDirective(
+ 
+     json_object* argsJ = json_object_new_object();
+     json_object* actionJ = json_object_new_string(vshlCapabilityAction.c_str());
+-    json_object* payloadJ = json_object_new_string(payload.c_str());
++    json_object* payloadJ = NULL;
++    if(payload.length()) {
++        payloadJ = json_tokener_parse(payload.c_str());
++    } else {
++        payloadJ = json_object_new_string("");
++    }
++    if(!payloadJ) {
++        m_logger->log(Level::ERROR, TAG, "Unable to parse payload JSON: " + payload);
++        return;
++    }
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_ACTION.c_str(), actionJ);
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+ 
+diff --git a/src/plugins/dispatchers/phonecall/PhoneCallDispatcher.cpp b/src/plugins/dispatchers/phonecall/PhoneCallDispatcher.cpp
+index 29ad96a..3432892 100644
+--- a/src/plugins/dispatchers/phonecall/PhoneCallDispatcher.cpp
++++ b/src/plugins/dispatchers/phonecall/PhoneCallDispatcher.cpp
+@@ -86,7 +86,16 @@ void PhoneCallDispatcher::onReceivedDirective(
+ 
+     json_object* argsJ = json_object_new_object();
+     json_object* actionJ = json_object_new_string(vshlCapabilityAction.c_str());
+-    json_object* payloadJ = json_object_new_string(payload.c_str());
++    json_object* payloadJ = NULL;
++    if(payload.length()) {
++        payloadJ = json_tokener_parse(payload.c_str());
++    } else {
++        payloadJ = json_object_new_string("");
++    }
++    if(!payloadJ) {
++        m_logger->log(Level::ERROR, TAG, "Unable to parse payload JSON: " + payload);
++        return;
++    }
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_ACTION.c_str(), actionJ);
+     json_object_object_add(argsJ, agl::alexa::JSON_ATTR_PAYLOAD.c_str(), payloadJ);
+ 

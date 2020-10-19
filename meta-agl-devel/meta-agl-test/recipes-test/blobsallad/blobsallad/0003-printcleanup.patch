@@ -1,0 +1,11 @@
+--- a/bs_blob_collective.c
++++ b/bs_blob_collective.c
+@@ -152,7 +152,7 @@
+ 
+   bs_list_unlink_p_cont(pCollective->pBlobs, bs_blob_collective_remove_blob_cb, findData.pMotherBlob); 
+   
+-  printf("number of blobs: %d\n", bs_list_get_length(pCollective->pBlobs)); 
++/*  printf("number of blobs: %d\n", bs_list_get_length(pCollective->pBlobs)); */
+ }
+ 
+ typedef struct bs_blob_collective_join_find_smallest_st

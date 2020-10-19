@@ -1,0 +1,278 @@
+From 689485ff61b8b96b180caf7ccaf19f7e3cf3c9bb Mon Sep 17 00:00:00 2001
+From: Andrey Dolnikov <andrey.dolnikov@cogentembedded.com>
+Date: Mon, 5 Nov 2018 23:34:53 +0300
+Subject: [PATCH 157/211] rcar_imr v4l2 driver: Fix module support.
+
+---
+ arch/arm64/boot/dts/renesas/r8a7795.dtsi  |  8 ++++++++
+ arch/arm64/boot/dts/renesas/r8a7796.dtsi  |  6 ++++++
+ arch/arm64/boot/dts/renesas/r8a77970.dtsi |  8 ++++++++
+ arch/arm64/boot/dts/renesas/r8a77980.dtsi | 10 ++++++++++
+ drivers/media/platform/rcar_imr.c         | 32 ++++++++++++++++++++++++++++---
+ 5 files changed, 61 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/renesas/r8a7795.dtsi b/arch/arm64/boot/dts/renesas/r8a7795.dtsi
+index e749633..e1b57e9 100644
+--- a/arch/arm64/boot/dts/renesas/r8a7795.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a7795.dtsi
+@@ -2785,6 +2785,10 @@
+ 			status = "disabled";
+ 		};
+ 
++		imr_v4l2_alloc: imr_alloc {
++			dma-coherent;
++		};
++
+ 		imrlx4_ch0: imr0@fe860000 {
+ 			compatible = "renesas,r8a7795-imr-lx4",
+ 				     "renesas,imr-lx4";
+@@ -2793,6 +2797,7 @@
+ 			clocks = <&cpg CPG_MOD 823>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 823>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch1: imr1@fe870000 {
+@@ -2803,6 +2808,7 @@
+ 			clocks = <&cpg CPG_MOD 822>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 822>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch2: imr2@fe880000 {
+@@ -2813,6 +2819,7 @@
+ 			clocks = <&cpg CPG_MOD 821>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 821>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch3: imr3@fe890000 {
+@@ -2823,6 +2830,7 @@
+ 			clocks = <&cpg CPG_MOD 820>;
+ 			power-domains = <&sysc R8A7795_PD_A3VC>;
+ 			resets = <&cpg 820>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		fcpcs: vcp4@fe90f000 {
+diff --git a/arch/arm64/boot/dts/renesas/r8a7796.dtsi b/arch/arm64/boot/dts/renesas/r8a7796.dtsi
+index 49068a8..7fcac8f 100644
+--- a/arch/arm64/boot/dts/renesas/r8a7796.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a7796.dtsi
+@@ -2618,6 +2618,10 @@
+ 			status = "disabled";
+ 		};
+ 
++		imr_v4l2_alloc: imr_alloc {
++			dma-coherent;
++		};
++
+ 		imrlx4_ch0: imr0@fe860000 {
+ 			compatible = "renesas,r8a7796-imr-lx4",
+ 				     "renesas,imr-lx4";
+@@ -2626,6 +2630,7 @@
+ 			clocks = <&cpg CPG_MOD 823>;
+ 			power-domains = <&sysc R8A7796_PD_A3VC>;
+ 			resets = <&cpg 823>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch1: imr1@fe870000 {
+@@ -2636,6 +2641,7 @@
+ 			clocks = <&cpg CPG_MOD 822>;
+ 			power-domains = <&sysc R8A7796_PD_A3VC>;
+ 			resets = <&cpg 822>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imp_distributer: impdes0 {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77970.dtsi b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+index 40e28338..77ee934 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77970.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77970.dtsi
+@@ -968,6 +968,10 @@
+ 			power-domains = <&sysc R8A77970_PD_A3IR>;
+ 		};
+ 
++		imr_v4l2_alloc: imr_alloc {
++			dma-coherent;
++		};
++
+ 		imrlx4_ch0: imr0@fe860000 {
+ 			compatible = "renesas,r8a77970-imr-lx4",
+ 				     "renesas,imr-lx4";
+@@ -976,6 +980,7 @@
+ 			clocks = <&cpg CPG_MOD 823>;
+ 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
+ 			resets = <&cpg 823>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch1: imr1@fe870000 {
+@@ -986,6 +991,7 @@
+ 			clocks = <&cpg CPG_MOD 822>;
+ 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
+ 			resets = <&cpg 822>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch2: imr2@fe880000 {
+@@ -996,6 +1002,7 @@
+ 			clocks = <&cpg CPG_MOD 821>;
+ 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
+ 			resets = <&cpg 821>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch3: imr3@fe890000 {
+@@ -1006,6 +1013,7 @@
+ 			clocks = <&cpg CPG_MOD 820>;
+ 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
+ 			resets = <&cpg 820>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		isp@fec00000 {
+diff --git a/arch/arm64/boot/dts/renesas/r8a77980.dtsi b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+index fc0b008..8af443d 100644
+--- a/arch/arm64/boot/dts/renesas/r8a77980.dtsi
++++ b/arch/arm64/boot/dts/renesas/r8a77980.dtsi
+@@ -1213,6 +1213,10 @@
+ 			power-domains = <&sysc R8A77980_PD_A3IR>;
+ 		};
+ 
++		imr_v4l2_alloc: imr_alloc {
++			dma-coherent;
++		};
++
+ 		imrlx4_ch0: imr0@fe860000 {
+ 			compatible = "renesas,r8a77980-imr-lx4",
+ 				     "renesas,imr-lx4";
+@@ -1221,6 +1225,7 @@
+ 			clocks = <&cpg CPG_MOD 823>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 823>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch1: imr1@fe870000 {
+@@ -1231,6 +1236,7 @@
+ 			clocks = <&cpg CPG_MOD 822>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 822>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch2: imr2@fe880000 {
+@@ -1241,6 +1247,7 @@
+ 			clocks = <&cpg CPG_MOD 821>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 821>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch3: imr3@fe890000 {
+@@ -1251,6 +1258,7 @@
+ 			clocks = <&cpg CPG_MOD 820>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			resets = <&cpg 820>;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch4: imr4@fe8a0000 {
+@@ -1261,6 +1269,7 @@
+ 			clocks = <&cpg CPG_MOD 707>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			rse;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		imrlx4_ch5: imr5@fe8b0000 {
+@@ -1271,6 +1280,7 @@
+ 			clocks = <&cpg CPG_MOD 706>;
+ 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
+ 			rse;
++			alloc-dev = <&imr_v4l2_alloc>;
+ 		};
+ 
+ 		vip_disp_status {
+diff --git a/drivers/media/platform/rcar_imr.c b/drivers/media/platform/rcar_imr.c
+index 7b16765..607778e 100644
+--- a/drivers/media/platform/rcar_imr.c
++++ b/drivers/media/platform/rcar_imr.c
+@@ -18,6 +18,7 @@
+ #include <linux/delay.h>
+ #include <linux/rcar-imr.h>
+ #include <linux/of.h>
++#include <linux/of_device.h>
+ #include <media/v4l2-device.h>
+ #include <media/v4l2-ctrls.h>
+ #include <media/v4l2-fh.h>
+@@ -1917,6 +1918,8 @@ static int imr_probe(struct platform_device *pdev)
+ 	struct resource *res;
+ 	struct device_node *np = pdev->dev.of_node;
+ 	int ret;
++	phandle *prop;
++	struct device_node *node;
+ 
+ 	imr = devm_kzalloc(&pdev->dev, sizeof(*imr), GFP_KERNEL);
+ 	if (!imr)
+@@ -1989,10 +1992,15 @@ static int imr_probe(struct platform_device *pdev)
+ 		ret = PTR_ERR(adev);
+ 		goto m2m_init_rollback;
+ 	}
++
+ 	adev->dma_mask = &adev->coherent_dma_mask;
+ 	adev->coherent_dma_mask = DMA_BIT_MASK(32);
+-	arch_setup_dma_ops(adev, 0, DMA_BIT_MASK(32) + 1, NULL, true);
+ 	imr->alloc_dev = adev;
++	prop = of_get_property(np, "alloc-dev", NULL);
++	if (prop) {
++		node = of_find_node_by_phandle(be32_to_cpup(prop));
++		of_dma_configure(adev, node, true);
++	}
+ 
+ 	strlcpy(imr->video_dev.name, dev_name(&pdev->dev), sizeof(imr->video_dev.name));
+ 	imr->video_dev.fops         = &imr_fops;
+@@ -2032,7 +2040,6 @@ static int imr_remove(struct platform_device *pdev)
+ 
+ 	//pm_runtime_disable(imr->v4l2_dev.dev);
+ 	video_unregister_device(&imr->video_dev);
+-	//device_destroy(imr->alloc_dev, MKDEV(0, 0));
+ 	v4l2_m2m_release(imr->m2m_dev);
+ 	v4l2_device_unregister(&imr->v4l2_dev);
+ 
+@@ -2100,7 +2107,26 @@ static struct platform_driver imr_platform_driver = {
+ 	},
+ };
+ 
+-module_platform_driver(imr_platform_driver);
++static int __init imr_module_init(void)
++{
++	return platform_driver_register(&imr_platform_driver);
++}
++
++static int imr_device_destroy(struct device *dev, void *data)
++{
++	device_destroy(imr_alloc_class, dev->devt);
++	return 0;
++}
++
++static void __exit imr_module_exit(void)
++{
++	class_for_each_device(imr_alloc_class, NULL, NULL, imr_device_destroy);
++	class_destroy(imr_alloc_class);
++	platform_driver_unregister(&imr_platform_driver);
++}
++
++module_init(imr_module_init);
++module_exit(imr_module_exit);
+ 
+ MODULE_ALIAS("imr");
+ MODULE_AUTHOR("Cogent Embedded Inc. <sources@cogentembedded.com>");
+-- 
+2.7.4
+

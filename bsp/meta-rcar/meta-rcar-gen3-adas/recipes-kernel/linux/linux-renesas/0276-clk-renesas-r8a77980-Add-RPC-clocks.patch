@@ -1,0 +1,55 @@
+From a00e5d2291fba5c3df1164f33b9e75333a9697e0 Mon Sep 17 00:00:00 2001
+From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Date: Tue, 22 Jan 2019 23:01:07 +0300
+Subject: [PATCH 096/211] clk: renesas: r8a77980: Add RPC clocks
+
+Describe the RPCSRC internal clock and the RPC[D2] clocks derived from it,
+as well as the RPC-IF module clock, in the R-Car V3H (R8A77980) CPG/MSSR
+driver.
+
+Signed-off-by: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+(cherry picked from commit 94e3935b5756a790396b57c7a5116460db511b29)
+Signed-off-by: Valentine Barshak <valentine.barshak@cogentembedded.com>
+---
+ drivers/clk/renesas/r8a77980-cpg-mssr.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/clk/renesas/r8a77980-cpg-mssr.c b/drivers/clk/renesas/r8a77980-cpg-mssr.c
+index 25a3083..f9e07fc 100644
+--- a/drivers/clk/renesas/r8a77980-cpg-mssr.c
++++ b/drivers/clk/renesas/r8a77980-cpg-mssr.c
+@@ -41,6 +41,7 @@ enum clk_ids {
+ 	CLK_S2,
+ 	CLK_S3,
+ 	CLK_SDSRC,
++	CLK_RPCSRC,
+ 	CLK_OCO,
+ 
+ 	/* Module Clocks */
+@@ -65,8 +66,14 @@ static const struct cpg_core_clk r8a77980_core_clks[] __initconst = {
+ 	DEF_FIXED(".s2",	CLK_S2,		   CLK_PLL1_DIV2,  4, 1),
+ 	DEF_FIXED(".s3",	CLK_S3,		   CLK_PLL1_DIV2,  6, 1),
+ 	DEF_FIXED(".sdsrc",	CLK_SDSRC,	   CLK_PLL1_DIV2,  2, 1),
++	DEF_BASE(".rpcsrc",	CLK_RPCSRC, CLK_TYPE_GEN3_RPCSRC, CLK_PLL1),
+ 	DEF_RATE(".oco",	CLK_OCO,           32768),
+ 
++	DEF_BASE("rpc",		R8A77980_CLK_RPC, CLK_TYPE_GEN3_RPC,
++		 CLK_RPCSRC),
++	DEF_BASE("rpcd2",	R8A77980_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2,
++		 R8A77980_CLK_RPC),
++
+ 	/* Core Clock Outputs */
+ 	DEF_FIXED("ztr",	R8A77980_CLK_ZTR,   CLK_PLL1_DIV2,  6, 1),
+ 	DEF_FIXED("ztrd2",	R8A77980_CLK_ZTRD2, CLK_PLL1_DIV2, 12, 1),
+@@ -164,6 +171,7 @@ static const struct mssr_mod_clk r8a77980_mod_clks[] __initconst = {
+ 	DEF_MOD("gpio1",		 911,	R8A77980_CLK_CP),
+ 	DEF_MOD("gpio0",		 912,	R8A77980_CLK_CP),
+ 	DEF_MOD("can-fd",		 914,	R8A77980_CLK_S3D2),
++	DEF_MOD("rpc-if",		 917,	R8A77980_CLK_RPC),
+ 	DEF_MOD("i2c4",			 927,	R8A77980_CLK_S0D6),
+ 	DEF_MOD("i2c3",			 928,	R8A77980_CLK_S0D6),
+ 	DEF_MOD("i2c2",			 929,	R8A77980_CLK_S3D2),
+-- 
+2.7.4
+
