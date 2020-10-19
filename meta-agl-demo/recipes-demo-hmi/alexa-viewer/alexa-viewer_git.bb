@@ -25,7 +25,7 @@ S  = "${WORKDIR}/git"
 
 inherit cmake_qt5 aglwgt
 
-OECMAKE_CXX_FLAGS_append = " ${@bb.utils.contains('DISTRO_FEATURES', 'agl-devel', '' , '-DQT_NO_DEBUG_OUTPUT', d)}"
+OECMAKE_CXX_FLAGS_append = " ${@bb.utils.contains('AGL_FEATURES', 'agl-devel', '' , '-DQT_NO_DEBUG_OUTPUT', d)}"
 
 RDEPENDS_${PN} = " \
 	libqtappfw \

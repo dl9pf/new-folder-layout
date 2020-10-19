@@ -124,5 +124,5 @@ SRC_URI_append = " file://netfilter.cfg"
 KERNEL_CONFIG_FRAGMENTS_append = " ${WORKDIR}/netfilter.cfg"
 
 # Enable support for SystemTap
-SRC_URI_append = " ${@bb.utils.contains('DISTRO_FEATURES', 'agl-devel', 'file://systemtap.cfg', '', d)}"
-KERNEL_CONFIG_FRAGMENTS_append = " ${@bb.utils.contains('DISTRO_FEATURES', 'agl-devel', '${WORKDIR}/systemtap.cfg', '', d)}"
+SRC_URI_append = " ${@bb.utils.contains('AGL_FEATURES', 'agl-devel', 'file://systemtap.cfg', '', d)}"
+KERNEL_CONFIG_FRAGMENTS_append = " ${@bb.utils.contains('AGL_FEATURES', 'agl-devel', '${WORKDIR}/systemtap.cfg', '', d)}"

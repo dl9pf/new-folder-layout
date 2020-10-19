@@ -28,7 +28,7 @@ PREFERRED_PROVIDER_virtual/kernel  = "linux-ti-staging"
 PREFERRED_VERSION_virtual/kernel  = "4.9"
 
 # DEFAULTTUNE for cortex-a8
-DISTRO_FEATURES_append = " agl-medium-arm-compiler"
+AGL_FEATURES_append = " agl-medium-arm-compiler"
 
 SECURITY_CFLAGS_pn-mozjs = ""
 SECURITY_LDFLAGS_pn-mozjs = ""

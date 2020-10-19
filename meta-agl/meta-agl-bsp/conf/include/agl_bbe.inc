@@ -30,7 +30,7 @@ PREFERRED_PROVIDER_virtual/mesa     = "mesa-gl"
 #-------------------------------------------------
 
 # DEFAULTTUNE for cortex-a8
-DISTRO_FEATURES_append = " agl-medium-arm-compiler"
+AGL_FEATURES_append = " agl-medium-arm-compiler"
 
 SECURITY_CFLAGS_pn-mozjs = ""
 SECURITY_LDFLAGS_pn-mozjs = ""

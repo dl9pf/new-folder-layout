@@ -31,7 +31,7 @@ AGL_APIS = " \
     agl-service-signal-composer \
     "
 
-DEMO_PRELOAD = "${@bb.utils.contains("DISTRO_FEATURES", "agl-cluster-demo-preload", "cluster-dashboard-demo-config", "",d)}"
+DEMO_PRELOAD = "${@bb.utils.contains("AGL_FEATURES", "agl-cluster-demo-preload", "cluster-dashboard-demo-config", "",d)}"
 
 RDEPENDS_${PN}_append = " \
     hmi-debug \

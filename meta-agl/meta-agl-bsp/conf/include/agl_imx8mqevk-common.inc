@@ -1,5 +1,3 @@
-DISTRO_FEATURES_append = " agl-medium-arm-compiler"
-
 # Force use of the community supported LTS kernel instead of the
 # default linux-imx
 IMX_DEFAULT_KERNEL_imx8mqevk = "linux-fslc-imx"

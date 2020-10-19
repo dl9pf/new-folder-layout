@@ -13,4 +13,4 @@ IMAGE_INSTALL_append = "\
     "
 
 IMAGE_FEATURES += "splash package-management ssh-server-dropbear"
-DISTRO_FEATURES_append = " agl-core-image-profile"
+AGL_FEATURES_append = " agl-core-image-profile"

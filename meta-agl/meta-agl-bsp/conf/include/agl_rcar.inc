@@ -1,7 +1,7 @@
 require conf/include/agl_rcar-nogfx.inc
 
 # Enable AGL virtualization features
-MACHINE_FEATURES_append = " agl-egvirt"
+#MACHINE_FEATURES_append = " agl-egvirt"
 
 # Enable Gfx Pkgs
 MACHINE_FEATURES_append = " gsx"

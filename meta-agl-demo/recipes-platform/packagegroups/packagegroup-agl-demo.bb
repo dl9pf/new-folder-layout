@@ -70,5 +70,5 @@ RDEPENDS_${PN} += " \
     ${LIN_DRIVERS} \
     ${DEMO_PLATFORM_CONF} \
     ${TTF_FONTS} \
-    ${@bb.utils.contains('DISTRO_FEATURES', 'webruntime', 'virtual/webruntime', '', d)} \
+    ${@bb.utils.contains('AGL_FEATURES', 'webruntime', 'virtual/webruntime', '', d)} \
     "

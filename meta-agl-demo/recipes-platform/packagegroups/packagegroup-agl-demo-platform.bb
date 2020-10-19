@@ -33,7 +33,7 @@ AGL_APPS = " \
     radio \
     settings \
     messaging \
-    ${@bb.utils.contains('DISTRO_FEATURES', 'agl-devel', 'taskmanager' , '', d)} \
+    ${@bb.utils.contains('AGL_FEATURES', 'agl-devel', 'taskmanager' , '', d)} \
     virtual/mixer \
     virtual/qtwayland-config \
     "
@@ -53,7 +53,7 @@ CLUSTER_SUPPORT_PACKAGES = " \
 	cluster-lin-bridging-config \
 	cluster-demo-simulator \
 "
-CLUSTER_SUPPORT = "${@bb.utils.contains("DISTRO_FEATURES", "agl-cluster-demo-support", "${CLUSTER_SUPPORT_PACKAGES}", "",d)}"
+CLUSTER_SUPPORT = "${@bb.utils.contains("AGL_FEATURES", "agl-cluster-demo-support", "${CLUSTER_SUPPORT_PACKAGES}", "",d)}"
 
 DEMO_UNIT_CONF ?= ""
 # Hook for demo platform configuration
@@ -68,12 +68,12 @@ DEMO_MAPS_LOCALE ?= "uk"
 DEMO_PRELOAD_MAPS = "${@bb.utils.contains("PREFERRED_RPROVIDER_virtual/navigation", "navigation", " navigation-maps-${DEMO_MAPS_LOCALE}", "",d)}"
 
 # Preload only if agl-demo-preload is set
-DEMO_PRELOAD = "${@bb.utils.contains("DISTRO_FEATURES", "agl-demo-preload", " ${DEMO_PRELOAD_MAPS} ${DEMO_UNIT_CONF} poiapp-api-key", "",d)}"
+DEMO_PRELOAD = "${@bb.utils.contains("AGL_FEATURES", "agl-demo-preload", " ${DEMO_PRELOAD_MAPS} ${DEMO_UNIT_CONF} poiapp-api-key", "",d)}"
 
 RDEPENDS_${PN}_append = " \
     qtquickcontrols2-agl \
     qtquickcontrols2-agl-style \
-    ${@bb.utils.contains('DISTRO_FEATURES', 'agl-devel', 'unzip' , '', d)} \
+    ${@bb.utils.contains('AGL_FEATURES', 'agl-devel', 'unzip' , '', d)} \
     ${AGL_APPS} \
     ${QTAGLEXTRAS} \
     ${CLUSTER_SUPPORT} \

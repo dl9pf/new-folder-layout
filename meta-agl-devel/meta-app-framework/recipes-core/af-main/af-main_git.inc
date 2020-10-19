@@ -24,7 +24,7 @@ systemd_units_root = "/var/local/lib/systemd"
 CFLAGS_append_agl-devel = " -DAGL_DEVEL"
 # only install sample keys in agl-devel mode
 # for production you need to deploy real keys
-EXTRA_OECMAKE_append_agl-sign-wgts = " ${@bb.utils.contains('DISTRO_FEATURES', 'agl-devel', '-DINSTALL_SAMPLE_KEYS=ON', '-DINSTALL_SAMPLE_KEYS=OFF', d)}"
+EXTRA_OECMAKE_append_agl-sign-wgts = " ${@bb.utils.contains('AGL_FEATURES', 'agl-devel', '-DINSTALL_SAMPLE_KEYS=ON', '-DINSTALL_SAMPLE_KEYS=OFF', d)}"
 
 
 
