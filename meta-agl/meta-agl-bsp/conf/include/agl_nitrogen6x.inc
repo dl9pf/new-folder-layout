@@ -1,4 +1,4 @@
-DISTRO_FEATURES_append = " agl-medium-arm-compiler"
+AGL_FEATURES_append = " agl-medium-arm-compiler"
 
 # This disables the Freescale/NXP Vivante GPU driver and enables
 # etnaviv support.

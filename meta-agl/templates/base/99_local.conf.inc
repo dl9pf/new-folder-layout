@@ -4,7 +4,7 @@
 
 # ARM 32bit 'medium' compiler (armv7thf instead of armv7ve)
 # (only use for CPUs <= cortex-a9 / w/o virt extension - e.g. cortex-a8)
-# DISTRO_FEATURES_append = " agl-medium-arm-compiler"
+# AGL_FEATURES_append = " agl-medium-arm-compiler"
 
 
 ######################

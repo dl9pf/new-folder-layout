@@ -23,7 +23,6 @@ PREFERRED_PROVIDER_virtual/mesa     = "mesa-gl"
 
 PACKAGES_MULTIMEDIA   = " \
     ipumm-fw \
-    ${@bb.utils.contains('DISTRO_FEATURES', 'pulseaudio', 'pulseaudio-misc' , '', d)}      \
 "
 
 PREFERRED_PROVIDER_virtual/kernel  = "linux-ti-staging"

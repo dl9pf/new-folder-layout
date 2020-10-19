@@ -1,5 +1,10 @@
 # Enable network bootable image and initrd/initramfs
 
+OVERRIDES .= ":netboot"
+# add 512MB of extra space in ext4 output image
+IMAGE_ROOTFS_EXTRA_SPACE = "524288"
+NETBOOT_ENABLED := "1"
+
 python () {
     if (bb.utils.contains("IMAGE_FSTYPES","live",True,False,d)):
         # typical case for Minnowboard Max

@@ -9,3 +9,9 @@ BBLAYERS =+ " \
 BBLAYERS =+ " \
    ${METADIR}/external/meta-iot-cloud \
 "
+
+
+# wam dependency
+BBLAYERS =+ " \
+   ${METADIR}/external/meta-python2 \
+"

@@ -24,7 +24,7 @@ RDEPENDS_${PN} = " \
   launcher \
 "
 
-RDEPENDS_append_${PN} = " ${@bb.utils.contains('DISTRO_FEATURES', 'AGLCI', 'homescreen-demo-ci', '', d)}"
+RDEPENDS_append_${PN} = " ${@bb.utils.contains('AGL_FEATURES', 'AGLCI', 'homescreen-demo-ci', '', d)}"
 
 # NOTE: Currently no coverage versions of these widgets, they should
 #       be added here when available.
