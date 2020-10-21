@@ -12,7 +12,5 @@ authors: Jan-Simon Möller <jsmoeller@linuxfoundation.org>, Martin Kelly <mkelly
 The following features are pulled:
 
 * agl-appfw-smack
-* agl-hmi-framework
-* agl-profile-graphical-qt5
 * agl-pipewire
 

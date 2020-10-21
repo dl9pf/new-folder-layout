@@ -10,13 +10,10 @@ All other profiles reuse the 'core' profile.
 
 The other profiles and their dependencies are currently:
 
-* agl-profile-core
+* agl-core
+  * agl-demo-platform
   * agl-profile-telematics
   * agl-profile-hud
-  * agl-profile-graphical
-  * agl-profile-graphical-html5
-  * agl-profile-graphical-qt5
-  * agl-demo-platform
 
 ## agl-profile-core
 
@@ -42,50 +39,6 @@ This is the SDK for systems without display including the AGL APIs.
 ## agl-profile-telematics
 
 N.N.
-
-## agl-profile-hud
-
-N.N.
-
-## agl-profile-graphical
-
-This profile contains a basic graphical system with wayland/weston.\
-It is used as a base for the more targeted profiles:
-
-* agl-profile-graphical-html5
-* agl-profile-graphical-qt5
-
-Part of this layer are the following images:
-
-* agl-image-weston
-
-### agl-image-weston
-
-Pure wayland + weston image but with all AGL service APIs.
-
-## agl-profile-graphical-html5
-
-This profile contains all components to build a html5 / web-based system and should be used as a base layer for further projects.\
-All AGL APIs are included.
-
-## agl-profile-graphical-qt5
-
-This profile is used as base for all projects that build on qt5 like the agl-demo-platform.\
-Part of this layer are the ffollowing images:
-
-* agl-image-graphical-qt5
-* agl-image-graphical-qt5-crosssdk\
-  (THIS IS THE SDK TARGET WE AIM TO USE FOR AGL-DEMO-PLATFORM IN THE END)
-
-All AGL APIs are included.
-
-### agl-image-graphical-qt5
-
-Image with wayland/weston and the qt5 packages installed.
-
-### agl-image-graphical-qt5-crosssdk
-
-SDK based on agl-image-graphical-qt5 suitable for development under qt5.
 
 ## agl-demo-platform
 

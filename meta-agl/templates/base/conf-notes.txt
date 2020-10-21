@@ -1,31 +1,11 @@
 Common targets are:
-- meta-agl layer:
+- meta-agl-core layer:
   - included by default
     * agl-image-boot                (just enough to boot)
     * agl-image-minimal             (minimal filesystem with APIs)
     * agl-image-minimal-crosssdk    (crosssdk for ^^)
 
-  - with 'agl-profile-graphical'
-    * agl-image-weston              (minimal filesystem with weston)
-
-  - with 'agl-profile-graphical-qt5'
-    * agl-image-graphical-qt5       (weston plus qt5 framework libs)
-    * agl-image-graphical-qt5-crosssdk  (crosssdk for ^^)
-
-  - with 'agl-profile-graphical-html5'
-    * agl-image-graphical-html5     (weston plus chromium for html5)
-
-  - with 'agl-profile-cluster'
-    * agl-image-cluster             (minimal image with APIs for cluster)
-
-  - with 'agl-profile-cluster-qt5'
-    * agl-image-cluster-qt5         (image with QT5 and APIs for cluster)
-
-  - with 'agl-profile-telematics'
-    * agl-image-telematics          (image with APIs for telematics)
-
-- meta-agl-cluster-demo layer:      (Instrument Cluster demo with UI)
-  - with 'agl-cluster-demo'
+- with 'agl-cluster-demo'
     * agl-cluster-demo-platform     (cluster demo image)
     * agl-cluster-demo-platform-crosssdk  (sdk for ^^)
     * agl-cluster-demo-qtcompositor (cluster demo using own compositor)

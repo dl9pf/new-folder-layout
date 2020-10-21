@@ -17,7 +17,7 @@
 # Additional free disk space created in the image in Kbytes.
 #IMAGE_ROOTFS_EXTRA_SPACE="524288"
 
-# meta-agl/meta-agl-profile-graphical/recipes-graphics/wayland/weston-init.bbappend
+# recipes-graphics/wayland/weston-init.bbappend
 # AGL's compositor is started instead of weston like so
 # AGL_DEFAULT_WESTONSTART ?= "/usr/bin/agl-compositor --config ${sysconfdir}/xdg/weston/weston.ini"
 # you can redefine it using this variable to go back to weston,
@@ -25,7 +25,7 @@
 # Especially the AGL demo apps will not work as-is.
 #AGL_DEFAULT_WESTONSTART = "/usr/bin/weston"
 
-# meta-agl-profile-graphical-qt5/recipes-qt/qt5/qtwayland_%.bbappend
+# recipes-qt/qt5/qtwayland_%.bbappend
 # This defines the QT integration. We default to xdg-shell
 # AGL_DEFAULT_WM_SHELL ?= "xdg-shell"
 # you can redefine it using this variable to e.g. use ivi-shell
