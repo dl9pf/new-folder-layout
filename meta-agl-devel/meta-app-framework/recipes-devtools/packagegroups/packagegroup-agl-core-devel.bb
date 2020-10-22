@@ -11,9 +11,6 @@ RDEPENDS_${PN} = "\
         lsof \
         gdb \
         valgrind \
-        perf \
-        htop \
-        powertop \
         screen \
         usbutils \
         rsync \
@@ -22,7 +19,6 @@ RDEPENDS_${PN} = "\
         procps \
         jq \
         libxslt-bin \
-        agl-service-network-tools \
         gcc-sanitizers \
         pciutils \
         pyagl \
