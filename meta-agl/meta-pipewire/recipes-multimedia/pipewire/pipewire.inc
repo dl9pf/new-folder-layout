@@ -1,4 +1,4 @@
-<SUMMARY     = "Multimedia processing server for Linux"
+SUMMARY     = "Multimedia processing server for Linux"
 HOMEPAGE    = "https://pipewire.org"
 BUGTRACKER  = "https://github.com/PipeWire/pipewire/issues"
 AUTHOR      = "Wim Taymans <wtaymans@redhat.com>"

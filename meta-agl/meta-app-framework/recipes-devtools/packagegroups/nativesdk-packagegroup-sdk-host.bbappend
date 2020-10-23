@@ -1,5 +1,1 @@
-RDEPENDS_${PN} += " \
-		nativesdk-af-main-tools \
-		nativesdk-af-binder-devtools \
-		nativesdk-cmake-apps-module \
-"
+require ${@bb.utils.contains('DISTRO_FEATURES', 'appfw', '${BPN}_appfw.inc', '', d)}

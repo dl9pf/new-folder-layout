@@ -1,4 +1,1 @@
-# Disable nss to avoid build issues on native
-PACKAGECONFIG = "gnutls libgcrypt openssl des"
-
-BBCLASSEXTEND = "native nativesdk"
+require ${@bb.utils.contains('DISTRO_FEATURES', 'appfw', '${BPN}_appfw.inc', '', d)}

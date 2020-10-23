@@ -1,6 +1,6 @@
 # enable security features (smack, cynagora) - required by Application Framework
 OVERRIDES .= ":with-lsm-smack"
-DISTRO_FEATURES_append = " smack xattr"
+DISTRO_FEATURES_append = " smack xattr appfw"
 DISTRO_FEATURES_NATIVE_append = " smack xattr"
 
 # use tar-native to support SMACK extended attributes independently of host config
