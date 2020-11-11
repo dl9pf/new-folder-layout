@@ -24,7 +24,7 @@ YOCTO_LAYERS = " \
 #   with some automotive tools/libraries
 #-----------------------------------------------------
 AGL_CORE_LAYERS = " \
-  ${METADIR}/meta-agl/meta-agl-profile-core \
+  ${METADIR}/meta-agl/meta-agl-core \
   ${METADIR}/meta-agl/meta-agl-distro \
   ${METADIR}/meta-agl/meta-agl-bsp \
   "
@@ -32,7 +32,6 @@ AGL_CORE_LAYERS = " \
 AGL_APPFW_LAYERS = " \
   ${METADIR}/external/meta-security \
   ${METADIR}/external/meta-openembedded/meta-perl \
-  ${METADIR}/meta-agl/meta-security \
   ${METADIR}/meta-agl/meta-app-framework \
     "
 
@@ -59,7 +58,7 @@ BBLAYERS ?= " \
 BBLAYERS_NON_REMOVABLE ?= " \
   ${METADIR}/external/poky/meta \
   ${METADIR}/external/poky/meta-poky \
-  ${METADIR}/meta-agl/meta-agl-profile-core \
+  ${METADIR}/meta-agl/meta-agl-core \
   ${METADIR}/meta-agl/meta-agl-distro \
   "
 

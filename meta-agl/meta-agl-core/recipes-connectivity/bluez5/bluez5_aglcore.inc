@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${BPN}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/bluez5:"
 SRC_URI_append = " \
     file://bluetooth.conf \
     file://tmpdir.conf \

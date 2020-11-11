@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/bluez-alsa:"
 
 SRC_URI += "\
     file://0001-utils-add-a-gstreamer-helper-application-for-interco.patch \

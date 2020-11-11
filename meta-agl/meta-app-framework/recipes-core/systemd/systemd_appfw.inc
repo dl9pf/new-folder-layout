@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/systemd:"
 
 # Ensures systemd runs with label "System"
 EXTRA_OEMESON_append_with-lsm-smack = " -Dsmack-run-label=System"

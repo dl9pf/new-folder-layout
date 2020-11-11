@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/run-postinsts:"
 
 SRC_URI += "file://ldconfig-wait.conf"
 

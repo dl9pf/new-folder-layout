@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/systemd:"
 
 SRC_URI += "\
     file://0001-fix-udevd-seclabel-parsing.patch \
