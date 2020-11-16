@@ -71,4 +71,7 @@ RDEPENDS_${PN} += " \
     ${DEMO_PLATFORM_CONF} \
     ${TTF_FONTS} \
     ${@bb.utils.contains('AGL_FEATURES', 'webruntime', 'virtual/webruntime', '', d)} \
+    packagegroup-agl-core-connectivity \
+    packagegroup-agl-core-os-commonlibs \
+    packagegroup-agl-core-security \
     "

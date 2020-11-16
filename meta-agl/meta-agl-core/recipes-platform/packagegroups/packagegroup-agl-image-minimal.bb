@@ -16,9 +16,6 @@ RDEPENDS_${PN} += "\
     "
 
 RDEPENDS_${PN} += "\
-    packagegroup-agl-core-connectivity \
-    packagegroup-agl-core-os-commonlibs \
-    packagegroup-agl-core-security \
     "
 
 #FIXME

@@ -29,21 +29,9 @@ AGL_CORE_LAYERS = " \
   ${METADIR}/meta-agl/meta-agl-bsp \
   "
 
-AGL_APPFW_LAYERS = " \
-  ${METADIR}/external/meta-security \
-  ${METADIR}/external/meta-openembedded/meta-perl \
-  ${METADIR}/meta-agl/meta-app-framework \
-    "
-
-
 # These are the direct dependencies of the AGL CORE Layers
 #---------------------------------------------------------
 AGL_CORE_DEPENDENCY_LAYERS = " \
-  ${METADIR}/external/meta-openembedded/meta-oe \
-  ${METADIR}/external/meta-openembedded/meta-multimedia \
-  ${METADIR}/external/meta-openembedded/meta-networking \
-  ${METADIR}/external/meta-openembedded/meta-python \
-  ${METADIR}/external/meta-openembedded/meta-filesystems \
   "
 
 ####################
@@ -51,7 +39,6 @@ AGL_CORE_DEPENDENCY_LAYERS = " \
 BBLAYERS ?= " \
   ${AGL_CORE_DEPENDENCY_LAYERS} \
   ${AGL_CORE_LAYERS} \
-  ${AGL_APPFW_LAYERS} \
   ${YOCTO_LAYERS} \
   "
 

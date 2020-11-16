@@ -14,6 +14,10 @@ ALLOW_EMPTY_${PN} = "1"
 RDEPENDS_${PN} += "\
     packagegroup-agl-profile-graphical \
     packagegroup-agl-appfw-native-qt5 \
+    packagegroup-agl-graphical-services \
+    agl-login-manager \
+    agl-compositor \
+    packagegroup-agl-graphical-multimedia \
 "
 
 RDEPENDS_${PN} += "\

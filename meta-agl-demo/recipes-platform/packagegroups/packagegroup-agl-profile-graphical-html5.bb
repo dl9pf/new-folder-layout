@@ -14,6 +14,9 @@ ALLOW_EMPTY_${PN} = "1"
 RDEPENDS_${PN} += "\
     packagegroup-agl-profile-graphical \
     packagegroup-agl-appfw-html5 \
+    agl-login-manager \
+    agl-compositor \
+    packagegroup-agl-graphical-multimedia \
 "
 
 RDEPENDS_${PN} += "\
